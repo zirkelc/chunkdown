@@ -1,0 +1,110 @@
+{
+  "files.associations": {
+    "biome.json": "jsonc",
+    "turbo.json": "jsonc"
+  },
+  "files.exclude": {
+    "**/node_modules": false
+  },
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "quickfix.biome": "explicit"
+    // "source.organizeImports.biome": "explicit"
+  },
+  "editor.bracketPairColorization.enabled": false,
+  "editor.guides.bracketPairs": "active",
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  // TypeScript settings
+  "typescript.preferences.importModuleSpecifier": "relative",
+  // "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  // AWS Console settings
+  "awsconsole.ec2.region": "eu-west-1",
+  // Better comments settings
+  // https://github.com/aaron-bond/better-comments
+  "better-comments.multilineComments": true,
+  "better-comments.tags": [
+    {
+      "tag": "!",
+      "color": "#FF2D00",
+      "strikethrough": false,
+      "underline": false,
+      "backgroundColor": "transparent",
+      "bold": false,
+      "italic": false
+    },
+    {
+      "tag": "?",
+      "color": "#3498DB",
+      "strikethrough": false,
+      "underline": false,
+      "backgroundColor": "transparent",
+      "bold": false,
+      "italic": false
+    },
+    {
+      "tag": "TODO",
+      "color": "#FF8C00",
+      "strikethrough": false,
+      "underline": false,
+      "backgroundColor": "transparent",
+      "bold": false,
+      "italic": false
+    },
+    {
+      "tag": "*",
+      "color": "#98C379",
+      "strikethrough": false,
+      "underline": false,
+      "backgroundColor": "transparent",
+      "bold": false,
+      "italic": false
+    }
+  ],
+  // Terminals settings
+  // https://github.com/fabiospampinato/vscode-terminals/issues/63#issuecomment-1021520652
+  "terminals.showCommands": true,
+  // "terminal.integrated.persistentSessionReviveProcess": "never", // https://github.com/fabiospampinato/vscode-terminals/issues/63#issuecomment-1021520652
+  // Serverless Console settings
+  "serverlessConsole.services": [
+    {
+      "type": "serverlessFramework",
+      "title": null,
+      "awsProfile": "default",
+      "cwd": "./packages/api-chat",
+      "command": "pnpm serverless print",
+      "timeOffsetInMs": 0,
+      "envVars": [],
+      "stages": ["dev"]
+    },
+    {
+      "type": "serverlessFramework",
+      "title": null,
+      "awsProfile": "default",
+      "cwd": "./packages/app-chat-shopify",
+      "command": "pnpm serverless print",
+      "timeOffsetInMs": 0,
+      "envVars": [],
+      "stages": ["dev"]
+    }
+  ],
+  "serverlessConsole.autoRefreshInterval": 5000,
+  "serverlessConsole.groupPerRequest": true
+}
