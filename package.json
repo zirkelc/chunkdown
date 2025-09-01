@@ -1,12 +1,11 @@
 {
   "name": "chunkdown",
-  "version": "1.0.1-rc.0",
-  "description": "A tree-based markdown text splitter designed for optimal chunking with an embedding-first approach",
+  "version": "1.0.0-rc.0",
+  "description": "A tree-based markdown text splitter that understands document structure to create semantically meaningful chunks for RAG applications",
   "packageManager": "pnpm@9.0.0",
   "type": "module",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
     "./ast": "./src/ast.ts",
     "./splitter": "./src/splitter.ts",
     "./markdown": "./src/markdown.ts"
