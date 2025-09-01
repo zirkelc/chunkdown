@@ -290,7 +290,6 @@ function ChunkVisualizer({
 
   return (
     <div className="w-full">
-
       {/* Stats */}
       <div className="p-3 bg-gray-50 rounded-lg mb-4">
         <h4 className="text-sm font-medium text-black mb-3">Statistics</h4>

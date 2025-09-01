@@ -102,15 +102,23 @@ function TreeNode({
     } else if (node.type === 'table' && 'children' in node && node.children) {
       const rows = node.children.length;
       const firstRow = node.children[0];
-      const cols = (firstRow && 'children' in firstRow && firstRow.children) ? firstRow.children.length : 0;
+      const cols =
+        firstRow && 'children' in firstRow && firstRow.children
+          ? firstRow.children.length
+          : 0;
       label += ` (${rows}×${cols})`;
-    } else if (node.type === 'tableRow' && 'children' in node && node.children) {
+    } else if (
+      node.type === 'tableRow' &&
+      'children' in node &&
+      node.children
+    ) {
       label += ` (${node.children.length} cells)`;
     } else {
       // For any unknown node types, try to add useful info if available
       if ('value' in node && typeof node.value === 'string') {
         const text = node.value;
-        const truncated = text.length > 30 ? text.substring(0, 30) + '...' : text;
+        const truncated =
+          text.length > 30 ? text.substring(0, 30) + '...' : text;
         label += `: "${truncated}"`;
       } else if ('url' in node && typeof node.url === 'string') {
         label += `: ${node.url}`;

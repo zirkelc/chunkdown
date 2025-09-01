@@ -2,6 +2,7 @@
   "name": "chunkdown",
   "version": "1.0.1-rc.0",
   "description": "A tree-based markdown text splitter designed for optimal chunking with an embedding-first approach",
+  "packageManager": "pnpm@9.0.0",
   "type": "module",
   "types": "./src/index.ts",
   "exports": {
