@@ -38,7 +38,15 @@
     "chunk",
     "embedding"
   ],
-  "author": "Chris Cook",
+  "author": {
+    "name": "Chris Cook",
+    "email": "chris@zirkelc.dev",
+    "url": "https://zirkelc.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zirkelc/chunkdown.git"
+  },
   "license": "MIT",
   "files": [
     "dist"
@@ -56,7 +64,7 @@
     "@biomejs/biome": "2.1.3",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/mdast": "^4.0.4",
-    "tsdown": "^0.14.1",
+    "tsdown": "^0.14.2",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
