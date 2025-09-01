@@ -1,13 +1,4 @@
-import type {
-  Blockquote,
-  List,
-  ListItem,
-  Node,
-  Root,
-  RootContent,
-  Table,
-  TableRow,
-} from 'mdast';
+import type { Blockquote, List, Node, Root, RootContent, Table } from 'mdast';
 import {
   createHierarchicalAST,
   flattenHierarchicalAST,
@@ -17,7 +8,7 @@ import {
 } from './ast';
 import { fromMarkdown, toMarkdown, toString } from './markdown';
 
-interface ChunkdownOptions {
+export type ChunkdownOptions = {
   /**
    * Preferred chunk size.
    * Content size will be calculated using the actual text content without markdown formatting characters.
@@ -32,7 +23,7 @@ interface ChunkdownOptions {
    * to keep semantic units (sections, lists, code blocks) together.
    */
   maxOverflowRatio: number;
-}
+};
 
 // TODO
 type Breakpoints = {
@@ -52,31 +43,31 @@ type Breakpoint =
  * Represents a protected range in the text that should not be split
  * Contains the start and end positions and the type of the protected content
  */
-interface ProtectedRange {
+type ProtectedRange = {
   start: number;
   end: number;
   type: string;
-}
+};
 
 /**
  * Represents a structural boundary in the document
  * Used to identify natural breaking points in the text
  */
-interface StructuralBoundary {
+type StructuralBoundary = {
   position: number;
   type: string;
   priority: number;
-}
+};
 
 /**
  * Represents a sentence with its position information
  * Used for sentence-level text splitting
  */
-interface SentenceInfo {
+type SentenceInfo = {
   text: string;
   start: number;
   end: number;
-}
+};
 
 /**
  * Calculate the content size of markdown content or AST node
