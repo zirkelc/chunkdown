@@ -1,37 +1,68 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { createMarkdownSplitter } from '@text-splitter/core';
-import { MarkdownTextSplitter } from '@langchain/textsplitters';
+import {
+  CharacterTextSplitter,
+  MarkdownTextSplitter,
+  RecursiveCharacterTextSplitter,
+  type TextSplitter,
+} from '@langchain/textsplitters';
+import { chunkdown, getContentSize } from 'chunkdown/splitter';
+import type { MouseEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ChunkVisualizerProps {
   text: string;
-  title: string;
-  initialChunkSize: number;
-  globalChunkSize: number;
+  chunkSize: number;
   splitterType?: 'markdown' | 'character' | 'langchain-markdown';
+  maxOverflowRatio?: number;
+  langchainSplitterType?: 'markdown' | 'character' | 'sentence';
 }
 
-const ChunkVisualizer: React.FC<ChunkVisualizerProps> = ({ text, title, initialChunkSize, globalChunkSize, splitterType = 'markdown' }) => {
-  const [chunkSize, setChunkSize] = useState(initialChunkSize);
-  const [isOverridden, setIsOverridden] = useState(false);
+function ChunkVisualizer({
+  text,
+  chunkSize,
+  splitterType = 'markdown',
+  maxOverflowRatio = 1.5,
+  langchainSplitterType = 'markdown',
+}: ChunkVisualizerProps) {
   const [chunks, setChunks] = useState<string[]>([]);
   const [stats, setStats] = useState({
-    totalCharacters: 0,
+    inputCharacters: 0,
+    inputContentLength: 0,
+    outputCharacters: 0,
+    outputContentLength: 0,
     numberOfChunks: 0,
     avgChunkSize: 0,
+    avgContentSize: 0,
     minChunkSize: 0,
-    maxChunkSize: 0
+    minContentSize: 0,
+    maxChunkSize: 0,
+    maxContentSize: 0,
   });
 
-  // Use global chunk size unless overridden
-  const effectiveChunkSize = isOverridden ? chunkSize : globalChunkSize;
+  // Selection tooltip state
+  const [selection, setSelection] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const visualizationRef = useRef<HTMLDivElement>(null);
+
+  // Tooltip state
+  const [tooltip, setTooltip] = useState<{
+    text: string;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Use the provided chunk size directly
+  const effectiveChunkSize = chunkSize;
 
   // Generate colors for chunks
   const generateColors = (count: number): string[] => {
     const colors = [
       'bg-blue-200 text-black',
-      'bg-green-200 text-black', 
+      'bg-green-200 text-black',
       'bg-yellow-200 text-black',
       'bg-pink-200 text-black',
       'bg-purple-200 text-black',
@@ -39,9 +70,9 @@ const ChunkVisualizer: React.FC<ChunkVisualizerProps> = ({ text, title, initialC
       'bg-red-200 text-black',
       'bg-orange-200 text-black',
       'bg-teal-200 text-black',
-      'bg-cyan-200 text-black'
+      'bg-cyan-200 text-black',
     ];
-    
+
     const result = [];
     for (let i = 0; i < count; i++) {
       result.push(colors[i % colors.length]);
@@ -53,13 +84,25 @@ const ChunkVisualizer: React.FC<ChunkVisualizerProps> = ({ text, title, initialC
     const splitText = async () => {
       if (!text.trim()) {
         setChunks([]);
-        setStats({ totalCharacters: 0, numberOfChunks: 0, avgChunkSize: 0, minChunkSize: 0, maxChunkSize: 0 });
+        setStats({
+          inputCharacters: 0,
+          inputContentLength: 0,
+          outputCharacters: 0,
+          outputContentLength: 0,
+          numberOfChunks: 0,
+          avgChunkSize: 0,
+          avgContentSize: 0,
+          minChunkSize: 0,
+          minContentSize: 0,
+          maxChunkSize: 0,
+          maxContentSize: 0,
+        });
         return;
       }
 
       try {
         let newChunks: string[];
-        
+
         if (splitterType === 'character') {
           // Simple character-based splitting
           newChunks = [];
@@ -67,137 +110,345 @@ const ChunkVisualizer: React.FC<ChunkVisualizerProps> = ({ text, title, initialC
             newChunks.push(text.slice(i, i + effectiveChunkSize));
           }
         } else if (splitterType === 'langchain-markdown') {
-          // LangChain MarkdownTextSplitter
-          const splitter = new MarkdownTextSplitter({
-            chunkSize: effectiveChunkSize,
-            chunkOverlap: 0
-          });
+          // LangChain splitters based on type
+          let splitter: TextSplitter;
+
+          if (langchainSplitterType === 'markdown') {
+            splitter = new MarkdownTextSplitter({
+              chunkSize: effectiveChunkSize,
+              chunkOverlap: 0,
+            });
+          } else if (langchainSplitterType === 'character') {
+            splitter = new CharacterTextSplitter({
+              chunkSize: effectiveChunkSize,
+              chunkOverlap: 0,
+            });
+          } else {
+            // sentence
+            splitter = new RecursiveCharacterTextSplitter({
+              chunkSize: effectiveChunkSize,
+              chunkOverlap: 0,
+              separators: ['\n\n', '\n', '. ', '! ', '? ', ' ', ''],
+            });
+          }
+
           newChunks = await splitter.splitText(text);
         } else {
-          // Custom Markdown splitter
-          const splitter = createMarkdownSplitter({ chunkSize: effectiveChunkSize, maxOverflowRatio: 1.5 });
+          const splitter = chunkdown({
+            chunkSize: effectiveChunkSize,
+            maxOverflowRatio: maxOverflowRatio,
+          });
           newChunks = splitter.splitText(text);
         }
-        
+
         setChunks(newChunks);
-        
-        const totalChars = text.length;
+
+        // Input stats
+        const inputChars = text.length;
+        const inputContentLength = getContentSize(text);
+
+        // Calculate stats for each chunk
+        const chunkStats = newChunks.map((chunk) => ({
+          chars: chunk.length,
+          content: getContentSize(chunk),
+        }));
+
+        // Output stats (sum of chunks)
+        const outputChars = chunkStats.reduce(
+          (sum, stat) => sum + stat.chars,
+          0,
+        );
+        const outputContentLength = chunkStats.reduce(
+          (sum, stat) => sum + stat.content,
+          0,
+        );
+
         const numChunks = newChunks.length;
-        const avgChunkSize = numChunks > 0 ? Math.round(totalChars / numChunks * 10) / 10 : 0;
-        const minChunkSize = Math.min(...newChunks.map(chunk => chunk.length));
-        const maxChunkSize = Math.max(...newChunks.map(chunk => chunk.length));
-        
+
+        // Calculate min/max/avg for both char and content lengths
+        const chunkChars = chunkStats.map((s) => s.chars);
+        const chunkContent = chunkStats.map((s) => s.content);
+
+        const avgChunkSize =
+          numChunks > 0 ? Math.round((outputChars / numChunks) * 10) / 10 : 0;
+        const avgContentSize =
+          numChunks > 0
+            ? Math.round((outputContentLength / numChunks) * 10) / 10
+            : 0;
+
+        const minChunkSize = numChunks > 0 ? Math.min(...chunkChars) : 0;
+        const minContentSize = numChunks > 0 ? Math.min(...chunkContent) : 0;
+
+        const maxChunkSize = numChunks > 0 ? Math.max(...chunkChars) : 0;
+        const maxContentSize = numChunks > 0 ? Math.max(...chunkContent) : 0;
+
         setStats({
-          totalCharacters: totalChars,
+          inputCharacters: inputChars,
+          inputContentLength: inputContentLength,
+          outputCharacters: outputChars,
+          outputContentLength: outputContentLength,
           numberOfChunks: numChunks,
           avgChunkSize: avgChunkSize,
+          avgContentSize: avgContentSize,
           minChunkSize: minChunkSize,
-          maxChunkSize: maxChunkSize
+          minContentSize: minContentSize,
+          maxChunkSize: maxChunkSize,
+          maxContentSize: maxContentSize,
         });
       } catch (error) {
         console.error('Error splitting text:', error);
         setChunks([]);
-        setStats({ totalCharacters: 0, numberOfChunks: 0, avgChunkSize: 0, minChunkSize: 0, maxChunkSize: 0 });
+        setStats({
+          inputCharacters: 0,
+          inputContentLength: 0,
+          outputCharacters: 0,
+          outputContentLength: 0,
+          numberOfChunks: 0,
+          avgChunkSize: 0,
+          avgContentSize: 0,
+          minChunkSize: 0,
+          minContentSize: 0,
+          maxChunkSize: 0,
+          maxContentSize: 0,
+        });
       }
     };
 
     splitText();
-  }, [text, effectiveChunkSize, splitterType]);
+  }, [
+    text,
+    effectiveChunkSize,
+    splitterType,
+    maxOverflowRatio,
+    langchainSplitterType,
+  ]);
 
   const colors = generateColors(chunks.length);
 
+  // Handle text selection
+  const handleMouseUp = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+      setSelection(null);
+      return;
+    }
+
+    const selectedText = selection.toString();
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+
+    // Use viewport coordinates for fixed positioning
+    const x = rect.left + rect.width / 2;
+    const y = rect.top - 10; // 10px above selection
+
+    setSelection({
+      text: selectedText,
+      x,
+      y,
+    });
+  };
+
+  // Clear selection when clicking outside
+  const handleMouseDown = (e: MouseEvent) => {
+    // Check if clicking on the tooltip itself
+    const target = e.target as HTMLElement;
+    if (!target.closest('.selection-tooltip')) {
+      setSelection(null);
+    }
+  };
+
+  // Monitor for selection changes globally
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const selection = window.getSelection();
+      if (!selection || selection.isCollapsed || !selection.toString().trim()) {
+        setSelection(null);
+      }
+    };
+
+    // Listen for selection changes
+    document.addEventListener('selectionchange', handleSelectionChange);
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, []);
+
+  // Handle tooltip hover
+  const handleTooltipMouseEnter = (e: MouseEvent, text: string) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTooltip({
+      text,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8, // Position above the element
+    });
+  };
+
+  const handleTooltipMouseLeave = () => {
+    setTooltip(null);
+  };
+
   return (
     <div className="w-full">
-      {/* Title */}
-      <h3 className="text-lg font-bold mb-3 text-black">{title}</h3>
-      
-      {/* Controls */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <label htmlFor={`chunk-size-${title}`} className="text-sm font-medium text-black">
-            Chunk Size: {effectiveChunkSize} {!isOverridden && <span className="text-gray-500 text-xs">(global)</span>}
-          </label>
-          <button
-            onClick={() => {
-              if (isOverridden) {
-                setIsOverridden(false);
-              } else {
-                setChunkSize(globalChunkSize);
-                setIsOverridden(true);
-              }
-            }}
-            className="text-xs px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-black"
-          >
-            {isOverridden ? 'Use Global' : 'Override'}
-          </button>
-        </div>
-        
-        {isOverridden && (
-          <>
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                id={`chunk-size-${title}`}
-                type="range"
-                min="1"
-                max="2000"
-                value={chunkSize}
-                onChange={(e) => setChunkSize(Number(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-              />
-              <input
-                type="number"
-                min="1"
-                max="2000"
-                value={chunkSize}
-                onChange={(e) => setChunkSize(Number(e.target.value))}
-                className="w-16 px-1 py-1 border border-gray-300 rounded text-xs text-black"
-              />
-            </div>
-            <div className="flex justify-between text-xs text-black">
-              <span>1</span>
-              <span>2000</span>
-            </div>
-          </>
-        )}
-      </div>
 
       {/* Stats */}
-      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-        <div className="grid grid-cols-3 gap-2 text-center">
+      <div className="p-3 bg-gray-50 rounded-lg mb-4">
+        <h4 className="text-sm font-medium text-black mb-3">Statistics</h4>
+
+        <div className="grid grid-cols-3 gap-4 text-center">
+          {/* Input Length */}
           <div>
-            <div className="text-lg font-bold text-black">{stats.totalCharacters}</div>
-            <div className="text-xs text-black">Total Characters</div>
+            <div className="mb-2">
+              <div
+                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                onMouseEnter={(e) =>
+                  handleTooltipMouseEnter(
+                    e,
+                    'Original text length with markdown formatting, number in parentheses is content size without formatting',
+                  )
+                }
+                onMouseLeave={handleTooltipMouseLeave}
+              >
+                Input Length
+              </div>
+              <div className="font-bold text-black">
+                {stats.inputCharacters}{' '}
+                <span className="text-gray-500">
+                  ({stats.inputContentLength})
+                </span>
+              </div>
+            </div>
           </div>
+
+          {/* Output Length */}
           <div>
-            <div className="text-lg font-bold text-black">{stats.numberOfChunks}</div>
-            <div className="text-xs text-black">Number of chunks</div>
+            <div className="mb-2">
+              <div
+                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                onMouseEnter={(e) =>
+                  handleTooltipMouseEnter(
+                    e,
+                    'Combined length of all chunks with markdown formatting, number in parentheses is content size without formatting',
+                  )
+                }
+                onMouseLeave={handleTooltipMouseLeave}
+              >
+                Output Length
+              </div>
+              <div className="font-bold text-black">
+                {stats.outputCharacters}{' '}
+                <span className="text-gray-500">
+                  ({stats.outputContentLength})
+                </span>
+              </div>
+            </div>
           </div>
+
+          {/* Number of Chunks */}
           <div>
-            <div className="text-lg font-bold text-black">{stats.minChunkSize}</div>
-            <div className="text-xs text-black">Min chunk size</div>
+            <div className="mb-2">
+              <div
+                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                onMouseEnter={(e) =>
+                  handleTooltipMouseEnter(
+                    e,
+                    'How many chunks the text was split into',
+                  )
+                }
+                onMouseLeave={handleTooltipMouseLeave}
+              >
+                Number of Chunks
+              </div>
+              <div className="font-bold text-black text-lg">
+                {stats.numberOfChunks}
+              </div>
+            </div>
           </div>
+
+          {/* Min Size */}
           <div>
-            <div className="text-lg font-bold text-black">{stats.maxChunkSize}</div>
-            <div className="text-xs text-black">Max chunk size</div>
+            <div className="mb-2">
+              <div
+                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                onMouseEnter={(e) =>
+                  handleTooltipMouseEnter(
+                    e,
+                    'Smallest chunk length with markdown formatting, number in parentheses is content size without formatting',
+                  )
+                }
+                onMouseLeave={handleTooltipMouseLeave}
+              >
+                Min Size
+              </div>
+              <div className="font-bold text-black">
+                {stats.minChunkSize}{' '}
+                <span className="text-gray-500">({stats.minContentSize})</span>
+              </div>
+            </div>
           </div>
+
+          {/* Max Size */}
           <div>
-            <div className="text-lg font-bold text-black">{stats.avgChunkSize}</div>
-            <div className="text-xs text-black">Average chunk size</div>
+            <div className="mb-2">
+              <div
+                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                onMouseEnter={(e) =>
+                  handleTooltipMouseEnter(
+                    e,
+                    'Largest chunk length with markdown formatting, number in parentheses is content size without formatting',
+                  )
+                }
+                onMouseLeave={handleTooltipMouseLeave}
+              >
+                Max Size
+              </div>
+              <div className="font-bold text-black">
+                {stats.maxChunkSize}{' '}
+                <span className="text-gray-500">({stats.maxContentSize})</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Avg Size */}
+          <div>
+            <div className="mb-2">
+              <div
+                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                onMouseEnter={(e) =>
+                  handleTooltipMouseEnter(
+                    e,
+                    'Average chunk length with markdown formatting, number in parentheses is content size without formatting',
+                  )
+                }
+                onMouseLeave={handleTooltipMouseLeave}
+              >
+                Avg Size
+              </div>
+              <div className="font-bold text-black">
+                {stats.avgChunkSize}{' '}
+                <span className="text-gray-500">({stats.avgContentSize})</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Chunk Visualization */}
-      <div className="border rounded-lg p-4 bg-gray-50 min-h-[200px]">
+      <div
+        ref={visualizationRef}
+        className="border rounded-lg p-4 bg-gray-50 min-h-[200px] relative"
+        onMouseUp={handleMouseUp}
+        onMouseDown={handleMouseDown}
+      >
         {chunks.length > 0 ? (
           <div className="leading-relaxed text-sm font-mono">
             {chunks.map((chunk, index) => (
               <span
-                key={index}
+                key={`${index}`}
                 className={`${colors[index]} px-1 py-0.5`}
-                style={{ 
+                style={{
                   whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
                 }}
               >
                 {chunk}
@@ -209,9 +460,60 @@ const ChunkVisualizer: React.FC<ChunkVisualizerProps> = ({ text, title, initialC
             Enter some text to see the chunks visualization
           </div>
         )}
+
+        {/* Selection Tooltip */}
+        {selection && (
+          <div
+            className="selection-tooltip fixed z-50 bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg pointer-events-none"
+            style={{
+              left: `${selection.x}px`,
+              top: `${selection.y}px`,
+              transform: 'translate(-50%, -100%)',
+            }}
+          >
+            <div className="whitespace-nowrap">
+              {selection.text.length} chars ({getContentSize(selection.text)}{' '}
+              content)
+            </div>
+            <div
+              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full"
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: '4px solid transparent',
+                borderRight: '4px solid transparent',
+                borderTop: '4px solid rgb(17 24 39)',
+              }}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Stats Tooltip */}
+      {tooltip && (
+        <div
+          className="fixed z-50 bg-gray-900 text-white text-xs px-3 py-2 rounded shadow-lg pointer-events-none max-w-48 text-center"
+          style={{
+            left: `${tooltip.x}px`,
+            top: `${tooltip.y}px`,
+            transform: 'translate(-50%, -100%)', // Position fully above the element
+          }}
+        >
+          <div className="leading-tight">{tooltip.text}</div>
+          <div
+            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full"
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: '4px solid transparent',
+              borderRight: '4px solid transparent',
+              borderTop: '4px solid rgb(17 24 39)',
+            }}
+          />
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default ChunkVisualizer;

@@ -1,5 +1,5 @@
 {
-  "name": "@text-splitter/www",
+  "name": "chunkdown-www",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,8 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "chunkdown": "workspace:*",
     "@langchain/textsplitters": "^0.1.0",
-    "@text-splitter/core": "workspace:*",
+    "mdast-util-from-markdown": "^2.0.2",
     "next": "15.4.5",
     "react": "19.1.0",
     "react-dom": "19.1.0"

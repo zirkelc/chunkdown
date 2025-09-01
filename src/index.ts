@@ -1,0 +1,1 @@
+export { chunkdown } from './splitter';

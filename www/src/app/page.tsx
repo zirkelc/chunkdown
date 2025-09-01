@@ -1,17 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import ChunkVisualizer from '../components/ChunkVisualizer';
+import { useRouter, useSearchParams } from 'next/navigation';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import ASTVisualizer from '../components/ASTVisualizer';
+import ChunkVisualizer from '../components/ChunkVisualizer';
 
 const exampleTexts = {
-  custom: `One of the most important things I didn't understand about the world when I was a child is the degree to which the returns for performance are superlinear.
-
-Teachers and coaches implicitly told us the returns were linear. "You get out," I heard a thousand times, "what you put in." They meant well, but this is rarely true. If your product is only half as good as your competitor's, you don't get half as many customers. You get no customers, and you go out of business.
-
-It's obviously true that the returns for performance are superlinear in business. Some think this is a flaw of capitalism, and that if we changed the rules it would stop being true. But superlinear returns for performance are a feature of the world, not an artifact of rules we've invented. We see the same pattern in fame, power, military victories, knowledge, and even benefit to humanity. In all of these, the rich get richer.`,
-
-  technical: `# AI SDK Core
+  aiSdk: `# AI SDK Core
 
 Large Language Models (LLMs) are advanced programs that can understand, create, and engage with human language on a large scale.
 They are trained on vast amounts of written material to recognize patterns in language and predict what might come next in a given piece of text.
@@ -40,234 +35,573 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
 
 Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.`,
 
-  blog: `# The Future of Remote Work: Lessons from the Pandemic
+  lama: `The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [\[ˈʎama\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\[ˈʝama\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (_**Lama glama**_) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").
 
-The COVID-19 pandemic fundamentally changed how we think about work. What started as an emergency measure became a **permanent shift** for millions of workers worldwide.
+Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[\[2\]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions. When using a pack, they can carry about 25 to 30% of their body weight for 8 to 13 [km](https://en.wikipedia.org/wiki/Kilometre "Kilometre") (5–8 [miles](https://en.wikipedia.org/wiki/Mile "Mile")).[\[3\]](https://en.wikipedia.org/wiki/Llama#cite_note-OK_State-3) The name _llama_ (also historically spelled "lama" or "glama") was adopted by [European settlers](https://en.wikipedia.org/wiki/European_colonization_of_the_Americas "European colonization of the Americas") from [native Peruvians](https://en.wikipedia.org/wiki/Indigenous_people_in_Peru "Indigenous people in Peru").[\[4\]](https://en.wikipedia.org/wiki/Llama#cite_note-4)`,
 
-## Key Changes We've Observed
+  markdown: `# Markdown Showcase
 
-### 1. Technology Adoption
-Companies that previously resisted digital transformation were forced to adapt overnight. Video conferencing, collaborative tools, and cloud-based systems became essential infrastructure.
+This document demonstrates all markdown elements and their various syntax flavors.
 
-### 2. Work-Life Balance
-Remote work offered many employees better work-life balance, but it also blurred the boundaries between personal and professional time. The concept of "being always on" became a real challenge.
+## Headings
 
-### 3. Geographic Freedom
-*Location independence* opened new opportunities for both employees and employers:
-- Access to global talent pools
-- Reduced overhead costs
-- Environmental benefits from reduced commuting
+# H1 Heading
+## H2 Heading
+### H3 Heading
+#### H4 Heading
+##### H5 Heading
+###### H6 Heading
 
-## Challenges and Solutions
+Alternative H1 (Setext)
+=======================
 
-Despite the benefits, remote work isn't without challenges:
+Alternative H2 (Setext)
+-----------------------
 
-1. **Communication gaps** - Solved through structured check-ins and better documentation
-2. **Social isolation** - Addressed with virtual team building and hybrid schedules  
-3. **Productivity concerns** - Managed through outcome-based performance metrics
+## Text Formatting
 
-## Looking Forward
+**Bold text with asterisks** and __bold text with underscores__
 
-As we move beyond the pandemic, the future likely holds a hybrid model that combines the best of both worlds. Companies that embrace flexibility while maintaining strong culture and communication will thrive in this new landscape.
+*Italic text with asterisks* and _italic text with underscores_
 
-The remote work revolution isn't just about where we work—it's about *how* we work, and that transformation is here to stay.`,
+***Bold and italic*** and ___bold and italic___
 
-  academic: `# Abstract
+~~Strikethrough text~~
 
-This paper examines the impact of machine learning algorithms on natural language processing tasks, with particular focus on transformer architectures and their applications in text classification, sentiment analysis, and language generation. Our experiments demonstrate significant improvements in accuracy compared to traditional approaches.
+\`Inline code\` with backticks
 
-## 1. Introduction
+## Lists
 
-Natural Language Processing (NLP) has undergone rapid transformation in recent years, driven primarily by advances in deep learning and the availability of large-scale datasets. The introduction of attention mechanisms (Vaswani et al., 2017) and subsequently transformer-based models has revolutionized the field.
+### Unordered Lists (3 variants)
 
-## 2. Related Work
+- Item 1 with dash
+- Item 2 with dash
+  - Nested item
+  - Another nested item
 
-### 2.1 Traditional Approaches
-Early NLP systems relied heavily on rule-based methods and statistical models. Hidden Markov Models (HMMs) and Support Vector Machines (SVMs) were commonly used for tasks such as part-of-speech tagging and document classification.
+* Item 1 with asterisk
+* Item 2 with asterisk
+  * Nested item
+  * Another nested item
 
-### 2.2 Deep Learning Era
-The adoption of neural networks, particularly Recurrent Neural Networks (RNNs) and Long Short-Term Memory (LSTM) networks, marked a significant shift in NLP methodology. However, these approaches suffered from limitations in handling long sequences and parallel processing.
++ Item 1 with plus
++ Item 2 with plus
+  + Nested item
+  + Another nested item
 
-## 3. Methodology
+### Ordered Lists
 
-Our experimental setup consists of three primary components:
+1. First item
+2. Second item
+   1. Nested ordered item
+   2. Another nested item
+3. Third item
 
-1. **Data Collection**: We collected a corpus of 100,000 documents from various domains
-2. **Preprocessing**: Text normalization, tokenization, and feature extraction
-3. **Model Training**: Implementation of baseline and transformer models
+### Task Lists (GFM)
 
-### 3.1 Evaluation Metrics
-We employ standard evaluation metrics including precision, recall, F1-score, and accuracy. Statistical significance is tested using paired t-tests with α = 0.05.
+- [x] Completed task
+- [ ] Incomplete task
+- [x] Another completed task
 
-## 4. Results and Discussion
+## Links and Images
 
-The transformer-based models demonstrated superior performance across all evaluated tasks, with an average improvement of 15.3% in F1-score compared to traditional methods.
+[Regular link](https://example.com)
 
-## References
+[Link with title](https://example.com "This is a title")
 
-Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., ... & Polosukhin, I. (2017). Attention is all you need. Advances in neural information processing systems, 30.`,
+<https://autolink.com>
 
-  code: `/**
- * TextSplitter - A utility class for splitting text into chunks
- * Supports various splitting strategies and customizable parameters
- */
-class TextSplitter {
-  constructor(options = {}) {
-    this.chunkSize = options.chunkSize || 1000;
-    this.overlap = options.overlap || 100;
-    this.separators = options.separators || ['\\n\\n', '\\n', ' ', ''];
-  }
+![Image alt text](https://via.placeholder.com/150 "Image title")
 
-  /**
-   * Split text into chunks using the configured strategy
-   * @param {string} text - The input text to split
-   * @returns {Array<string>} - Array of text chunks
-   */
-  splitText(text) {
-    if (!text || typeof text !== 'string') {
-      throw new Error('Input must be a non-empty string');
-    }
+![Image without title](https://via.placeholder.com/100)
 
-    const chunks = [];
-    let currentChunk = '';
-    
-    // Split by paragraphs first
-    const paragraphs = text.split('\\n\\n');
-    
-    for (const paragraph of paragraphs) {
-      if (currentChunk.length + paragraph.length <= this.chunkSize) {
-        currentChunk += (currentChunk ? '\\n\\n' : '') + paragraph;
-      } else {
-        if (currentChunk) {
-          chunks.push(currentChunk);
-        }
-        
-        // Handle oversized paragraphs
-        if (paragraph.length > this.chunkSize) {
-          const subChunks = this._splitLongText(paragraph);
-          chunks.push(...subChunks);
-          currentChunk = '';
-        } else {
-          currentChunk = paragraph;
-        }
-      }
-    }
-    
-    if (currentChunk) {
-      chunks.push(currentChunk);
-    }
-    
-    return this._addOverlap(chunks);
-  }
+Reference-style [link][1] and [another link][reference].
 
-  /**
-   * Split text that exceeds chunk size
-   * @private
-   * @param {string} text - Text to split
-   * @returns {Array<string>} - Split chunks
-   */
-  _splitLongText(text) {
-    const chunks = [];
-    const sentences = text.split(/(?<=[.!?])\\s+/);
-    let currentChunk = '';
-    
-    for (const sentence of sentences) {
-      if (currentChunk.length + sentence.length <= this.chunkSize) {
-        currentChunk += (currentChunk ? ' ' : '') + sentence;
-      } else {
-        if (currentChunk) chunks.push(currentChunk);
-        currentChunk = sentence;
-      }
-    }
-    
-    if (currentChunk) chunks.push(currentChunk);
-    return chunks;
-  }
+[1]: https://example.com
+[reference]: https://example.com "Reference with title"
 
-  /**
-   * Add overlap between chunks for better context preservation
-   * @private
-   * @param {Array<string>} chunks - Input chunks
-   * @returns {Array<string>} - Chunks with overlap
-   */
-  _addOverlap(chunks) {
-    if (this.overlap === 0 || chunks.length <= 1) {
-      return chunks;
-    }
+## Code Blocks
 
-    const overlappedChunks = [chunks[0]];
-    
-    for (let i = 1; i < chunks.length; i++) {
-      const prevChunk = chunks[i - 1];
-      const currentChunk = chunks[i];
-      
-      // Extract overlap from previous chunk
-      const overlapText = prevChunk.slice(-this.overlap);
-      const newChunk = overlapText + '\\n' + currentChunk;
-      
-      overlappedChunks.push(newChunk);
-    }
-    
-    return overlappedChunks;
-  }
+### Fenced Code Blocks
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello, world!");
+  return true;
 }
+\`\`\`
 
-// Usage example
-const splitter = new TextSplitter({
-  chunkSize: 500,
-  overlap: 50
-});
+\`\`\`python
+def hello():
+    print("Hello, world!")
+    return True
+\`\`\`
 
-const text = "Your long document text here...";
-const chunks = splitter.splitText(text);
+\`\`\`
+Code block without language
+\`\`\`
 
-console.log(\`Split into \${chunks.length} chunks\`);
-chunks.forEach((chunk, index) => {
-  console.log(\`Chunk \${index + 1}: \${chunk.length} characters\`);
-});`
+### Indented Code Blocks
+
+    function indentedCode() {
+        return "This is indented code";
+    }
+
+## Tables (GFM)
+
+| Left Aligned | Center Aligned | Right Aligned |
+|:-------------|:--------------:|--------------:|
+| Cell 1       | Cell 2         | Cell 3        |
+| Long cell    | Short          | 123           |
+
+| Command | Description |
+| --- | --- |
+| git status | Show working tree status |
+| git diff | Show changes between commits |
+
+## Blockquotes
+
+> Simple blockquote
+>
+> Multiple lines in blockquote
+
+> ### Blockquote with heading
+>
+> **Bold text** in blockquote
+>
+> 1. Ordered list in blockquote
+> 2. Another item
+
+> Nested blockquotes
+>
+> > This is nested
+> >
+> > > And this is deeply nested
+
+## Horizontal Rules (3 variants)
+
+---
+
+***
+
+___
+
+## Line Breaks
+
+Line with two spaces at end
+Creates a line break
+
+Line with backslash\\
+Also creates a line break
+
+## HTML Elements
+
+<div>Raw HTML div</div>
+
+<strong>HTML strong tag</strong>
+
+<em>HTML emphasis tag</em>
+
+<!-- HTML comment -->
+
+## Escape Characters
+
+\\* Not italic \\*
+
+\\_ Not italic \\_
+
+\\# Not a heading
+
+\\[Not a link\\](not-a-url)
+
+## Special Characters and Entities
+
+&copy; &amp; &lt; &gt; &quot; &#39;
+
+## Mixed Complex Examples
+
+This paragraph contains **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. It also has a [link](https://example.com) and an ![image](https://via.placeholder.com/16).
+
+### Complex List Example
+
+1. First item with **bold text**
+   - Nested unordered item with *italic*
+   - Another nested item with \`code\`
+   - [ ] Task item in nested list
+   - [x] Completed task
+2. Second item with [link](https://example.com)
+   \`\`\`javascript
+   // Code block in list item
+   const example = true;
+   \`\`\`
+3. Third item with blockquote:
+   > This is a blockquote inside a list item
+   > with multiple lines
+
+### Table with Complex Content
+
+| Element | Syntax Variants | Example |
+|---------|----------------|---------|
+| Bold | \`**text**\` or \`__text__\` | **bold** and __bold__ |
+| Italic | \`*text*\` or \`_text_\` | *italic* and _italic_ |
+| Code | \`\\\`text\\\`\` | \`code\` |
+| Link | \`[text](url)\` | [example](https://example.com) |
+
+## Edge Cases
+
+Empty lines:
+
+
+
+Multiple spaces:     (5 spaces)
+
+Trailing spaces:
+
+Mixed formatting: ***Really*** important **and *nested* formatting**
+
+Autolinks: https://example.com and email@example.com
+
+Footnotes (if supported):
+Here's a sentence with a footnote[^1].
+
+[^1]: This is the footnote content.
+
+---
+
+*This document showcases most markdown elements and syntax variations.*`,
 };
 
 const tabs = [
-  { id: 'custom', label: 'Custom', description: 'Your own text' },
-  { id: 'technical', label: 'Technical Docs', description: 'API documentation' },
-  { id: 'blog', label: 'Blog Post', description: 'Markdown blog content' },
-  { id: 'academic', label: 'Academic Paper', description: 'Research paper' },
-  { id: 'code', label: 'Code', description: 'JavaScript code' }
+  {
+    id: 'aiSdk',
+    label: 'AI SDK Core',
+    description: 'API documentation',
+  },
+  { id: 'lama', label: 'Llama', description: 'Markdown content about llamas' },
+  { id: 'markdown', label: 'Markdown', description: 'Markdown content' },
 ];
 
-export default function Home() {
-  const [activeTab, setActiveTab] = useState('custom');
-  const [texts, setTexts] = useState(exampleTexts);
-  const [globalChunkSize, setGlobalChunkSize] = useState(200);
+// Helper functions for URL state
+const encodeText = (text: string) => {
+  try {
+    return btoa(unescape(encodeURIComponent(text)));
+  } catch {
+    return '';
+  }
+};
 
-  const updateText = (tabId, newText) => {
-    setTexts(prev => ({ ...prev, [tabId]: newText }));
+const decodeText = (encoded: string) => {
+  try {
+    return decodeURIComponent(escape(atob(encoded)));
+  } catch {
+    return '';
+  }
+};
+
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [activeTab, setActiveTab] =
+    useState<keyof typeof exampleTexts>('aiSdk');
+  const [texts, setTexts] = useState(exampleTexts);
+  const [customChunkSize, setCustomChunkSize] = useState(200);
+  const [langchainChunkSize, setLangchainChunkSize] = useState(200);
+  const [syncChunkSizes, setSyncChunkSizes] = useState(true);
+  const [astCollapsed, setAstCollapsed] = useState(false);
+  const [maxOverflowRatio, setMaxOverflowRatio] = useState(1.5);
+  const [langchainSplitterType, setLangchainSplitterType] = useState<
+    'markdown' | 'character' | 'sentence'
+  >('markdown');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Toast state
+  const [toast, setToast] = useState<{
+    message: string;
+    visible: boolean;
+  }>({ message: '', visible: false });
+
+  // Debounce timer for text updates
+  const [textUpdateTimer, setTextUpdateTimer] = useState<NodeJS.Timeout | null>(
+    null,
+  );
+
+  // Load state from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Load tab first
+    const tab = params.get('tab');
+    if (tab && tabs.some((t) => t.id === tab)) {
+      setActiveTab(tab as keyof typeof exampleTexts);
+    }
+
+    // Load text and apply to current tab
+    const encodedText = params.get('text');
+    if (encodedText) {
+      const decodedText = decodeText(encodedText);
+      if (decodedText) {
+        const currentTab = (tab || 'aiSdk') as keyof typeof exampleTexts;
+        setTexts((prev) => ({ ...prev, [currentTab]: decodedText }));
+      }
+    }
+
+    // Load chunk sizes
+    const customSize = params.get('customSize');
+    if (customSize) {
+      const size = parseInt(customSize, 10);
+      if (!isNaN(size) && size >= 1 && size <= 2000) {
+        setCustomChunkSize(size);
+      }
+    }
+
+    const langchainSize = params.get('langchainSize');
+    if (langchainSize) {
+      const size = parseInt(langchainSize, 10);
+      if (!isNaN(size) && size >= 1 && size <= 2000) {
+        setLangchainChunkSize(size);
+      }
+    }
+
+    // Load AST collapsed state
+    const collapsed = params.get('astCollapsed');
+    setAstCollapsed(collapsed === 'true');
+
+    // Load max overflow ratio
+    const overflow = params.get('maxOverflow');
+    if (overflow) {
+      const ratio = parseFloat(overflow);
+      if (!isNaN(ratio) && ratio >= 1.0 && ratio <= 3.0) {
+        setMaxOverflowRatio(ratio);
+      }
+    }
+
+    // Load LangChain splitter type
+    const langchainType = params.get('langchainType');
+    if (
+      langchainType &&
+      ['markdown', 'character', 'sentence'].includes(langchainType)
+    ) {
+      setLangchainSplitterType(
+        langchainType as 'markdown' | 'character' | 'sentence',
+      );
+    }
+
+    // Load sync state
+    const syncDisabled = params.get('syncDisabled');
+    setSyncChunkSizes(syncDisabled !== 'true');
+
+    setIsInitialized(true);
+  }, [searchParams]);
+
+  // Update URL when state changes
+  const updateURL = useCallback(() => {
+    if (!isInitialized) return;
+
+    const params = new URLSearchParams();
+
+    // Always encode the current active text
+    const currentText = texts[activeTab];
+    if (currentText) {
+      params.set('text', encodeText(currentText));
+    }
+
+    // Store the tab
+    params.set('tab', activeTab);
+
+    if (customChunkSize !== 200) {
+      params.set('customSize', customChunkSize.toString());
+    }
+
+    if (langchainChunkSize !== 200) {
+      params.set('langchainSize', langchainChunkSize.toString());
+    }
+
+    if (astCollapsed) {
+      params.set('astCollapsed', 'true');
+    }
+
+    if (maxOverflowRatio !== 1.5) {
+      params.set('maxOverflow', maxOverflowRatio.toString());
+    }
+
+    if (langchainSplitterType !== 'markdown') {
+      params.set('langchainType', langchainSplitterType);
+    }
+
+    if (!syncChunkSizes) {
+      params.set('syncDisabled', 'true');
+    }
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '/';
+    router.replace(newUrl, { scroll: false });
+  }, [
+    activeTab,
+    texts,
+    customChunkSize,
+    langchainChunkSize,
+    syncChunkSizes,
+    astCollapsed,
+    maxOverflowRatio,
+    langchainSplitterType,
+    isInitialized,
+    router,
+  ]);
+
+  // Update URL when state changes (with debouncing for text)
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    // Always debounce text updates
+    const timer = setTimeout(() => {
+      updateURL();
+    }, 500);
+
+    setTextUpdateTimer((prevTimer) => {
+      if (prevTimer) {
+        clearTimeout(prevTimer);
+      }
+      return timer;
+    });
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isInitialized, updateURL]);
+
+  const updateText = (tabId: keyof typeof exampleTexts, newText: string) => {
+    setTexts((prev) => ({ ...prev, [tabId]: newText }));
+  };
+
+  // Handle chunk size changes - breaks sync when values differ
+  const handleCustomChunkSizeChange = (value: number) => {
+    setCustomChunkSize(value);
+    if (syncChunkSizes) {
+      setLangchainChunkSize(value);
+    } else {
+      // Break sync if values become different
+      if (value !== langchainChunkSize) {
+        setSyncChunkSizes(false);
+      }
+    }
+  };
+
+  const handleLangchainChunkSizeChange = (value: number) => {
+    setLangchainChunkSize(value);
+    if (syncChunkSizes) {
+      setCustomChunkSize(value);
+    } else {
+      // Break sync if values become different
+      if (value !== customChunkSize) {
+        setSyncChunkSizes(false);
+      }
+    }
+  };
+
+  // Toggle sync function - enables sync (averaging values) or disables it
+  const handleSync = () => {
+    if (!syncChunkSizes) {
+      // Enable sync - average the two values
+      const avgValue = Math.round((customChunkSize + langchainChunkSize) / 2);
+      setCustomChunkSize(avgValue);
+      setLangchainChunkSize(avgValue);
+      setSyncChunkSizes(true);
+    } else {
+      // Disable sync - switch to override mode
+      setSyncChunkSizes(false);
+    }
   };
 
   const activeText = texts[activeTab];
+
+  // Share functionality
+  const handleShare = async () => {
+    try {
+      const currentUrl = window.location.href;
+      await navigator.clipboard.writeText(currentUrl);
+
+      setToast({ message: 'URL copied to clipboard!', visible: true });
+
+      // Hide toast after 3 seconds
+      setTimeout(() => {
+        setToast({ message: '', visible: false });
+      }, 3000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+      setToast({ message: 'Failed to copy URL', visible: true });
+
+      setTimeout(() => {
+        setToast({ message: '', visible: false });
+      }, 3000);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 font-mono">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-black">SplitUp</h1>
+        <div className="text-center mb-8 relative">
+          <h1 className="text-4xl font-bold mb-2 text-black">
+            Chunk Visualizer
+          </h1>
           <p className="text-black">
+            Visual comparison of chunks created by{' '}
+            <a
+              href="https://www.npmjs.com/package/chunkdown"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline font-mono"
+            >
+              chunkdown
+            </a>{' '}
+            and LangChain's{' '}
+            <a
+              href="https://www.npmjs.com/package/@langchain/textsplitters"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline font-mono"
+            >
+              @langchain/textsplitters
+            </a>{' '}
+            library
           </p>
+
+          {/* Share Button */}
+          <button
+            onClick={handleShare}
+            type="button"
+            title="Copy shareable URL to clipboard"
+            className="absolute top-0 right-0 flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"
+              />
+            </svg>
+            <span className="text-sm font-medium">Share</span>
+          </button>
         </div>
 
         {/* Input Section with AST Visualization */}
         <div className="mb-8">
-          <label className="block text-sm font-medium mb-3 text-black">
-            Input Text
-          </label>
-          
           {/* Tab Navigation */}
           <div className="flex space-x-1 mb-4 bg-white p-1 rounded-lg border">
             {tabs.map((tab) => (
               <button
+                type="button"
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() =>
+                  setActiveTab(tab.id as keyof typeof exampleTexts)
+                }
                 className={`flex-1 px-3 py-2 text-sm rounded-md transition-colors ${
                   activeTab === tab.id
                     ? 'bg-blue-500 text-white'
@@ -279,11 +613,19 @@ export default function Home() {
               </button>
             ))}
           </div>
-          
+
           {/* Two column layout: Textarea and AST */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Textarea */}
             <div>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="text-input"
+                  className="text-sm font-bold text-black"
+                >
+                  Input Text
+                </label>
+              </div>
               <textarea
                 id="text-input"
                 value={activeText}
@@ -292,72 +634,272 @@ export default function Home() {
                 placeholder="Enter your text here..."
               />
             </div>
-            
+
             {/* AST Visualization */}
-            <div className="h-[500px]">
-              <ASTVisualizer text={activeText} />
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="ast-view-mode"
+                    className="text-sm font-bold text-black"
+                  >
+                    Markdown AST
+                  </label>
+                  <button
+                    onClick={() => setAstCollapsed(!astCollapsed)}
+                    type="button"
+                    title={astCollapsed ? 'Expand tree' : 'Collapse tree'}
+                    className="w-4 h-4 text-gray-500 hover:text-gray-700 flex items-center justify-center"
+                  >
+                    {astCollapsed ? '+' : '−'}
+                  </button>
+                </div>
+              </div>
+              <div className="h-[500px]">
+                <ASTVisualizer
+                  text={activeText}
+                  collapseAll={astCollapsed}
+                  onCollapseAllChange={setAstCollapsed}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Global Chunk Size Control */}
-        <div className="mb-8 p-4 bg-white rounded-lg border">
-          <label htmlFor="global-chunk-size" className="block text-sm font-medium mb-2 text-black">
-            Global Chunk Size
-          </label>
-          <div className="flex items-center gap-4 mb-2">
-            <input
-              id="global-chunk-size"
-              type="range"
-              min="1"
-              max="2000"
-              value={globalChunkSize}
-              onChange={(e) => setGlobalChunkSize(Number(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-            />
-            <input
-              type="number"
-              min="1"
-              max="2000"
-              value={globalChunkSize}
-              onChange={(e) => setGlobalChunkSize(Number(e.target.value))}
-              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm text-black"
-            />
+        {/* Controls Section */}
+        <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
+            {/* Sync control positioned between the sliders */}
+            <div className="absolute left-1/2 transform -translate-x-1/2 top-[65px] lg:block hidden z-10">
+              {/* Sync Button */}
+              <button
+                onClick={handleSync}
+                type="button"
+                title={
+                  syncChunkSizes
+                    ? 'Click to unsync chunk sizes'
+                    : 'Click to sync chunk sizes'
+                }
+                className={`mx-3 p-1.5 rounded-full transition-all duration-200 ${
+                  syncChunkSizes
+                    ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-md'
+                    : 'bg-white text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2.5}
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Left Controls */}
+            <div>
+              <h3 className="text-lg font-bold mb-3 text-black">chunkdown</h3>
+              <div className="mb-4">
+                {/* Chunk Size Control */}
+                <div className="mb-3">
+                  <label
+                    htmlFor="chunk-size-custom"
+                    className="block text-sm font-medium mb-1 text-black"
+                  >
+                    Chunk Size: {customChunkSize}
+                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      id="chunk-size-custom"
+                      type="range"
+                      min="1"
+                      max="2000"
+                      value={customChunkSize}
+                      onChange={(e) =>
+                        handleCustomChunkSizeChange(Number(e.target.value))
+                      }
+                      className={`flex-1 h-2 rounded-lg appearance-none cursor-pointer slider transition-colors duration-200 ${
+                        syncChunkSizes ? 'bg-blue-100' : 'bg-gray-200'
+                      }`}
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      max="2000"
+                      value={customChunkSize}
+                      onChange={(e) =>
+                        handleCustomChunkSizeChange(Number(e.target.value))
+                      }
+                      className="w-16 px-1 py-1 border border-gray-300 rounded text-xs text-black bg-white"
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-black">
+                    <span>1</span>
+                    <span>2000</span>
+                  </div>
+                </div>
+
+                {/* Max Overflow Ratio Control */}
+                <div className="mb-3">
+                  <label
+                    htmlFor="max-overflow-custom"
+                    className="block text-sm font-medium mb-1 text-black"
+                  >
+                    Max Overflow Ratio: {maxOverflowRatio}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="max-overflow-custom"
+                      type="range"
+                      min="1.0"
+                      max="3.0"
+                      step="0.1"
+                      value={maxOverflowRatio}
+                      onChange={(e) =>
+                        setMaxOverflowRatio(Number(e.target.value))
+                      }
+                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                    />
+                    <input
+                      type="number"
+                      min="1.0"
+                      max="3.0"
+                      step="0.1"
+                      value={maxOverflowRatio}
+                      onChange={(e) =>
+                        setMaxOverflowRatio(Number(e.target.value))
+                      }
+                      className="w-16 px-1 py-1 border border-gray-300 rounded text-xs text-black bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Controls */}
+            <div>
+              <h3 className="text-lg font-bold mb-3 text-black">
+                @langchain/textsplitters
+              </h3>
+              <div className="mb-4">
+                {/* Chunk Size Control */}
+                <div className="mb-3">
+                  <label
+                    htmlFor="chunk-size-langchain"
+                    className="block text-sm font-medium mb-1 text-black"
+                  >
+                    Chunk Size: {langchainChunkSize}
+                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      id="chunk-size-langchain"
+                      type="range"
+                      min="1"
+                      max="2000"
+                      value={langchainChunkSize}
+                      onChange={(e) =>
+                        handleLangchainChunkSizeChange(Number(e.target.value))
+                      }
+                      className={`flex-1 h-2 rounded-lg appearance-none cursor-pointer slider transition-colors duration-200 ${
+                        syncChunkSizes ? 'bg-blue-100' : 'bg-gray-200'
+                      }`}
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      max="2000"
+                      value={langchainChunkSize}
+                      onChange={(e) =>
+                        handleLangchainChunkSizeChange(Number(e.target.value))
+                      }
+                      className="w-16 px-1 py-1 border border-gray-300 rounded text-xs text-black bg-white"
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-black">
+                    <span>1</span>
+                    <span>2000</span>
+                  </div>
+                </div>
+
+                {/* LangChain Splitter Type Selection */}
+                <div className="mb-3">
+                  <label
+                    htmlFor="langchain-type"
+                    className="block text-sm font-medium mb-1 text-black"
+                  >
+                    Splitter Type
+                  </label>
+                  <select
+                    id="langchain-type"
+                    value={langchainSplitterType}
+                    onChange={(e) =>
+                      setLangchainSplitterType(
+                        e.target.value as 'markdown' | 'character' | 'sentence',
+                      )
+                    }
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-black bg-white"
+                  >
+                    <option value="markdown">Markdown</option>
+                    <option value="character">Character</option>
+                    <option value="sentence">Sentence</option>
+                  </select>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-black">
-            <span>1</span>
-            <span>2000</span>
-          </div>
-          <p className="text-xs text-gray-600 mt-2">
-            This sets the chunk size for all splitters. Use individual controls below to override for specific splitters.
-          </p>
         </div>
 
         {/* Visualization Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          <ChunkVisualizer 
-            text={activeText} 
-            title="Custom Markdown Splitter"
-            initialChunkSize={200}
-            globalChunkSize={globalChunkSize}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <ChunkVisualizer
+            text={activeText}
+            chunkSize={customChunkSize}
             splitterType="markdown"
+            maxOverflowRatio={maxOverflowRatio}
           />
-          <ChunkVisualizer 
-            text={activeText} 
-            title="LangChain Markdown Splitter"
-            initialChunkSize={200}
-            globalChunkSize={globalChunkSize}
+          <ChunkVisualizer
+            text={activeText}
+            chunkSize={langchainChunkSize}
             splitterType="langchain-markdown"
-          />
-          <ChunkVisualizer 
-            text={activeText} 
-            title="Character Splitter"
-            initialChunkSize={100}
-            globalChunkSize={globalChunkSize}
-            splitterType="character"
+            langchainSplitterType={langchainSplitterType}
           />
         </div>
+
+        {/* Toast Notification */}
+        {toast.visible && (
+          <div className="fixed bottom-4 right-4 z-50 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 ease-in-out">
+            {toast.message}
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 py-8 font-mono">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-2 text-black">
+                Chunk Visualizer
+              </h1>
+              <p className="text-black">Loading...</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }

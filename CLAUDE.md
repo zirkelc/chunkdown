@@ -16,7 +16,12 @@ This is a TypeScript library that provides an AST-based Markdown text splitter w
    - Section-aware chunking logic that combines related content (headings + following content)
    - Hierarchical text splitting fallback for oversized content
 
-2. **text-splitter.test.ts** - Comprehensive test suite using Vitest that validates:
+2. **hierarchical-ast.ts** - AST transformation utilities:
+   - `createHierarchicalAST()` - Transforms flat mdast AST into hierarchical sections
+   - `Section` interface representing headings with their associated content
+   - Helper functions for working with hierarchical AST structures
+
+3. **text-splitter.test.ts** - Comprehensive test suite using Vitest that validates:
    - Basic functionality and chunk size limits
    - Markdown formatting preservation
    - Breaking point behavior at different levels (paragraphs, sentences, punctuation, words)
@@ -25,9 +30,15 @@ This is a TypeScript library that provides an AST-based Markdown text splitter w
 
 The splitter uses a multi-step approach:
 1. Parse markdown into AST using mdast
-2. Split at natural boundaries (headings, paragraphs, code blocks, etc.)
-3. Apply section-aware chunking to combine related content when it fits
+2. Transform AST into hierarchical sections (headings contain their content)
+3. Apply top-down chunking with intelligent overflow for semantic preservation
 4. Fall back to hierarchical text splitting (sentences → punctuation → words) for oversized content
+
+Key features:
+- **Hierarchical Structure**: Understands document organization and heading relationships
+- **Semantic Preservation**: Keeps related content together when possible
+- **Soft Size Limits**: Allows controlled overflow to maintain coherence
+- **Content-Type Awareness**: Makes smart decisions for code blocks, tables, lists
 
 ## Development Commands
 

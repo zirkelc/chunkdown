@@ -16,18 +16,26 @@
       "cwd": "${fileDirname}"
     },
     {
-      "type": "node-terminal",
+      "type": "node",
       "name": "Vitest Test (run)",
       "request": "launch",
-      "command": "pnpm vitest run ${relativeFile}",
-      "cwd": "${workspaceRoot}"
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceRoot}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${relativeFile}"],
+      "smartStep": true,
+      "console": "integratedTerminal"
     },
     {
-      "type": "node-terminal",
+      "type": "node",
       "name": "Vitest Test (watch)",
       "request": "launch",
-      "command": "pnpm vitest ${relativeFile}",
-      "cwd": "${workspaceRoot}"
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "program": "${workspaceRoot}/node_modules/vitest/vitest.mjs",
+      "args": ["${relativeFile}"],
+      "smartStep": true,
+      "console": "integratedTerminal"
     }
   ]
 }
