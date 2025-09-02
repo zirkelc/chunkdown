@@ -436,6 +436,32 @@ End of list.`;
       expect(chunks[4]).toBe('End of list.');
     });
 
+    it('should preserve ordered list numbering when splitting', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `Instructions:
+
+1. First step with some content
+2. Second step with some content
+3. Third step with some content
+4. Fourth step with some content
+5. Fifth step with some content
+6. Sixth step with some content
+
+End of instructions.`;
+      const chunks = splitter.splitText(text);
+
+      // Find the chunks containing ordered list items
+      const listChunks = chunks.filter((chunk) => /^\d+\./.test(chunk.trim()));
+
+      expect(listChunks.length).toBe(6);
+      for (let i = 1; i < listChunks.length; i++) {
+        expect(listChunks[i]).toMatch(new RegExp(`^[${i + 1}]\.`));
+      }
+    });
+
     it('should keep tables together if possible', () => {
       const splitter = chunkdown({
         chunkSize: 50,
@@ -1077,7 +1103,7 @@ Here's a sentence with a footnote[^1].
              // Code block in list item
              const example = true;
              \`\`\`",
-            "1. Third item with blockquote:
+            "3. Third item with blockquote:
              > This is a blockquote inside a list item
              > with multiple lines",
             "### Table with Complex Content

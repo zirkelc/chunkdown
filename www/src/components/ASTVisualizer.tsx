@@ -67,13 +67,21 @@ function TreeNode({
     }
   }, [collapseAll, depth]);
 
+  const extractTextFromNode = (node: Node): string => {
+    if ('value' in node && typeof node.value === 'string') {
+      return node.value;
+    }
+    if ('children' in node && Array.isArray(node.children)) {
+      return node.children.map(extractTextFromNode).join('');
+    }
+    return '';
+  };
+
   const getNodeLabel = () => {
     if (isSection(node)) {
       // Handle Section node
       const headingText =
-        node.heading?.children
-          ?.map((child) => ('value' in child ? child.value : ''))
-          .join('') || '';
+        node.heading?.children?.map(extractTextFromNode).join('') || '';
       const truncated =
         headingText.length > 40
           ? `${headingText.substring(0, 40)}...`

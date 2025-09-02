@@ -1,4 +1,12 @@
-import type { Blockquote, List, Node, Root, RootContent, Table } from 'mdast';
+import type {
+  Blockquote,
+  List,
+  ListItem,
+  Node,
+  Root,
+  RootContent,
+  Table,
+} from 'mdast';
 import {
   createHierarchicalAST,
   flattenHierarchicalAST,
@@ -417,10 +425,21 @@ export const chunkdown = (options: ChunkdownOptions) => {
     // Helper to flush accumulated items
     const flushCurrentItems = () => {
       if (currentItems.length > 0) {
-        const containerMarkdown = toMarkdown({
+        const currentContainer = {
           ...container,
           children: currentItems,
-        } as TContainer);
+        };
+
+        // For ordered lists, calculate the correct start number
+        if (container.type === 'list' && container.ordered) {
+          const originalStart = container.start || 1;
+          const firstItemIndex = container.children.indexOf(
+            currentItems[0] as ListItem,
+          );
+          (currentContainer as List).start = originalStart + firstItemIndex;
+        }
+
+        const containerMarkdown = toMarkdown(currentContainer);
         chunks.push(containerMarkdown.trim());
         currentItems = [];
         currentSize = 0;
