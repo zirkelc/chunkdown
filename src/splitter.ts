@@ -493,8 +493,8 @@ export const chunkdown = (options: ChunkdownOptions) => {
           itemAST,
         );
         chunks.push(...itemChunks);
-      } else if (currentSize + itemSize > chunkSize) {
-        // Adding this item would exceed chunk size
+      } else if (!isWithinAllowedSize(currentSize + itemSize)) {
+        // Adding this item would exceed allowed size (including overflow)
         flushCurrentItems();
 
         // Start new chunk with this item
