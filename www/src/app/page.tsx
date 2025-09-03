@@ -644,11 +644,7 @@ function HomeContent() {
                 </div>
               </div>
               <div className="h-[500px]">
-                <ASTVisualizer
-                  text={activeText}
-                  collapseAll={astCollapsed}
-                  onCollapseAllChange={setAstCollapsed}
-                />
+                <ASTVisualizer text={activeText} collapseAll={astCollapsed} />
               </div>
             </div>
           </div>
