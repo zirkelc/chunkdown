@@ -13,13 +13,11 @@ import { useEffect, useState } from 'react';
 interface ASTVisualizerProps {
   text: string;
   collapseAll?: boolean;
-  onCollapseAllChange?: (collapsed: boolean) => void;
 }
 
 interface TreeNodeProps {
   node: Node | Parent | RootContent | Section;
   depth: number;
-  isLast?: boolean;
   parentPath?: string;
   collapseAll?: boolean;
 }
@@ -50,7 +48,6 @@ const nodeColors: Record<string, string> = {
 function TreeNode({
   node,
   depth,
-  isLast,
   parentPath = '',
   collapseAll = false,
 }: TreeNodeProps) {
@@ -101,7 +98,7 @@ function TreeNode({
       label += node.ordered ? ' (ordered)' : ' (unordered)';
     } else if (node.type === 'text' && 'value' in node) {
       const text = node.value;
-      const truncated = text.length > 50 ? text.substring(0, 50) + '...' : text;
+      const truncated = text.length > 50 ? `${text.substring(0, 50)}...` : text;
       label += `: "${truncated.replace(/\n/g, '\\n')}"`;
     } else if (node.type === 'inlineCode' && 'value' in node) {
       label += `: \`${node.value}\``;
@@ -126,7 +123,7 @@ function TreeNode({
       if ('value' in node && typeof node.value === 'string') {
         const text = node.value;
         const truncated =
-          text.length > 30 ? text.substring(0, 30) + '...' : text;
+          text.length > 30 ? `${text.substring(0, 30)}...` : text;
         label += `: "${truncated}"`;
       } else if ('url' in node && typeof node.url === 'string') {
         label += `: ${node.url}`;
@@ -182,18 +179,11 @@ function TreeNode({
         <div>
           {(isSection(node) ? node.children : node.children!).map(
             (child, index) => {
-              const children = isSection(node) ? node.children : node.children!;
-              const isLastChild = index === children.length - 1;
-
               return (
                 <TreeNode
-                  key={`${nodePath}-${
-                    // biome-ignore lint/suspicious/noArrayIndexKey: ok
-                    index
-                  }`}
+                  key={`${nodePath}-${index}`}
                   node={child}
                   depth={depth + 1}
-                  isLast={isLastChild}
                   parentPath={nodePath}
                   collapseAll={collapseAll}
                 />
@@ -206,11 +196,7 @@ function TreeNode({
   );
 }
 
-function ASTVisualizer({
-  text,
-  collapseAll = false,
-  onCollapseAllChange,
-}: ASTVisualizerProps) {
+function ASTVisualizer({ text, collapseAll = false }: ASTVisualizerProps) {
   const [hierarchicalAst, setHierarchicalAst] =
     useState<HierarchicalRoot | null>(null);
   const [error, setError] = useState<string | null>(null);
