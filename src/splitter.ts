@@ -8,6 +8,8 @@ import {
 } from './ast';
 import { fromMarkdown, toMarkdown, toString } from './markdown';
 
+// TODO add option to merge sections: parent-children, siblings, orphaned sections (root-level section without parents)
+// maybe only if chunk.size < options.chunkSize * 0.5
 export type ChunkdownOptions = {
   /**
    * Preferred chunk size.
