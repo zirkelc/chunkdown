@@ -146,16 +146,15 @@ Creates a new markdown splitter instance.
 
 #### Options
 
-| Option | Type | Description | Default |
-|--------|------|-------------|---------|
-| `chunkSize` | `number` | Target size for each chunk (in content characters, not raw markdown) | Required |
-| `maxOverflowRatio` | `number` | Maximum overflow ratio for preserving semantic units. `1.0` = strict, `>1.0` = allow overflow | Required |
+- `chunkSize: number`: The target size for each chunk in content characters, not raw markdown.
+- `maxOverflowRatio: number`: The maximum overflow ratio for preserving semantic units. 
+  - `1.0`: strict chunk size, no overflow allowed
+  - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
 
 #### Returns
 
 An object with the following method:
-- `splitText(text: string): string[]` - Splits the input markdown text into chunks
-
+- `splitText(text: string): string[]`: Splits the input markdown text into chunks
 
 ## Visualization
 
