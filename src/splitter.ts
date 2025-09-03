@@ -1,12 +1,4 @@
-import type {
-  Blockquote,
-  List,
-  ListItem,
-  Node,
-  Root,
-  RootContent,
-  Table,
-} from 'mdast';
+import type { Blockquote, List, Node, Nodes, RootContent, Table } from 'mdast';
 import {
   createHierarchicalAST,
   flattenHierarchicalAST,
@@ -142,6 +134,20 @@ const convertSectionToMarkdown = (section: Section): string => {
 
   return toMarkdown(flattened);
 };
+
+// TODO
+class Chunks extends Array<string> {
+  override push(...items: Array<string | Nodes>): number {
+    for (const item of items) {
+      const markdown = typeof item === 'string' ? item : toMarkdown(item);
+      const trimmed = markdown.trim();
+      if (trimmed) {
+        super.push(trimmed);
+      }
+    }
+    return this.length;
+  }
+}
 
 /**
  * Hierarchical Markdown Text Splitter with Semantic Awareness
@@ -359,12 +365,12 @@ export const chunkdown = (options: ChunkdownOptions) => {
   };
 
   /**
-   * Break down a large section intelligently using hierarchical approach
-   * Keeps heading with immediate content, processes subsections separately
+   * Break down a large section intelligently using hierarchical approach with merging optimization
+   * Tries to merge related sections when they fit within allowed size limits
    *
    * @param section - The section to break down
    * @param protectedRanges - Pre-computed protected ranges from AST
-   * @returns Array of markdown chunks
+   * @returns Array of markdown chunks optimized for space utilization
    */
   const breakDownSection = (
     section: Section,
@@ -384,26 +390,193 @@ export const chunkdown = (options: ChunkdownOptions) => {
       }
     }
 
-    // Create a temporary section with just the immediate content
-    // This works for both regular sections (with heading) and shadow sections (without)
+    // Create parent section with immediate content if it exists
+    let parentSection: Section | null = null;
     if (immediateContent.length > 0 || section.heading) {
-      const tempSection: Section = {
+      parentSection = {
         type: 'section',
         depth: section.depth,
         heading: section.heading,
         children: immediateContent,
       };
-      chunks.push(...processSection(tempSection));
     }
 
-    // Process nested sections recursively
-    for (const nestedSection of nestedSections) {
-      const nestedChunks = processHierarchicalSection(
-        nestedSection,
-        protectedRanges,
-      );
-      chunks.push(...nestedChunks);
+    // Try to optimize chunks by merging related sections
+    const optimizedChunks = mergeParentWithDescendants(
+      parentSection,
+      nestedSections,
+      protectedRanges,
+    );
+
+    chunks.push(...optimizedChunks);
+    return chunks;
+  };
+
+  /**
+   * Merge parent section with its descendants when beneficial for space utilization
+   * Uses intelligent merging to maximize chunk utilization while preserving semantic relationships
+   *
+   * @param parentSection - The parent section (with heading and immediate content)
+   * @param nestedSections - Array of nested child sections
+   * @param protectedRanges - Pre-computed protected ranges from AST
+   * @returns Array of optimized markdown chunks
+   */
+  const mergeParentWithDescendants = (
+    parentSection: Section | null,
+    nestedSections: Section[],
+    protectedRanges: ProtectedRange[],
+  ): string[] => {
+    const chunks: string[] = [];
+
+    // If no nested sections, just process the parent if it exists
+    if (nestedSections.length === 0) {
+      if (parentSection) {
+        chunks.push(...processSection(parentSection));
+      }
+      return chunks;
     }
+
+    // Calculate parent section size if it exists
+    const parentSize = parentSection ? getSectionSize(parentSection) : 0;
+    let mergedWithParent = false;
+
+    // Strategy 1: Try to merge parent section with child sections
+    if (parentSection && isWithinAllowedSize(parentSize)) {
+      const candidateSections: Section[] = [];
+      let accumulatedSize = parentSize;
+
+      // Find consecutive child sections that can merge with parent
+      for (const childSection of nestedSections) {
+        const childSize = getSectionSize(childSection);
+        const combinedSize = accumulatedSize + childSize;
+
+        if (isWithinAllowedSize(combinedSize)) {
+          candidateSections.push(childSection);
+          accumulatedSize = combinedSize;
+        } else {
+          break; // Stop at first child that doesn't fit
+        }
+      }
+
+      // If we found sections to merge with parent, create merged section
+      if (candidateSections.length > 0) {
+        const mergedSection: Section = {
+          type: 'section',
+          depth: parentSection.depth,
+          heading: parentSection.heading,
+          children: [...parentSection.children, ...candidateSections],
+        };
+
+        const mergedChunk = convertSectionToMarkdown(mergedSection);
+        chunks.push(mergedChunk.trim());
+        mergedWithParent = true;
+
+        // Process remaining child sections that didn't merge with parent
+        const remainingSections = nestedSections.slice(
+          candidateSections.length,
+        );
+        if (remainingSections.length > 0) {
+          const remainingChunks = mergeSiblingSections(
+            remainingSections,
+            protectedRanges,
+          );
+          chunks.push(...remainingChunks);
+        }
+      }
+    }
+
+    // Strategy 2: If parent couldn't be merged or doesn't exist, process sections separately
+    if (!mergedWithParent) {
+      // Add parent section as separate chunk if it exists
+      if (parentSection) {
+        chunks.push(...processSection(parentSection));
+      }
+
+      // Optimize child sections through sibling merging
+      if (nestedSections.length > 0) {
+        const siblingChunks = mergeSiblingSections(
+          nestedSections,
+          protectedRanges,
+        );
+        chunks.push(...siblingChunks);
+      }
+    }
+
+    return chunks;
+  };
+
+  /**
+   * Merge sibling sections by grouping consecutive sections that fit within allowed size
+   * Groups siblings at the same hierarchical level for better space utilization
+   *
+   * @param sections - Array of sibling sections to merge
+   * @param protectedRanges - Pre-computed protected ranges from AST
+   * @returns Array of optimized markdown chunks
+   */
+  const mergeSiblingSections = (
+    sections: Section[],
+    protectedRanges: ProtectedRange[],
+  ): string[] => {
+    const chunks: string[] = [];
+    let currentGroup: Section[] = [];
+    let currentGroupSize = 0;
+
+    const flushCurrentGroup = () => {
+      if (currentGroup.length === 0) return;
+
+      if (currentGroup.length === 1) {
+        // Single section - process normally
+        const sectionChunks = processHierarchicalSection(
+          currentGroup[0],
+          protectedRanges,
+        );
+        chunks.push(...sectionChunks);
+      } else {
+        // Multiple sections - merge them into a shadow section
+        const mergedSection: Section = {
+          type: 'section',
+          depth: 0, // Shadow section depth
+          heading: undefined,
+          children: currentGroup,
+        };
+
+        const mergedChunk = convertSectionToMarkdown(mergedSection);
+        chunks.push(mergedChunk.trim());
+      }
+
+      currentGroup = [];
+      currentGroupSize = 0;
+    };
+
+    for (const section of sections) {
+      const sectionSize = getSectionSize(section);
+
+      // Check if section fits within allowed size by itself
+      if (!isWithinAllowedSize(sectionSize)) {
+        // Section is too large - flush current group and process this section separately
+        flushCurrentGroup();
+        const sectionChunks = processHierarchicalSection(
+          section,
+          protectedRanges,
+        );
+        chunks.push(...sectionChunks);
+        continue;
+      }
+
+      // Check if adding this section to current group would exceed allowed size
+      const combinedSize = currentGroupSize + sectionSize;
+      if (currentGroup.length > 0 && !isWithinAllowedSize(combinedSize)) {
+        // Doesn't fit - flush current group and start new one
+        flushCurrentGroup();
+      }
+
+      // Add section to current group
+      currentGroup.push(section);
+      currentGroupSize += sectionSize;
+    }
+
+    // Flush final group
+    flushCurrentGroup();
 
     return chunks;
   };
@@ -421,26 +594,30 @@ export const chunkdown = (options: ChunkdownOptions) => {
     const chunks: string[] = [];
     let currentItems: Array<(typeof container.children)[0]> = [];
     let currentSize = 0;
+    let firstItemIndex = 0; // Track the index of the first item in current chunk
+
+    const setListStart = (list: List) => {
+      const originalStart = list.start || 1;
+      const itemNumber = originalStart + firstItemIndex;
+      list.start = itemNumber;
+    };
 
     // Helper to flush accumulated items
     const flushCurrentItems = () => {
       if (currentItems.length > 0) {
-        const currentContainer = {
+        const currentItemsGroup = {
           ...container,
           children: currentItems,
         };
 
         // For ordered lists, calculate the correct start number
-        if (container.type === 'list' && container.ordered) {
-          const originalStart = container.start || 1;
-          const firstItemIndex = container.children.indexOf(
-            currentItems[0] as ListItem,
-          );
-          (currentContainer as List).start = originalStart + firstItemIndex;
+        if (currentItemsGroup.type === 'list' && currentItemsGroup.ordered) {
+          setListStart(currentItemsGroup);
         }
 
-        const containerMarkdown = toMarkdown(currentContainer);
-        chunks.push(containerMarkdown.trim());
+        const currentItemsMarkdown = toMarkdown(currentItemsGroup);
+        chunks.push(currentItemsMarkdown.trim());
+        firstItemIndex += currentItems.length; // Update index for next chunk
         currentItems = [];
         currentSize = 0;
       }
@@ -450,11 +627,15 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const itemMarkdown = toMarkdown({
+      const itemNode = {
         ...container,
         children: [item],
-      } as TContainer);
-      const itemSize = getContentSize(itemMarkdown);
+      };
+      // const itemMarkdown = toMarkdown({
+      //   ...container,
+      //   children: [item],
+      // } as TContainer);
+      const itemSize = getContentSize(itemNode);
 
       // Special handling for keeping first item with second item (e.g., table header + separator)
       if (container.type === 'table' && i === 0 && items.length > 1) {
@@ -465,7 +646,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         } as TContainer);
         const combinedSize = getContentSize(secondRowMarkdown);
 
-        if (combinedSize <= chunkSize || isWithinAllowedSize(combinedSize)) {
+        if (isWithinAllowedSize(combinedSize)) {
           // Keep first item with second item
           currentItems = [item, items[1]];
           currentSize = combinedSize;
@@ -477,22 +658,36 @@ export const chunkdown = (options: ChunkdownOptions) => {
       // Check if this single item exceeds chunk size but is within soft limit
       if (itemSize > chunkSize && isWithinAllowedSize(itemSize)) {
         flushCurrentItems();
-        // Add this oversized item as its own chunk
-        chunks.push(itemMarkdown.trim());
+
+        // For ordered lists, ensure correct numbering
+        if (itemNode.type === 'list' && itemNode.ordered) {
+          setListStart(itemNode);
+        }
+
+        const itemMarkdown = toMarkdown(itemNode).trim();
+        chunks.push(itemMarkdown);
+        firstItemIndex += 1; // Increment for this processed item
       } else if (itemSize > chunkSize && !isWithinAllowedSize(itemSize)) {
         // Item is too large even with overflow - need to split it
         flushCurrentItems();
 
-        // Split this large item
-        const itemAST = fromMarkdown(itemMarkdown.trim());
+        // For ordered lists, preserve the correct numbering for the first chunk
+        if (itemNode.type === 'list' && itemNode.ordered) {
+          setListStart(itemNode);
+        }
+
+        // Parse AST from trimmed markdown to extract the correct protected ranges
+        const itemMarkdown = toMarkdown(itemNode).trim();
+        const itemAST = fromMarkdown(itemMarkdown);
         const itemProtectedRanges = extractProtectedRangesFromAST(itemAST);
         const itemChunks = splitLongText(
-          itemMarkdown.trim(),
+          itemMarkdown,
           itemProtectedRanges,
           0,
           itemAST,
         );
         chunks.push(...itemChunks);
+        firstItemIndex += 1; // Increment for this processed item
       } else if (!isWithinAllowedSize(currentSize + itemSize)) {
         // Adding this item would exceed allowed size (including overflow)
         flushCurrentItems();
@@ -563,6 +758,14 @@ export const chunkdown = (options: ChunkdownOptions) => {
     }
 
     // Now process all children (both regular and shadow sections)
+    // TODO: Future enhancement - merge orphaned sibling sections at root level
+    // const sections = groupedChildren.filter(isSection);
+    // if (sections.length > 1) {
+    //   // Multiple sibling sections at root level - apply sibling merging logic
+    //   const mergedChunks = mergeSiblingSections(sections, protectedRanges);
+    //   chunks.push(...mergedChunks);
+    // } else {
+    // Single section or non-section content - process individually
     for (const child of groupedChildren) {
       if (isSection(child)) {
         // Process both regular and shadow sections using the same logic
@@ -577,6 +780,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         chunks.push(contentMarkdown.trim());
       }
     }
+    // }
 
     return chunks;
   };
@@ -588,7 +792,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * @param ast - Parsed mdast AST with position information
    * @returns Array of protected ranges that must stay together
    */
-  const extractProtectedRangesFromAST = (ast: Root): ProtectedRange[] => {
+  const extractProtectedRangesFromAST = (ast: Node): ProtectedRange[] => {
     const ranges: ProtectedRange[] = [];
 
     /**
@@ -705,7 +909,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * @returns Array of structural boundaries with proper priority hierarchy
    */
   const extractStructuralBoundariesFromAST = (
-    ast: Root,
+    ast: Node,
   ): StructuralBoundary[] => {
     const boundaries: StructuralBoundary[] = [];
 
@@ -908,7 +1112,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
     text: string,
     protectedRanges: ProtectedRange[],
     originalOffset: number = 0,
-    ast?: Root,
+    ast?: Node,
   ): string[] => {
     const textLength = getContentSize(text);
 
@@ -928,16 +1132,11 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
     // Step 1: Check for structural boundaries first (headings, paragraphs, lists)
     // These should take priority over sentence boundaries
-    let structuralBoundaries: StructuralBoundary[] = [];
-
-    if (ast) {
-      // Use AST-based boundary detection if available
-      structuralBoundaries = extractStructuralBoundariesFromAST(ast);
-    } else {
-      // Fall back to parsing text if no AST available
-      const tempAST = fromMarkdown(text);
-      structuralBoundaries = extractStructuralBoundariesFromAST(tempAST);
-    }
+    // Use AST-based boundary detection if available
+    // Fall back to parsing text if no AST available
+    const structuralBoundaries = extractStructuralBoundariesFromAST(
+      ast ?? fromMarkdown(text),
+    );
 
     // If we have structural boundaries, prioritize them over sentence boundaries
     // Look for the best structural boundary within the text

@@ -1,5 +1,4 @@
 import { toMarkdown } from 'mdast-util-to-markdown';
-import { toString } from 'mdast-util-to-string';
 import { describe, expect, it } from 'vitest';
 import { chunkdown, getContentSize } from './splitter';
 
@@ -458,8 +457,55 @@ End of instructions.`;
 
       expect(listChunks.length).toBe(6);
       for (let i = 1; i < listChunks.length; i++) {
-        expect(listChunks[i]).toMatch(new RegExp(`^[${i + 1}]\.`));
+        expect(listChunks[i]).toMatch(new RegExp(`^[${i + 1}].`));
       }
+    });
+
+    it('should preserve ordered list numbering with long items that get split', () => {
+      const splitter = chunkdown({
+        chunkSize: 200,
+        maxOverflowRatio: 1.5,
+      });
+      const text = `1. **First item with very long content.** This item contains substantial text that will exceed the chunk size limit and force the splitter to break it into multiple chunks, which can cause numbering issues if not handled correctly.
+
+2. **Second item with moderate content.** This item has enough content to potentially cause issues but should fit in a single chunk.
+
+3. **Third item with short content.**
+
+4. **Fourth item with extremely long content that will definitely be split.** This is a very detailed item that contains multiple sentences with comprehensive explanations and examples. It includes technical details, step-by-step instructions, and various formatting elements that make it substantially longer than the configured chunk size, ensuring it will be split across multiple chunks during processing.
+
+5. **Fifth item with another very long section.** Similar to item 4, this contains extensive content that will cause the text splitter to break it into multiple chunks, testing whether the ordered list numbering is preserved correctly across these splits.
+
+6. **Sixth item with normal content.**
+
+7. **Seventh item with more long content.** This item also has substantial text that will likely exceed the chunk size and test the numbering preservation functionality in various scenarios.
+
+8. **Eighth item is short.**
+
+9. **Ninth and final item.**`;
+
+      const chunks = splitter.splitText(text);
+
+      // Extract all list item numbers from all chunks (not just those that start chunks)
+      const allListNumbers: number[] = [];
+      chunks.forEach((chunk) => {
+        const matches = chunk.matchAll(/^(\d+)\./gm);
+        for (const match of matches) {
+          allListNumbers.push(Number.parseInt(match[1], 10));
+        }
+      });
+
+      // Should preserve sequential numbering: 1, 2, 3, 4, 5, 6, 7, 8, 9
+      const expectedNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+      expect(allListNumbers).toEqual(expectedNumbers);
+
+      // Verify that we have exactly 9 list items
+      expect(allListNumbers.length).toBe(9);
+
+      // Additional verification: ensure no numbering resets to 1 after the first item
+      const numbersAfterFirst = allListNumbers.slice(1);
+      expect(numbersAfterFirst).not.toContain(1);
     });
 
     it('should keep tables together if possible', () => {
@@ -554,6 +600,237 @@ End of blockquote.`;
       expect(chunks[2]).toBe('> Another short paragraph.');
       expect(chunks[3]).toBe('> Third short paragraph.');
       expect(chunks[4]).toBe('End of blockquote.');
+    });
+  });
+
+  describe('Section Merging', () => {
+    describe('Parent-Descendant Merging', () => {
+      it('should merge parent section with child sections when they fit together', () => {
+        const splitter = chunkdown({
+          chunkSize: 1000,
+          maxOverflowRatio: 1.5,
+        });
+
+        const text = `## Main Section
+
+This is the main section with some introductory content that explains what this section is about.
+
+### Child Section 1
+
+This is the first child section with moderate content that should fit with the parent.
+
+### Child Section 2
+
+This is the second child section with some additional content.
+
+### Child Section 3
+
+This is the third child section with final content for this group.
+
+## Another Main Section
+
+This section should be separate since it's a sibling of the first main section.`;
+
+        const chunks = splitter.splitText(text);
+
+        // Main Section + children, Another Main Section
+        expect(chunks.length).toBe(2);
+
+        // First chunk should contain parent and multiple children
+        expect(chunks[0]).toContain('## Main Section');
+        expect(chunks[0]).toContain('### Child Section 1');
+        expect(chunks[0]).toContain('### Child Section 2');
+        expect(chunks[0]).toContain('### Child Section 3');
+
+        // Second chunk should contain the other main section
+        expect(chunks[1]).toContain('## Another Main Section');
+
+        // Should stay within allowed size
+        chunks.forEach((chunk) => {
+          expect(getContentSize(chunk)).toBeLessThanOrEqual(1500); // 1000 * 1.5
+        });
+      });
+
+      it('should not merge if combined size exceeds maxAllowedSize', () => {
+        const splitter = chunkdown({
+          chunkSize: 200,
+          maxOverflowRatio: 1.2, // Only 240 chars allowed
+        });
+
+        const text = `## Main Section
+
+This is a longer main section with substantial introductory content that explains what this section is about in great detail with many words and explanations.
+
+### Child Section 1
+
+This child section also has substantial content that would make the combined size exceed the maximum allowed size when merged with the parent section.
+
+### Child Section 2
+
+Another child section with content.`;
+
+        const chunks = splitter.splitText(text);
+
+        // Should create 2 chunks due to size constraints
+        expect(chunks.length).toBe(2);
+        expect(chunks[0]).toContain('## Main Section');
+        expect(chunks[1]).toContain('### Child Section 1');
+
+        // No chunk should exceed the allowed size
+        chunks.forEach((chunk) => {
+          expect(getContentSize(chunk)).toBeLessThanOrEqual(240); // 200 * 1.2
+        });
+      });
+    });
+
+    describe('Sibling Section Merging', () => {
+      it('should merge sibling sections when parent is too large to merge', () => {
+        const splitter = chunkdown({
+          chunkSize: 300,
+          maxOverflowRatio: 1.5, // 450 chars allowed
+        });
+
+        const text = `# Large Parent Section
+
+This is a large parent section with substantial content that takes up significant space. It contains multiple sentences with detailed explanations and examples. This content is designed to be large enough that it cannot merge with its child sections due to size constraints. The parent section alone should be close to or exceed the base chunk size to prevent parent-child merging but allow sibling merging of the children.
+
+## First Child Section
+
+Short content for first child.
+
+## Second Child Section
+
+Short content for second child.
+
+## Third Child Section
+
+Short content for third child.`;
+
+        const chunks = splitter.splitText(text);
+
+        // Should create 2 chunks: large parent separate, siblings merged
+        expect(chunks.length).toBe(2);
+
+        // First chunk should be the large parent alone
+        expect(chunks[0]).toContain('# Large Parent Section');
+        expect(chunks[0]).not.toContain('## First Child Section');
+
+        // Second chunk should contain merged siblings
+        expect(chunks[1]).toContain('## First Child Section');
+        expect(chunks[1]).toContain('## Second Child Section');
+        expect(chunks[1]).toContain('## Third Child Section');
+
+        // All chunks should stay within allowed size
+        chunks.forEach((chunk) => {
+          expect(getContentSize(chunk)).toBeLessThanOrEqual(450); // 300 * 1.5
+        });
+      });
+
+      it('should merge some siblings but not others based on size constraints', () => {
+        const splitter = chunkdown({
+          chunkSize: 150,
+          maxOverflowRatio: 1.3, // 195 chars allowed
+        });
+
+        // Create scenario where parent can't merge with children,
+        // and siblings have mixed sizes preventing complete merging
+        const text = `# Parent Section
+
+This is a parent section with substantial content that is designed to be large enough to prevent merging with any child sections. The parent section contains multiple detailed sentences with comprehensive explanations and examples that ensure its size exceeds the merge threshold when combined with any child section.
+
+## Small Sibling A
+
+Short content A.
+
+## Small Sibling B
+
+Short content B.
+
+## Large Sibling Section
+
+This is a much larger sibling section with substantial content that contains multiple sentences and detailed explanations that make it too large to merge with the small siblings.
+
+## Small Sibling C
+
+Short content C.`;
+
+        const chunks = splitter.splitText(text);
+
+        // Parent gets split due to size, siblings show selective merging behavior
+        // Small siblings A+B merge together, large sibling separate, small sibling C separate
+        expect(chunks.length).toBe(7);
+
+        // Key behavior to test: Small siblings A+B merged, but sibling C separate
+        // Find the chunk containing small siblings A and B (merged together)
+        const siblingABChunk = chunks.find(
+          (chunk) =>
+            chunk.includes('## Small Sibling A') &&
+            chunk.includes('## Small Sibling B'),
+        );
+        expect(siblingABChunk).toBeDefined();
+        expect(siblingABChunk).not.toContain('## Large Sibling Section');
+        expect(siblingABChunk).not.toContain('## Small Sibling C');
+
+        // Large sibling should be in separate chunk(s)
+        const largeSiblingChunks = chunks.filter((chunk) =>
+          chunk.includes('## Large Sibling Section'),
+        );
+        expect(largeSiblingChunks.length).toBeDefined();
+        expect(largeSiblingChunks).not.toContain('## Small Sibling A');
+        expect(largeSiblingChunks).not.toContain('## Small Sibling B');
+        expect(largeSiblingChunks).not.toContain('## Small Sibling C');
+
+        // Small sibling C should be alone
+        const siblingCChunk = chunks.find((chunk) =>
+          chunk.includes('## Small Sibling C'),
+        );
+        expect(siblingCChunk).toBeDefined();
+        expect(siblingCChunk).not.toContain('## Small Sibling A');
+        expect(siblingCChunk).not.toContain('## Small Sibling B');
+        expect(siblingCChunk).not.toContain('## Large Sibling Section');
+
+        // Verify size constraints
+        chunks.forEach((chunk) => {
+          expect(getContentSize(chunk)).toBeLessThanOrEqual(195);
+        });
+      });
+
+      it('should handle orphaned sections (limitation: currently processed individually)', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.5, // 150 chars allowed
+        });
+
+        // Test pure sibling sections without a hierarchical parent
+        // Note: Current implementation treats these as individual sections
+        // This could be improved in future versions to merge orphaned siblings
+        const text = `## Section Alpha
+
+Short content A.
+
+## Section Beta
+
+Short content B.
+
+## Section Gamma
+
+Short content C.`;
+
+        const chunks = splitter.splitText(text);
+
+        // Currently creates 3 separate chunks (limitation of current implementation)
+        expect(chunks.length).toBe(3);
+
+        // Each chunk should contain one section
+        expect(chunks[0]).toContain('## Section Alpha');
+        expect(chunks[1]).toContain('## Section Beta');
+        expect(chunks[2]).toContain('## Section Gamma');
+
+        // Verify size constraints
+        chunks.forEach((chunk) => {
+          expect(getContentSize(chunk)).toBeLessThanOrEqual(150);
+        });
+      });
     });
   });
 
@@ -943,8 +1220,9 @@ Here's a sentence with a footnote[^1].
           ##### H5 Heading
 
           ###### H6 Heading",
-            "# Alternative H1 (Setext)",
-            "## Alternative H2 (Setext)",
+            "# Alternative H1 (Setext)
+
+          ## Alternative H2 (Setext)",
             "## Text Formatting
 
           **Bold text with asterisks** and **bold text with underscores**
@@ -977,8 +1255,9 @@ Here's a sentence with a footnote[^1].
           2. Second item
              1. Nested ordered item
              2. Another nested item
-          3. Third item",
-            "### Task Lists (GFM)
+          3. Third item
+
+          ### Task Lists (GFM)
 
           * [x] Completed task
           * [ ] Incomplete task
@@ -1000,8 +1279,9 @@ Here's a sentence with a footnote[^1].
           [1]: https://example.com
 
           [reference]: https://example.com "Reference with title"",
-            "## Code Blocks",
-            "### Fenced Code Blocks
+            "## Code Blocks
+
+          ### Fenced Code Blocks
 
           \`\`\`javascript
           function hello() {
@@ -1173,9 +1453,11 @@ Here's a sentence with a footnote[^1].
           ##### H5 Heading
 
           ###### H6 Heading",
-            "# Alternative H1 (Setext)",
-            "## Alternative H2 (Setext)",
-            "## Text Formatting
+            "# Alternative H1 (Setext)
+
+          ## Alternative H2 (Setext)
+
+          ## Text Formatting
 
           **Bold text with asterisks** and **bold text with underscores**
 
@@ -1186,8 +1468,9 @@ Here's a sentence with a footnote[^1].
           ~~Strikethrough text~~
 
           \`Inline code\` with backticks",
-            "## Lists",
-            "### Unordered Lists (3 variants)
+            "## Lists
+
+          ### Unordered Lists (3 variants)
 
           * Item 1 with dash
           * Item 2 with dash
@@ -1209,8 +1492,9 @@ Here's a sentence with a footnote[^1].
           2. Second item
              1. Nested ordered item
              2. Another nested item
-          3. Third item",
-            "### Task Lists (GFM)
+          3. Third item
+
+          ### Task Lists (GFM)
 
           * [x] Completed task
           * [ ] Incomplete task
@@ -1288,8 +1572,9 @@ Here's a sentence with a footnote[^1].
           >
           > > This is nested
           > >
-          > > > And this is deeply nested",
-            "## Horizontal Rules (3 variants)",
+          > > > And this is deeply nested
+
+          ## Horizontal Rules (3 variants)",
             "***
 
           ***
