@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import ASTVisualizer from '../components/ASTVisualizer';
 import ChunkVisualizer from '../components/ChunkVisualizer';
+import chunkdownPackage from '../../../package.json';
+import wwwPackage from '../../package.json';
 
 const exampleTexts = {
   aiSdk: `# AI SDK Core
@@ -270,6 +272,10 @@ Here's a sentence with a footnote[^1].
 
 *This document showcases most markdown elements and syntax variations.*`,
 };
+
+// Version information imported from package.json files
+const CHUNKDOWN_VERSION = chunkdownPackage.version;
+const LANGCHAIN_VERSION = wwwPackage.dependencies['@langchain/textsplitters'].replace('^', '');
 
 const tabs = [
   {
@@ -689,7 +695,12 @@ function HomeContent() {
 
             {/* Left Controls */}
             <div>
-              <h3 className="text-lg font-bold mb-3 text-black">chunkdown</h3>
+              <h3 className="text-lg font-bold mb-3 text-black">
+                chunkdown{' '}
+                <span className="text-sm font-normal text-gray-500">
+                  v{CHUNKDOWN_VERSION}
+                </span>
+              </h3>
               <div className="mb-4">
                 {/* Chunk Size Control */}
                 <div className="mb-3">
@@ -770,7 +781,10 @@ function HomeContent() {
             {/* Right Controls */}
             <div>
               <h3 className="text-lg font-bold mb-3 text-black">
-                @langchain/textsplitters
+                @langchain/textsplitters{' '}
+                <span className="text-sm font-normal text-gray-500">
+                  v{LANGCHAIN_VERSION}
+                </span>
               </h3>
               <div className="mb-4">
                 {/* Chunk Size Control */}

@@ -8,8 +8,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Chunk visualizer',
-  description: 'Visualize chunks of markdown text and their relationships',
+  title: 'Chunk Visualizer',
+  description:
+    "Visual comparison of chunks created by chunkdown and LangChain's @langchain/textsplitters library",
 };
 
 export default function RootLayout({
