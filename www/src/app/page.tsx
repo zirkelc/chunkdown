@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import ASTVisualizer from '../components/ASTVisualizer';
 import ChunkVisualizer from '../components/ChunkVisualizer';
+import Toast from '../components/Toast';
 import chunkdownPackage from '../../../package.json';
 import wwwPackage from '../../package.json';
 
@@ -871,11 +872,7 @@ function HomeContent() {
         </div>
 
         {/* Toast Notification */}
-        {toast.visible && (
-          <div className="fixed bottom-4 right-4 z-50 bg-gray-900 text-white px-4 py-2 rounded-lg shadow-lg transition-all duration-300 ease-in-out">
-            {toast.message}
-          </div>
-        )}
+        <Toast message={toast.message} visible={toast.visible} />
       </div>
     </div>
   );

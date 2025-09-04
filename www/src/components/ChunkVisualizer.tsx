@@ -9,6 +9,7 @@ import {
 import { chunkdown, getContentSize } from 'chunkdown/splitter';
 import type { MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
+import Toast from './Toast';
 
 interface ChunkVisualizerProps {
   text: string;
@@ -39,6 +40,12 @@ function ChunkVisualizer({
     maxChunkSize: 0,
     maxContentSize: 0,
   });
+
+  // Toast state for copy feedback
+  const [toast, setToast] = useState<{
+    message: string;
+    visible: boolean;
+  }>({ message: '', visible: false });
 
   // Selection tooltip state
   const [selection, setSelection] = useState<{
@@ -288,6 +295,35 @@ function ChunkVisualizer({
     setTooltip(null);
   };
 
+  // Handle copy chunks to clipboard
+  const handleCopyChunks = async () => {
+    try {
+      const chunksJson = JSON.stringify(chunks, null, 2);
+      await navigator.clipboard.writeText(chunksJson);
+      
+      setToast({ message: 'Chunks copied to clipboard!', visible: true });
+      
+      // Hide toast after 3 seconds
+      setTimeout(() => {
+        setToast({ message: '', visible: false });
+      }, 3000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = JSON.stringify(chunks, null, 2);
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      setToast({ message: 'Chunks copied to clipboard!', visible: true });
+      
+      setTimeout(() => {
+        setToast({ message: '', visible: false });
+      }, 3000);
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Stats */}
@@ -439,6 +475,30 @@ function ChunkVisualizer({
         onMouseUp={handleMouseUp}
         onMouseDown={handleMouseDown}
       >
+        {/* Copy Chunks Button */}
+        {chunks.length > 0 && (
+          <button
+            type="button"
+            onClick={handleCopyChunks}
+            className="absolute top-2 right-2 p-2 bg-white/70 border border-gray-300/70 text-gray-700 rounded hover:bg-white hover:border-gray-400 hover:text-gray-900 transition-all z-10 shadow-sm"
+            title="Copy chunks as JSON array"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          </button>
+        )}
         {chunks.length > 0 ? (
           <div className="leading-relaxed text-sm font-mono">
             {chunks.map((chunk, index) => (
@@ -511,6 +571,9 @@ function ChunkVisualizer({
           />
         </div>
       )}
+
+      {/* Toast Notification */}
+      <Toast message={toast.message} visible={toast.visible} />
     </div>
   );
 }
