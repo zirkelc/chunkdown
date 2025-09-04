@@ -1,10 +1,18 @@
-# chunkdown
+<div align='center'>
+
+# chunkdown 🧩
+> Create chunks worth embedding
+
+<a href="https://www.npmjs.com/package/chunkdown" alt="chunkdown"><img src="https://img.shields.io/npm/dt/chunkdown?label=chunkdown"></a> <a href="https://github.com/zirkelc/chunkdown/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/chunkdown/ci.yml?branch=main"></a>
+
+
+</div>
 
 A tree-based markdown text splitter that understands document structure to create semantically meaningful chunks for RAG applications. Unlike traditional splitters that use simple character or regex-based methods, this library analyzes markdown's hierarchical structure for optimal chunking.
 
 ## Motivation
 
-Chunkdown is built around a few core ideas with an embedding-first approach:
+Chunkdown is built around a few core ideas:
 
 #### Content Length vs Markdown Length
 
@@ -76,8 +84,8 @@ The splitter uses a multi-phase approach:
 
     When content exceeds even the allowed overflow limit (`chunkSize` * `maxOverflowRatio`), hierarchical text splitting is applied:
     1. Try splitting at structural boundaries (headings, paragraphs, lists, thematic breaks, etc.)
-    2. Fall back to splitting at sentence boundaries
-    3. Split by punctuation marks
+    2. Fall back to splitting at sentence boundaries (`.`, `!`, `?`)
+    3. Split by punctuation marks (`,`, `;`)
     4. Finally, split by word boundaries
     5. Never break protected markdown elements (links, images)
 
