@@ -300,9 +300,9 @@ function ChunkVisualizer({
     try {
       const chunksJson = JSON.stringify(chunks, null, 2);
       await navigator.clipboard.writeText(chunksJson);
-      
+
       setToast({ message: 'Chunks copied to clipboard!', visible: true });
-      
+
       // Hide toast after 3 seconds
       setTimeout(() => {
         setToast({ message: '', visible: false });
@@ -315,9 +315,9 @@ function ChunkVisualizer({
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      
+
       setToast({ message: 'Chunks copied to clipboard!', visible: true });
-      
+
       setTimeout(() => {
         setToast({ message: '', visible: false });
       }, 3000);

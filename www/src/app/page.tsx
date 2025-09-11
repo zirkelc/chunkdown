@@ -2,11 +2,11 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import chunkdownPackage from '../../../package.json';
+import wwwPackage from '../../package.json';
 import ASTVisualizer from '../components/ASTVisualizer';
 import ChunkVisualizer from '../components/ChunkVisualizer';
 import Toast from '../components/Toast';
-import chunkdownPackage from '../../../package.json';
-import wwwPackage from '../../package.json';
 
 const exampleTexts = {
   aiSdk: `# AI SDK Core
@@ -276,7 +276,9 @@ Here's a sentence with a footnote[^1].
 
 // Version information imported from package.json files
 const CHUNKDOWN_VERSION = chunkdownPackage.version;
-const LANGCHAIN_VERSION = wwwPackage.dependencies['@langchain/textsplitters'].replace('^', '');
+const LANGCHAIN_VERSION = wwwPackage.dependencies[
+  '@langchain/textsplitters'
+].replace('^', '');
 
 const tabs = [
   {

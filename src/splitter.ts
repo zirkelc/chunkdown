@@ -52,23 +52,13 @@ type ProtectedRange = {
 };
 
 /**
- * Represents a structural boundary in the document
- * Used to identify natural breaking points in the text
+ * Text boundary with position, type, and priority information
+ * Used for intelligent text splitting based on document structure and semantic patterns
  */
-type StructuralBoundary = {
+type Boundary = {
   position: number;
   type: string;
   priority: number;
-};
-
-/**
- * Represents a sentence with its position information
- * Used for sentence-level text splitting
- */
-type SentenceInfo = {
-  text: string;
-  start: number;
-  end: number;
 };
 
 /**
@@ -102,7 +92,7 @@ export const getContentSize = (input: string | Node): number => {
 export const getSectionSize = (section: Section): number => {
   let totalLength = 0;
 
-  // Get heading text length if it exists (not a shadow section)
+  // Get heading text length if it exists (not a orphaned section)
   if (section.heading) {
     totalLength = getContentSize(section.heading);
   }
@@ -142,9 +132,8 @@ class Chunks extends Array<string> {
   override push(...items: Array<string | Nodes>): number {
     for (const item of items) {
       const markdown = typeof item === 'string' ? item : toMarkdown(item);
-      const trimmed = markdown.trim();
-      if (trimmed) {
-        super.push(trimmed);
+      if (markdown) {
+        super.push(markdown);
       }
     }
     return this.length;
@@ -213,23 +202,19 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * Tries to keep entire sections together, falls back to intelligent breaking
    *
    * @param section - The section to process
-   * @param protectedRanges - Pre-computed protected ranges from AST
    * @returns Array of markdown chunks
    */
-  const processHierarchicalSection = (
-    section: Section,
-    protectedRanges: ProtectedRange[],
-  ): string[] => {
+  const processHierarchicalSection = (section: Section): string[] => {
     const sectionSize = getSectionSize(section);
 
     // Case 1: Section fits within soft limit - keep it together
     if (isWithinAllowedSize(sectionSize)) {
       const sectionMarkdown = convertSectionToMarkdown(section);
-      return [sectionMarkdown.trim()];
+      return [sectionMarkdown];
     }
 
     // Case 2: Section too large - need to break it down intelligently
-    return breakDownSection(section, protectedRanges);
+    return breakDownSection(section);
   };
 
   /**
@@ -245,7 +230,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
     if (isWithinAllowedSize(contentSize)) {
       const contentMarkdown = toMarkdown(contentNode);
-      chunks.push(contentMarkdown.trim());
+      chunks.push(contentMarkdown);
     } else {
       // Content too large - check if it's a container that can be split by items
       if (
@@ -259,16 +244,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         chunks.push(...containerChunks);
       } else {
         // Not a container - fall back to text splitting
-        const contentMarkdown = toMarkdown(contentNode);
-        const contentAST = fromMarkdown(contentMarkdown.trim());
-        const contentProtectedRanges =
-          extractProtectedRangesFromAST(contentAST);
-        const fallbackChunks = splitLongText(
-          contentMarkdown.trim(),
-          contentProtectedRanges,
-          0,
-          contentAST,
-        );
+        const fallbackChunks = splitLongText(contentNode);
         chunks.push(...fallbackChunks);
       }
     }
@@ -278,9 +254,9 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
   /**
    * Process section content with intelligent grouping to maximize chunk utilization
-   * Works for both regular sections (with heading) and shadow sections (without heading)
+   * Works for both regular sections (with heading) and orphaned sections (without heading)
    *
-   * @param section - The section to process (can be regular or shadow)
+   * @param section - The section to process (can be regular or orphaned)
    * @returns Array of markdown chunks with maximized utilization
    */
   const processSection = (section: Section): string[] => {
@@ -299,12 +275,12 @@ export const chunkdown = (options: ChunkdownOptions) => {
       const headingSize = getContentSize(headingMarkdown);
 
       if (isWithinAllowedSize(headingSize)) {
-        return [headingMarkdown.trim()];
+        return [headingMarkdown];
       } else {
         return processLargeContentNode(section.heading);
       }
     } else if (contentItems.length === 0 && !section.heading) {
-      // Empty shadow section
+      // Empty orphaned section
       return [];
     }
 
@@ -322,9 +298,8 @@ export const chunkdown = (options: ChunkdownOptions) => {
           type: 'root',
           children: currentItems,
         });
-        const trimmedMarkdown = itemsMarkdown.trim();
-        if (trimmedMarkdown) {
-          chunks.push(trimmedMarkdown);
+        if (itemsMarkdown) {
+          chunks.push(itemsMarkdown);
         }
         currentItems = [];
       }
@@ -371,13 +346,9 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * Tries to merge related sections when they fit within allowed size limits
    *
    * @param section - The section to break down
-   * @param protectedRanges - Pre-computed protected ranges from AST
    * @returns Array of markdown chunks optimized for space utilization
    */
-  const breakDownSection = (
-    section: Section,
-    protectedRanges: ProtectedRange[],
-  ): string[] => {
+  const breakDownSection = (section: Section): string[] => {
     const chunks: string[] = [];
 
     // Separate immediate content from nested sections
@@ -407,7 +378,6 @@ export const chunkdown = (options: ChunkdownOptions) => {
     const optimizedChunks = mergeParentWithDescendants(
       parentSection,
       nestedSections,
-      protectedRanges,
     );
 
     chunks.push(...optimizedChunks);
@@ -420,13 +390,11 @@ export const chunkdown = (options: ChunkdownOptions) => {
    *
    * @param parentSection - The parent section (with heading and immediate content)
    * @param nestedSections - Array of nested child sections
-   * @param protectedRanges - Pre-computed protected ranges from AST
    * @returns Array of optimized markdown chunks
    */
   const mergeParentWithDescendants = (
     parentSection: Section | null,
     nestedSections: Section[],
-    protectedRanges: ProtectedRange[],
   ): string[] => {
     const chunks: string[] = [];
 
@@ -470,7 +438,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         };
 
         const mergedChunk = convertSectionToMarkdown(mergedSection);
-        chunks.push(mergedChunk.trim());
+        chunks.push(mergedChunk);
         mergedWithParent = true;
 
         // Process remaining child sections that didn't merge with parent
@@ -478,10 +446,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
           candidateSections.length,
         );
         if (remainingSections.length > 0) {
-          const remainingChunks = mergeSiblingSections(
-            remainingSections,
-            protectedRanges,
-          );
+          const remainingChunks = mergeSiblingSections(remainingSections);
           chunks.push(...remainingChunks);
         }
       }
@@ -496,10 +461,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
       // Optimize child sections through sibling merging
       if (nestedSections.length > 0) {
-        const siblingChunks = mergeSiblingSections(
-          nestedSections,
-          protectedRanges,
-        );
+        const siblingChunks = mergeSiblingSections(nestedSections);
         chunks.push(...siblingChunks);
       }
     }
@@ -512,13 +474,9 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * Groups siblings at the same hierarchical level for better space utilization
    *
    * @param sections - Array of sibling sections to merge
-   * @param protectedRanges - Pre-computed protected ranges from AST
    * @returns Array of optimized markdown chunks
    */
-  const mergeSiblingSections = (
-    sections: Section[],
-    protectedRanges: ProtectedRange[],
-  ): string[] => {
+  const mergeSiblingSections = (sections: Section[]): string[] => {
     const chunks: string[] = [];
     let currentGroup: Section[] = [];
     let currentGroupSize = 0;
@@ -528,22 +486,19 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
       if (currentGroup.length === 1) {
         // Single section - process normally
-        const sectionChunks = processHierarchicalSection(
-          currentGroup[0],
-          protectedRanges,
-        );
+        const sectionChunks = processHierarchicalSection(currentGroup[0]);
         chunks.push(...sectionChunks);
       } else {
-        // Multiple sections - merge them into a shadow section
+        // Multiple sections - merge them into a orphaned section
         const mergedSection: Section = {
           type: 'section',
-          depth: 0, // Shadow section depth
+          depth: 0, // Orphaned section depth
           heading: undefined,
           children: currentGroup,
         };
 
         const mergedChunk = convertSectionToMarkdown(mergedSection);
-        chunks.push(mergedChunk.trim());
+        chunks.push(mergedChunk);
       }
 
       currentGroup = [];
@@ -557,10 +512,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
       if (!isWithinAllowedSize(sectionSize)) {
         // Section is too large - flush current group and process this section separately
         flushCurrentGroup();
-        const sectionChunks = processHierarchicalSection(
-          section,
-          protectedRanges,
-        );
+        const sectionChunks = processHierarchicalSection(section);
         chunks.push(...sectionChunks);
         continue;
       }
@@ -618,7 +570,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         }
 
         const currentItemsMarkdown = toMarkdown(currentItemsGroup);
-        chunks.push(currentItemsMarkdown.trim());
+        chunks.push(currentItemsMarkdown);
         firstItemIndex += currentItems.length; // Update index for next chunk
         currentItems = [];
         currentSize = 0;
@@ -633,10 +585,6 @@ export const chunkdown = (options: ChunkdownOptions) => {
         ...container,
         children: [item],
       };
-      // const itemMarkdown = toMarkdown({
-      //   ...container,
-      //   children: [item],
-      // } as TContainer);
       const itemSize = getContentSize(itemNode);
 
       // Special handling for keeping first item with second item (e.g., table header + separator)
@@ -657,8 +605,9 @@ export const chunkdown = (options: ChunkdownOptions) => {
         }
       }
 
-      // Check if this single item exceeds chunk size but is within soft limit
-      if (itemSize > chunkSize && isWithinAllowedSize(itemSize)) {
+      // Check if this single item exceeds chunk size
+      if (itemSize > chunkSize) {
+        // Item is too large
         flushCurrentItems();
 
         // For ordered lists, ensure correct numbering
@@ -666,41 +615,28 @@ export const chunkdown = (options: ChunkdownOptions) => {
           setListStart(itemNode);
         }
 
-        const itemMarkdown = toMarkdown(itemNode).trim();
-        chunks.push(itemMarkdown);
-        firstItemIndex += 1; // Increment for this processed item
-      } else if (itemSize > chunkSize && !isWithinAllowedSize(itemSize)) {
-        // Item is too large even with overflow - need to split it
-        flushCurrentItems();
-
-        // For ordered lists, preserve the correct numbering for the first chunk
-        if (itemNode.type === 'list' && itemNode.ordered) {
-          setListStart(itemNode);
+        if (isWithinAllowedSize(itemSize)) {
+          // Item is within allowed size - add as its own chunk
+          chunks.push(toMarkdown(itemNode));
+        } else {
+          // Item too large even with overflow - fall back to text splitting
+          chunks.push(...splitLongText(itemNode));
         }
 
-        // Parse AST from trimmed markdown to extract the correct protected ranges
-        const itemMarkdown = toMarkdown(itemNode).trim();
-        const itemAST = fromMarkdown(itemMarkdown);
-        const itemProtectedRanges = extractProtectedRangesFromAST(itemAST);
-        const itemChunks = splitLongText(
-          itemMarkdown,
-          itemProtectedRanges,
-          0,
-          itemAST,
-        );
-        chunks.push(...itemChunks);
         firstItemIndex += 1; // Increment for this processed item
-      } else if (!isWithinAllowedSize(currentSize + itemSize)) {
-        // Adding this item would exceed allowed size (including overflow)
-        flushCurrentItems();
-
-        // Start new chunk with this item
-        currentItems = [item];
-        currentSize = itemSize;
       } else {
-        // Add item to current chunk
-        currentItems.push(item);
-        currentSize += itemSize;
+        if (isWithinAllowedSize(currentSize + itemSize)) {
+          // Add item to current chunk
+          currentItems.push(item);
+          currentSize += itemSize;
+        } else {
+          // Adding this item would exceed allowed size (including overflow)
+          flushCurrentItems();
+
+          // Start new chunk with this item
+          currentItems = [item];
+          currentSize = itemSize;
+        }
       }
     }
 
@@ -714,30 +650,28 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * Process hierarchical AST using top-down approach
    *
    * @param hierarchicalAST - The hierarchical AST to process
-   * @param protectedRanges - Pre-computed protected ranges from AST
    * @returns Array of markdown chunks
    */
   const processHierarchicalAST = (
     hierarchicalAST: HierarchicalRoot,
-    protectedRanges: ProtectedRange[],
   ): string[] => {
     const chunks: string[] = [];
 
-    // Group consecutive non-section children into shadow sections
+    // Group consecutive non-section children into orphaned sections
     const groupedChildren: (Section | RootContent)[] = [];
     let currentOrphanedContent: RootContent[] = [];
 
     for (const child of hierarchicalAST.children) {
       if (isSection(child)) {
-        // If we have accumulated orphaned content, create a shadow section
+        // If we have accumulated orphaned content, create a orphaned section
         if (currentOrphanedContent.length > 0) {
-          const shadowSection: Section = {
+          const orphanedSection: Section = {
             type: 'section',
             depth: 0,
             heading: undefined,
             children: currentOrphanedContent,
           };
-          groupedChildren.push(shadowSection);
+          groupedChildren.push(orphanedSection);
           currentOrphanedContent = [];
         }
         // Add the regular section
@@ -750,16 +684,16 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
     // Don't forget any remaining orphaned content at the end
     if (currentOrphanedContent.length > 0) {
-      const shadowSection: Section = {
+      const orphanedSection: Section = {
         type: 'section',
         depth: 0,
         heading: undefined,
         children: currentOrphanedContent,
       };
-      groupedChildren.push(shadowSection);
+      groupedChildren.push(orphanedSection);
     }
 
-    // Now process all children (both regular and shadow sections)
+    // Now process all children (both regular and orphaned sections)
     // TODO: Future enhancement - merge orphaned sibling sections at root level
     // const sections = groupedChildren.filter(isSection);
     // if (sections.length > 1) {
@@ -770,16 +704,13 @@ export const chunkdown = (options: ChunkdownOptions) => {
     // Single section or non-section content - process individually
     for (const child of groupedChildren) {
       if (isSection(child)) {
-        // Process both regular and shadow sections using the same logic
-        const sectionChunks = processHierarchicalSection(
-          child,
-          protectedRanges,
-        );
+        // Process both regular and orphaned sections using the same logic
+        const sectionChunks = processHierarchicalSection(child);
         chunks.push(...sectionChunks);
       } else {
         // This shouldn't happen anymore, but keep as fallback
         const contentMarkdown = toMarkdown(child);
-        chunks.push(contentMarkdown.trim());
+        chunks.push(contentMarkdown);
       }
     }
     // }
@@ -904,547 +835,479 @@ export const chunkdown = (options: ChunkdownOptions) => {
   };
 
   /**
-   * Extract structural boundaries from markdown AST nodes using position information
-   * This replaces regex-based parsing with proper AST node analysis
+   * Find all semantic boundaries with text-based pattern matching
+   * Since structural boundaries are handled by hierarchical AST processing,
+   * this function only identifies semantic text boundaries for fine-grained splitting
    *
-   * @param ast - Parsed mdast AST with position information
-   * @returns Array of structural boundaries with proper priority hierarchy
+   * @param text - The text to analyze
+   * @param protectedRanges - Ranges that should not be split
+   * @returns Array of boundaries sorted by priority (desc), then position (asc)
    */
-  const extractStructuralBoundariesFromAST = (
-    ast: Node,
-  ): StructuralBoundary[] => {
-    const boundaries: StructuralBoundary[] = [];
-
-    /**
-     * Recursively traverse AST nodes to find structural boundaries
-     */
-    const traverse = (node: Node): void => {
-      // Only process nodes that have position information
-      if (
-        !node.position?.start?.offset ||
-        node.position?.end?.offset === undefined
-      ) {
-        // Still traverse children even if this node lacks position info
-        if ('children' in node && Array.isArray(node.children)) {
-          node.children.forEach(traverse);
-        }
-        return;
-      }
-
-      const start = node.position.start.offset;
-
-      // Extract structural boundaries based on node type with proper priority hierarchy
-      switch (node.type) {
-        case 'heading':
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 10, // Highest priority - major document structure
-          });
-          break;
-
-        case 'thematicBreak': // Horizontal rules (---, ***, ___)
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 8,
-          });
-          break;
-
-        case 'code': // Code blocks
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 7,
-          });
-          break;
-
-        case 'blockquote':
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 6,
-          });
-          break;
-
-        case 'paragraph':
-          // Only add paragraph boundaries if they're not the first node
-          // and there's meaningful separation (empty line before)
-          if (start > 0) {
-            boundaries.push({
-              position: start,
-              type: node.type,
-              priority: 5,
-            });
-          }
-          break;
-
-        case 'list':
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 4, // List container boundary
-          });
-          break;
-
-        case 'listItem':
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 3, // Individual list items within lists
-          });
-          break;
-
-        case 'table':
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 4, // Table container boundary (same as lists)
-          });
-          break;
-
-        case 'tableRow':
-          boundaries.push({
-            position: start,
-            type: node.type,
-            priority: 3, // Individual table rows within tables (same as listItem)
-          });
-          break;
-      }
-
-      // Recursively process children
-      if ('children' in node && Array.isArray(node.children)) {
-        node.children.forEach(traverse);
-      }
-    };
-
-    traverse(ast);
-
-    // Sort boundaries by position for consistent processing
-    return boundaries.sort((a, b) => a.position - b.position);
-  };
-
-  /**
-   * Split text at specified boundaries while preserving markdown constructs
-   * This prevents splitting from breaking links, images, etc.
-   *
-   * @param text - Text to split
-   * @param protectedRanges - Pre-computed protected ranges from AST
-   * @param boundaryRegex - Regex pattern for boundaries (e.g., /[.!?]/g for sentences, /[,;]/g for sub-sentences)
-   * @returns Array of text segments with their positions in the original text
-   */
-  const splitIntoMarkdownAwareBoundaries = (
+  const extractSemanticBoundaries = (
     text: string,
     protectedRanges: ProtectedRange[],
-    boundaryRegex: RegExp,
-  ): SentenceInfo[] => {
-    // Find all potential boundaries using the provided regex
-    const boundaries: number[] = [];
-    let match = boundaryRegex.exec(text);
-    while (match) {
-      boundaries.push(match.index + 1); // Position after the punctuation
-      match = boundaryRegex.exec(text);
-    }
+  ): Boundary[] => {
+    const boundaries: Boundary[] = [];
 
-    // Filter out boundaries that would break protected ranges
-    const safeBoundaries = boundaries.filter((boundary) => {
-      for (const range of protectedRanges) {
-        if (boundary > range.start && boundary < range.end) {
-          return false; // This boundary would break a protected range
+    // COMMENTED OUT: Structural boundaries are redundant in text splitting
+    // The hierarchical AST processing already handles all structural boundaries
+    // (headings, lists, tables, paragraphs, etc.) before we reach this point.
+    // When splitLongText runs, we only need semantic boundaries for text-level splitting.
+
+    // // Get structural boundaries from AST if available
+    // if (ast) {
+    //   const traverse = (node: Node): void => {
+    //     // Only process nodes that have position information
+    //     if (
+    //       !node.position?.start?.offset ||
+    //       node.position?.end?.offset === undefined
+    //     ) {
+    //       // Still traverse children even if this node lacks position info
+    //       if ('children' in node && Array.isArray(node.children)) {
+    //         node.children.forEach(traverse);
+    //       }
+    //       return;
+    //     }
+
+    //     const start = node.position.start.offset;
+
+    //     // Check if boundary is within a protected range
+    //     const isProtected = protectedRanges.some(
+    //       (range) => start > range.start && start < range.end,
+    //     );
+
+    //     if (!isProtected) {
+    //       // Extract structural boundaries with unified priority hierarchy
+    //       switch (node.type) {
+    //         case 'heading':
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 15, // Highest priority - major document structure
+    //           });
+    //           break;
+
+    //         case 'thematicBreak': // Horizontal rules (---, ***, ___)
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 13,
+    //           });
+    //           break;
+
+    //         case 'code': // Code blocks
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 12,
+    //           });
+    //           break;
+
+    //         case 'blockquote':
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 11,
+    //           });
+    //           break;
+
+    //         case 'paragraph':
+    //           // Only add paragraph boundaries if they're not the first node
+    //           if (start > 0) {
+    //             boundaries.push({
+    //               position: start,
+    //               type: node.type,
+    //               priority: 10,
+    //             });
+    //           }
+    //           break;
+
+    //         case 'list':
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 9, // List container boundary
+    //           });
+    //           break;
+
+    //         case 'table':
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 9, // Table container boundary (same as lists)
+    //           });
+    //           break;
+
+    //         case 'listItem':
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 8, // Individual list items within lists
+    //           });
+    //           break;
+
+    //         case 'tableRow':
+    //           boundaries.push({
+    //             position: start,
+    //             type: node.type,
+    //             priority: 8, // Individual table rows within tables
+    //           });
+    //           break;
+    //       }
+    //     }
+
+    //     // Recursively process children
+    //     if ('children' in node && Array.isArray(node.children)) {
+    //       node.children.forEach(traverse);
+    //     }
+    //   };
+
+    //   traverse(ast);
+    // }
+
+    // const boundaryPatterns = [
+    //   // High priority: periods NOT preceded by 1-3 letter words (likely real sentences)
+    //   { regex: /(?<!\b[a-zA-Z]{1,3})[.!?]+/g, type: 'sentence_end', priority: 6 },
+    //   { regex: /[;:—]/g, type: 'major_break', priority: 4 }, // Independent clauses, introductions
+    //   { regex: /[,]/g, type: 'minor_break', priority: 3 }, // Commas
+    //   // Low priority: periods preceded by 1-3 letter words (likely abbreviations)
+    //   { regex: /(?<=\b[a-zA-Z]{1,3})[.]+/g, type: 'abbreviation_end', priority: 2 },
+    //   { regex: /[()[\]"'…]/g, type: 'embedded', priority: 1.5 }, // Parentheticals, quotes, pauses
+    //   { regex: /\s+/g, type: 'word', priority: 1 }, // Words
+    // ];
+
+    let priority = 0;
+    const boundaryPatterns = [
+      // Period followed by newline (very strong sentence boundary)
+      // Example: "First sentence.\nSecond sentence." → splits after period
+      {
+        regex: /\.(?=\n)/g,
+        type: 'period_before_newline',
+        priority: priority++,
+      },
+      // Period followed by whitespace and uppercase letter (strong sentence boundary)
+      // Example: "Hello world. The sun is shining" → splits after "world."
+      // Excludes list items like "1. Item", "a. Item", "i. Item" with negative lookbehind
+      {
+        regex: /(?<!^\s*(?:\d+|[a-zA-Z]+|[ivxlcdmIVXLCDM]+))\.\s+(?=[A-Z])/g,
+        type: 'period_before_uppercase',
+        priority: priority++,
+      },
+
+      // Question marks or exclamation marks followed by space or end of string
+      // Example: "Really? Yes!" → splits after "?" and "!"
+      {
+        regex: /[?!]+(?=\s|$)/g,
+        type: 'question_exclamation',
+        priority: priority++,
+      },
+
+      // Period NOT followed by lowercase, another period, or digit (avoids abbreviations)
+      // Example: "End." but NOT "e.g. example" or "U.S.A." or "3.14"
+      // Excludes list items like "1. Item", "a. Item", "i. Item" with negative lookbehind
+      {
+        regex:
+          /(?<!^\s*(?:\d+|[a-zA-Z]+|[ivxlcdmIVXLCDM]+))\.(?!\s*[a-z])(?!\s*\.)(?!\s*\d)/g,
+        type: 'period_safe',
+        priority: priority++,
+      },
+
+      // Colon or semicolon followed by space (major clause separators)
+      // Example: "Note: this is important; very important" → splits after ":" and ";"
+      { regex: /[:;](?=\s)/g, type: 'colon_semicolon', priority: priority++ },
+
+      // Closing parentheses, brackets, or braces followed by space
+      // Example: "Hello (world) there" → splits after ")"
+      {
+        regex: /[)\]}](?=\s)/g,
+        type: 'closing_brackets',
+        priority: priority++,
+      },
+
+      // Opening parentheses, brackets, or braces preceded by space
+      // Example: "Hello (world)" → splits before "("
+      {
+        regex: /(?<=\s)[([{]/g,
+        type: 'opening_brackets',
+        priority: priority++,
+      },
+
+      // Closing quotes (various styles) followed by space
+      // Example: "He said 'hello' there" → splits after closing quote
+      {
+        regex: /["'"`´''](?=\s)/g,
+        type: 'closing_quotes',
+        priority: priority++,
+      },
+
+      // Opening quotes (various styles) preceded by space
+      // Example: "He said 'hello'" → splits before opening quote
+      {
+        regex: /(?<=\s)["'"`´'']/g,
+        type: 'opening_quotes',
+        priority: priority++,
+      },
+
+      // Single linebreak (line boundaries within paragraphs)
+      // Example: "First line\nSecond line" → splits at linebreak
+      { regex: /\n/g, type: 'line_break', priority: priority++ },
+
+      // Comma followed by space (minor clause separator)
+      // Example: "apples, oranges, bananas" → splits after each comma
+      { regex: /,(?=\s)/g, type: 'comma', priority: priority++ },
+
+      // Em dash, en dash, or hyphen surrounded by spaces
+      // Example: "Paris – the city of lights – is beautiful" → splits at dashes
+      { regex: /\s[–—-]\s/g, type: 'dashes', priority: priority++ },
+
+      // Ellipsis (three or more consecutive periods)
+      // Example: "Wait... what happened..." → splits at "..."
+      { regex: /\.{3,}/g, type: 'ellipsis', priority: priority++ },
+
+      // ANY period as fallback (catches edge cases, but may split abbreviations)
+      // Example: "etc." or "End" → splits at period (use with caution)
+      { regex: /\./g, type: 'period_fallback', priority: priority++ },
+
+      // One or more whitespace characters (lowest priority word separator)
+      // Example: "hello   world" → splits between words at spaces
+      { regex: /\s+/g, type: 'whitespace', priority: priority++ },
+    ];
+
+    // Find all semantic boundaries for each pattern
+    for (const pattern of boundaryPatterns) {
+      const regex = new RegExp(pattern.regex.source, 'g');
+      let match: RegExpExecArray | null;
+      // biome-ignore lint/suspicious/noAssignInExpressions: regex.exec assignment in while condition
+      while ((match = regex.exec(text)) !== null) {
+        const position = match.index + match[0].length;
+
+        // Check if boundary is within a protected range
+        const isProtected = protectedRanges.some(
+          (range) => position > range.start && position < range.end,
+        );
+
+        // Only add boundary if not protected
+        if (!isProtected) {
+          boundaries.push({
+            position,
+            type: pattern.type,
+            priority: pattern.priority,
+          });
         }
       }
-      return true;
-    });
-
-    // Split at safe boundaries and track positions
-    const segments: SentenceInfo[] = [];
-    let start = 0;
-
-    for (const boundary of safeBoundaries) {
-      const segment = text.substring(start, boundary);
-      const trimmedSegment = segment.trim();
-      if (trimmedSegment) {
-        // Find the actual start position after trimming
-        const leadingWhitespace = segment.match(/^\s*/)?.[0].length || 0;
-        const actualStart = start + leadingWhitespace;
-        segments.push({
-          text: trimmedSegment,
-          start: actualStart,
-          end: actualStart + trimmedSegment.length,
-        });
-      }
-      start = boundary;
     }
 
-    // Add remaining text
-    if (start < text.length) {
-      const remaining = text.substring(start);
-      const trimmedRemaining = remaining.trim();
-      if (trimmedRemaining) {
-        const leadingWhitespace = remaining.match(/^\s*/)?.[0].length || 0;
-        const actualStart = start + leadingWhitespace;
-        segments.push({
-          text: trimmedRemaining,
-          start: actualStart,
-          end: actualStart + trimmedRemaining.length,
-        });
-      }
-    }
-
-    return segments.length > 0
-      ? segments
-      : [{ text: text.trim(), start: 0, end: text.trim().length }];
+    // Sort by priority (ascending), then by position (ascending)
+    // This gives us the highest priority boundaries first, in positional order
+    return boundaries.sort((a, b) =>
+      a.priority !== b.priority
+        ? a.priority - b.priority
+        : a.position - b.position,
+    );
   };
 
   /**
-   * Split text that exceeds chunk size using markdown-aware hierarchical breaking points
-   *
-   * Uses a progressive approach that respects markdown formatting:
-   * 1. Try splitting at structural boundaries (headings, paragraphs, lists) first
-   * 2. Fall back to sentence boundaries (. ! ?) while preserving markdown constructs
-   * 3. As last resort, split by word boundaries but never inside markdown constructs
+   * Adjust boundary positions for a substring operation
+   * @param boundaries - Original boundaries
+   * @param substringStart - Start position of substring in original text
+   * @param substringEnd - End position of substring in original text
+   * @returns Boundaries adjusted for the substring
+   */
+  const adjustBoundariesForSubstring = (
+    boundaries: Boundary[],
+    substringStart: number,
+    substringEnd: number,
+  ): Boundary[] => {
+    return boundaries
+      .filter((b) => b.position > substringStart && b.position <= substringEnd)
+      .map((b) => ({ ...b, position: b.position - substringStart }));
+  };
+
+  /**
+   * Recursively split text using boundary priority hierarchy
+   * Iterates through distinct priority levels (each semantic boundary type has unique priority)
+   * Each recursive call uses only boundaries with lower or equal priority than current level
    *
    * @param text - The text to split
+   * @param boundaries - Available boundaries sorted by priority desc, position asc
    * @param protectedRanges - Pre-computed protected ranges from AST
-   * @param originalOffset - Offset of this text in the original document (for protected range adjustment)
-   * @param ast - Optional AST for structural boundary detection (if available)
-   * @returns Array of text chunks, each within the size limit and preserving markdown formatting
+   * @param originalOffset - Offset of this text in the original document
+   * @returns Array of text chunks, each within the size limit
    */
-  const splitLongText = (
+  const splitLongTextRecursive = (
     text: string,
+    boundaries: Boundary[],
     protectedRanges: ProtectedRange[],
     originalOffset: number = 0,
-    ast?: Node,
   ): string[] => {
-    const textLength = getContentSize(text);
+    const textSize = getContentSize(text);
 
-    // Check if text fits within target size
-    if (textLength <= chunkSize) return [text];
+    // Base cases: text fits within limits
+    if (isWithinAllowedSize(textSize)) return [text];
 
-    // Check if text fits within overflow allowance - if so, keep it together
-    const maxAllowedSize = chunkSize * maxOverflowRatio;
-    if (textLength <= maxAllowedSize) return [text];
+    // If no boundaries available, return as single chunk (protected)
+    if (boundaries.length === 0) return [text];
 
-    const chunks: string[] = [];
-    let currentChunk = '';
-
-    // Define minimum sizes to prevent small fragments
-    const minSentenceChunkSize = chunkSize * 0.2; // For sentence-level splitting
-    const minStructuralChunkSize = chunkSize * 0.3; // For structural boundary selection
-
-    // Step 1: Check for structural boundaries first (headings, paragraphs, lists)
-    // These should take priority over sentence boundaries
-    // Use AST-based boundary detection if available
-    // Fall back to parsing text if no AST available
-    const structuralBoundaries = extractStructuralBoundariesFromAST(
-      ast ?? fromMarkdown(text),
-    );
-
-    // If we have structural boundaries, prioritize them over sentence boundaries
-    // Look for the best structural boundary within the text
-    const suitableStructuralBoundary = structuralBoundaries.find((boundary) => {
-      // Skip the boundary at position 0 (start of text)
-      if (boundary.position === 0) return false;
-
-      // Check if this boundary would break a protected range (critical fix!)
-      const wouldBreakProtectedRange = protectedRanges.some(
-        (range) =>
-          boundary.position > range.start && boundary.position < range.end,
-      );
-      if (wouldBreakProtectedRange) return false;
-
-      // Calculate what the first chunk size would be
-      const firstChunkSize = getContentSize(
-        text.substring(0, boundary.position).trim(),
+    for (const boundary of boundaries) {
+      // Get all boundaries at this priority level (should be same type)
+      const currentBoundaries = boundaries.filter(
+        (b) => b.priority === boundary.priority,
       );
 
-      // Accept if it's reasonable (between 30% minimum and user's overflow allowance)
-      // This allows for flexibility while still preferring structural splits
-      return (
-        firstChunkSize >= minStructuralChunkSize &&
-        firstChunkSize <= maxAllowedSize
-      );
-    });
+      // Get positions within current text bounds (exclude start and end positions)
+      const validPositions = currentBoundaries
+        .map((b) => b.position)
+        .filter((pos) => pos > 0 && pos < text.length)
+        .sort((a, b) => a - b);
 
-    if (suitableStructuralBoundary) {
-      // Split at the structural boundary
-      const firstChunk = text
-        .substring(0, suitableStructuralBoundary.position)
-        .trim();
-      const remainingText = text.substring(suitableStructuralBoundary.position);
+      if (validPositions.length === 0) continue;
 
-      if (firstChunk) {
-        chunks.push(firstChunk);
+      // Generalized boundary selection strategy:
+      // Length=1 => [0], Length=2 => [0,1], Length=3 => [1], Length=4 => [1,2], etc.
+      const mid = Math.floor(validPositions.length / 2);
+      const middlePositions =
+        validPositions.length % 2 === 1
+          ? [mid] // Odd length: try exact middle
+          : [mid - 1, mid]; // Even length: try both middle positions
 
-        // Recursively process the remaining text
-        if (remainingText.trim()) {
-          // Note: We pass undefined for ast to force reparsing of the remaining text
-          // This ensures structural boundaries are found correctly in the remaining portion
-          chunks.push(
-            ...splitLongText(
-              remainingText,
-              protectedRanges,
-              originalOffset + suitableStructuralBoundary.position,
-            ),
-          );
-        }
+      // Evaluate all middle position candidates to find the best one
+      const positionCandidates = middlePositions
+        .map((index) => {
+          const position = validPositions[index];
+          const firstPart = text.substring(0, position);
+          const secondPart = text.substring(position);
+          const firstPartSize = getContentSize(firstPart);
+          const secondPartSize = getContentSize(secondPart);
+          const bothWithinLimits =
+            isWithinAllowedSize(firstPartSize) &&
+            isWithinAllowedSize(secondPartSize);
+          const distance = Math.abs(firstPartSize - secondPartSize);
 
-        return chunks;
-      }
-    }
-
-    // Step 2: Fall back to sentence boundaries if no structural boundary works
-    // We need to use markdown-aware sentence splitting to avoid breaking links/images
-    const sentences = splitIntoMarkdownAwareBoundaries(
-      text,
-      protectedRanges,
-      /[.!?]/g,
-    );
-
-    /**
-     * Helper function to process oversized sentences with comma/semicolon splitting
-     * Handles the common logic for splitting sentences that exceed maxAllowedSize
-     */
-    const processOversizedSentence = (
-      sentenceText: string,
-      sentenceProtectedRanges: ProtectedRange[],
-      sentenceOffset: number,
-    ): string[] => {
-      const sentenceChunks: string[] = [];
-
-      // Try splitting at commas/semicolons first
-      const subSentences = splitIntoMarkdownAwareBoundaries(
-        sentenceText,
-        sentenceProtectedRanges,
-        /[,;]/g,
-      );
-
-      if (subSentences.length > 1) {
-        // Process sub-sentences with same chunking logic as sentences
-        let subCurrentChunk = '';
-
-        for (const subSentenceInfo of subSentences) {
-          const subSentenceText = subSentenceInfo.text;
-          if (!subSentenceText) continue;
-
-          const subSentenceLength = getContentSize(subSentenceText);
-          const subCurrentChunkLength = getContentSize(subCurrentChunk);
-
-          if (subCurrentChunk.length === 0) {
-            if (subSentenceLength <= maxAllowedSize) {
-              subCurrentChunk = subSentenceText;
-            } else {
-              // Sub-sentence too large - fall back to word splitting
-              sentenceChunks.push(
-                ...splitTextAroundProtectedRanges(
-                  subSentenceText,
-                  sentenceProtectedRanges,
-                  sentenceOffset + subSentenceInfo.start,
-                ),
-              );
-            }
-          } else if (
-            subCurrentChunkLength + 1 + subSentenceLength <=
-            chunkSize
-          ) {
-            subCurrentChunk += ` ${subSentenceText}`;
-          } else {
-            sentenceChunks.push(subCurrentChunk);
-            if (subSentenceLength <= maxAllowedSize) {
-              subCurrentChunk = subSentenceText;
-            } else {
-              sentenceChunks.push(
-                ...splitTextAroundProtectedRanges(
-                  subSentenceText,
-                  sentenceProtectedRanges,
-                  sentenceOffset + subSentenceInfo.start,
-                ),
-              );
-              subCurrentChunk = '';
-            }
+          // Verify splits make progress (should always be true for valid boundary positions)
+          if (process.env.NODE_ENV === 'development') {
+            console.assert(
+              firstPartSize < textSize && secondPartSize < textSize,
+              'Split should create smaller parts than original',
+              { firstPartSize, secondPartSize, textSize, position },
+            );
           }
-        }
 
-        if (subCurrentChunk) {
-          sentenceChunks.push(subCurrentChunk);
-        }
+          return {
+            position,
+            firstPart,
+            secondPart,
+            firstPartSize,
+            secondPartSize,
+            bothWithinLimits,
+            distance: distance,
+          };
+        })
+        .sort((a, b) => {
+          // Primary: bothWithinLimits
+          if (a.bothWithinLimits && !b.bothWithinLimits) return -1;
+          if (!a.bothWithinLimits && b.bothWithinLimits) return 1;
+
+          // Secondary: distance (smaller is better)
+          return a.distance - b.distance;
+        });
+
+      const bestCandidate = positionCandidates[0];
+
+      const { position, firstPart, secondPart, firstPartSize, secondPartSize } =
+        bestCandidate;
+
+      // Calculate actual positions for boundary adjustments
+      const firstPartActualStart = 0;
+      const firstPartActualEnd = position;
+      const secondPartActualStart = position;
+      const secondPartActualEnd = text.length;
+
+      const chunks: string[] = [];
+      // Priority is ascending, so lower or equal priority boundaries for next level
+      const lowerPriorityBoundaries = boundaries.filter(
+        (b) => b.priority >= boundary.priority,
+      );
+
+      if (process.env.NODE_ENV === 'development') {
+        console.assert(firstPart && secondPart, 'Both parts should be valid', {
+          firstPart,
+          secondPart,
+        });
+      }
+
+      // Recursively process first part if needed
+      if (isWithinAllowedSize(firstPartSize)) {
+        chunks.push(firstPart);
       } else {
-        // No comma/semicolon boundaries found - fall back to word splitting
-        sentenceChunks.push(
-          ...splitTextAroundProtectedRanges(
-            sentenceText,
-            sentenceProtectedRanges,
-            sentenceOffset,
+        const firstPartRanges = adjustProtectedRangesForSubstring(
+          protectedRanges,
+          originalOffset,
+          originalOffset + position,
+        );
+        const firstPartBoundaries = adjustBoundariesForSubstring(
+          lowerPriorityBoundaries,
+          firstPartActualStart,
+          firstPartActualEnd,
+        );
+        chunks.push(
+          ...splitLongTextRecursive(
+            firstPart,
+            firstPartBoundaries,
+            firstPartRanges,
+            originalOffset,
           ),
         );
       }
 
-      return sentenceChunks;
-    };
-
-    for (let i = 0; i < sentences.length; i++) {
-      const sentenceInfo = sentences[i];
-      const sentenceText = sentenceInfo.text;
-      if (!sentenceText) continue;
-
-      const sentenceLength = getContentSize(sentenceText);
-      const currentChunkLength = getContentSize(currentChunk);
-
-      if (currentChunk.length === 0) {
-        // Starting with a new sentence - check if it fits within overflow allowance
-        if (sentenceLength > maxAllowedSize) {
-          // Sentence exceeds overflow allowance - use helper to process with comma/semicolon splitting
-          const sentenceOffset = originalOffset + sentenceInfo.start;
-          const sentenceProtectedRanges = adjustProtectedRangesForSubstring(
-            protectedRanges,
-            sentenceOffset,
-            sentenceOffset + sentenceText.length,
-          );
-
-          const sentenceChunks = processOversizedSentence(
-            sentenceText,
-            sentenceProtectedRanges,
-            sentenceOffset,
-          );
-          chunks.push(...sentenceChunks);
-        } else {
-          // Sentence fits within overflow allowance - keep it whole
-          currentChunk = sentenceText;
-        }
-      } else if (currentChunkLength + 1 + sentenceLength <= chunkSize) {
-        // Current sentence fits with existing chunk - combine them
-        currentChunk += ` ${sentenceText}`;
+      // Recursively process second part if needed
+      if (isWithinAllowedSize(secondPartSize)) {
+        chunks.push(secondPart);
       } else {
-        // Current sentence doesn't fit
-        // Check if we should allow overflow to prevent small fragments
-        const isLastSentence = i === sentences.length - 1;
-        const nextSentenceWouldBeTiny =
-          isLastSentence ||
-          (sentences[i + 1] &&
-            getContentSize(sentences[i + 1].text) < minSentenceChunkSize);
-        const currentChunkTooSmall = currentChunkLength < minSentenceChunkSize;
-        const combinedLength = currentChunkLength + 1 + sentenceLength;
-        const overflowAcceptable = combinedLength <= maxAllowedSize;
-
-        if (
-          (currentChunkTooSmall || nextSentenceWouldBeTiny) &&
-          overflowAcceptable
-        ) {
-          // Allow overflow to prevent tiny fragments
-          currentChunk += ` ${sentenceText}`;
-        } else {
-          // Save current chunk and start new one
-          chunks.push(currentChunk);
-
-          if (sentenceLength > maxAllowedSize) {
-            // New sentence exceeds overflow allowance - use helper to process with comma/semicolon splitting
-            const sentenceOffset = originalOffset + sentenceInfo.start;
-            const sentenceProtectedRanges = adjustProtectedRangesForSubstring(
-              protectedRanges,
-              sentenceOffset,
-              sentenceOffset + sentenceText.length,
-            );
-
-            const sentenceChunks = processOversizedSentence(
-              sentenceText,
-              sentenceProtectedRanges,
-              sentenceOffset,
-            );
-            chunks.push(...sentenceChunks);
-            currentChunk = '';
-          } else {
-            // New sentence fits within overflow allowance - keep it whole
-            currentChunk = sentenceText;
-          }
-        }
+        const secondPartRanges = adjustProtectedRangesForSubstring(
+          protectedRanges,
+          originalOffset + position,
+          originalOffset + text.length,
+        );
+        const secondPartBoundaries = adjustBoundariesForSubstring(
+          lowerPriorityBoundaries,
+          secondPartActualStart,
+          secondPartActualEnd,
+        );
+        chunks.push(
+          ...splitLongTextRecursive(
+            secondPart,
+            secondPartBoundaries,
+            secondPartRanges,
+            originalOffset + secondPartActualStart,
+          ),
+        );
       }
+
+      // Return the chunks created from this valid split
+      return chunks;
     }
 
-    if (currentChunk) chunks.push(currentChunk);
-
-    return chunks;
+    // Ultimate fallback: return text as single oversized chunk
+    return [text];
   };
 
   /**
-   * Split text while absolutely preserving protected constructs (links, images, etc.)
-   * Protected constructs are never broken, regardless of chunk size limits
+   * Main text splitting function using recursive boundary priority approach
+   * Entry point that finds all boundaries and delegates to recursive implementation
    *
-   * @param text - Text to split
-   * @param protectedRanges - Pre-computed protected ranges from AST
-   * @param originalTextOffset - Offset in the original text for protected range adjustment
-   * @returns Array of chunks that never break markdown constructs
+   * @param node - The node to split
+   * @returns Array of text chunks, each within the size limit
    */
-  const splitTextAroundProtectedRanges = (
-    text: string,
-    protectedRanges: ProtectedRange[],
-    originalTextOffset: number = 0,
-  ): string[] => {
-    // Helper function to split text by words while respecting size limits
-    const splitByWords = (textToSplit: string): string[] => {
-      const words = textToSplit.split(/\s+/).filter((word) => word.trim());
-      const chunks: string[] = [];
-      let currentChunk = '';
+  const splitLongText = (node: Nodes): string[] => {
+    const text = toMarkdown(node);
 
-      for (const word of words) {
-        const testChunk = currentChunk ? `${currentChunk} ${word}` : word;
-        if (getContentSize(testChunk) <= chunkSize || !currentChunk) {
-          currentChunk = testChunk;
-        } else {
-          chunks.push(currentChunk);
-          currentChunk = word;
-        }
-      }
+    // Re-parse the text to get fresh AST with positions relative to this text
+    // This ensures protected ranges are correctly positioned for the extracted content
+    const freshAST = fromMarkdown(text);
+    const protectedRanges = extractProtectedRangesFromAST(freshAST);
+    const allBoundaries = extractSemanticBoundaries(text, protectedRanges);
 
-      if (currentChunk) {
-        chunks.push(currentChunk);
-      }
-
-      return chunks;
-    };
-
-    // Adjust protected ranges to be relative to this text
-    const adjustedRanges = adjustProtectedRangesForSubstring(
-      protectedRanges,
-      originalTextOffset,
-      originalTextOffset + text.length,
-    );
-
-    if (adjustedRanges.length === 0) {
-      // No protected ranges in this text - use normal word boundary splitting
-      return splitByWords(text);
-    }
-
-    // Protected ranges exist - split around them while preserving them absolutely
-    const chunks: string[] = [];
-    let currentPosition = 0;
-
-    for (let i = 0; i < adjustedRanges.length; i++) {
-      const range = adjustedRanges[i];
-
-      // Process text before this protected range with normal chunking
-      if (currentPosition < range.start) {
-        const beforeText = text.substring(currentPosition, range.start).trim();
-        if (beforeText) {
-          chunks.push(...splitByWords(beforeText));
-        }
-      }
-
-      // Add the protected range as a single chunk (never break it)
-      const protectedText = text.substring(range.start, range.end);
-      chunks.push(protectedText);
-
-      currentPosition = range.end;
-    }
-
-    // Process any remaining text after the last protected range
-    if (currentPosition < text.length) {
-      const afterText = text.substring(currentPosition).trim();
-      if (afterText) {
-        chunks.push(...splitByWords(afterText));
-      }
-    }
-
-    return chunks.filter((chunk) => chunk.trim());
+    return splitLongTextRecursive(text, allBoundaries, protectedRanges);
   };
 
   /**
@@ -1454,7 +1317,8 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * 1. Parse markdown text into AST using mdast-util-from-markdown
    * 2. Transform to hierarchical sections for semantic understanding
    * 3. Apply top-down chunking with soft limits and overflow logic
-   * 4. Fall back to text-based splitting for oversized content
+   * 4. Fall back to text-based splitting for oversized content (with protected ranges)
+   * 5. Final trimming and filtering of chunks
    *
    * @param text - The markdown text to split
    * @returns Array of text chunks with preserved markdown formatting and section relationships
@@ -1467,12 +1331,15 @@ export const chunkdown = (options: ChunkdownOptions) => {
     // This gives us semantic understanding of the document structure
     const tree = fromMarkdown(text);
 
-    // Step 2: Extract protected ranges from AST to prevent splitting markdown constructs
-    const protectedRanges = extractProtectedRangesFromAST(tree);
-
-    // Step 3: Transform to hierarchical AST and use semantic-aware processing
+    // Step 2: Transform to hierarchical AST and use semantic-aware processing
+    // Protected ranges are extracted locally in splitLongText when needed
     const hierarchicalAST = createHierarchicalAST(tree);
-    return processHierarchicalAST(hierarchicalAST, protectedRanges);
+    const rawChunks = processHierarchicalAST(hierarchicalAST);
+
+    // Step 3: Final trimming and filtering to ensure clean output
+    return rawChunks
+      .map((chunk) => chunk.trim())
+      .filter((chunk) => chunk.length > 0);
   };
 
   return { splitText };
