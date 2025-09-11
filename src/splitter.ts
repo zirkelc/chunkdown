@@ -224,7 +224,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * @param contentNode - The content node to process
    * @returns Array of markdown chunks
    */
-  const processLargeContentNode = (contentNode: RootContent): string[] => {
+  const processLargeContentNode = (contentNode: Nodes): string[] => {
     const chunks: string[] = [];
     const contentSize = getContentSize(contentNode);
 
@@ -240,12 +240,10 @@ export const chunkdown = (options: ChunkdownOptions) => {
         contentNode.children
       ) {
         // Try to split container by items
-        const containerChunks = processContainerItems(contentNode);
-        chunks.push(...containerChunks);
+        chunks.push(...processContainerItems(contentNode));
       } else {
         // Not a container - fall back to text splitting
-        const fallbackChunks = splitLongText(contentNode);
-        chunks.push(...fallbackChunks);
+        chunks.push(...splitLongText(toMarkdown(contentNode)));
       }
     }
 
@@ -620,7 +618,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
           chunks.push(toMarkdown(itemNode));
         } else {
           // Item too large even with overflow - fall back to text splitting
-          chunks.push(...splitLongText(itemNode));
+          chunks.push(...splitLongText(toMarkdown(itemNode)));
         }
 
         firstItemIndex += 1; // Increment for this processed item
@@ -1295,16 +1293,14 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * Main text splitting function using recursive boundary priority approach
    * Entry point that finds all boundaries and delegates to recursive implementation
    *
-   * @param node - The node to split
+   * @param text - The text to split
    * @returns Array of text chunks, each within the size limit
    */
-  const splitLongText = (node: Nodes): string[] => {
-    const text = toMarkdown(node);
-
+  const splitLongText = (text: string): string[] => {
     // Re-parse the text to get fresh AST with positions relative to this text
     // This ensures protected ranges are correctly positioned for the extracted content
-    const freshAST = fromMarkdown(text);
-    const protectedRanges = extractProtectedRangesFromAST(freshAST);
+    const ast = fromMarkdown(text);
+    const protectedRanges = extractProtectedRangesFromAST(ast);
     const allBoundaries = extractSemanticBoundaries(text, protectedRanges);
 
     return splitLongTextRecursive(text, allBoundaries, protectedRanges);
