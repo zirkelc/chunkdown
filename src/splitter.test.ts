@@ -489,7 +489,7 @@ First sentence. Second sentence.`;
 
       expect(chunks.length).toBe(3);
       expect(chunks[0]).toBe('He said "hello"');
-      expect(chunks[1]).toBe('there and \'goodbye\'');
+      expect(chunks[1]).toBe("there and 'goodbye'");
       expect(chunks[2]).toBe('now.');
     });
 
@@ -596,7 +596,6 @@ First sentence. Second sentence.`;
       expect(chunks[1]).toBe('word2');
       expect(chunks[2]).toBe('word3');
     });
-
 
     it('should keep lists together if possible', () => {
       const splitter = chunkdown({
@@ -1110,7 +1109,7 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
         chunks.forEach((chunk) => {
           const size = getContentSize(chunk);
           const isListItem = /^\s*[-*+]\s|\d+\.\s/.test(chunk.trim());
-          
+
           if (isListItem) {
             // List items can exceed strict limit to maintain semantic integrity
             expect(size).toBeLessThanOrEqual(300); // Reasonable upper bound
