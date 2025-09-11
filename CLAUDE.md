@@ -4,27 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a TypeScript library that provides an AST-based Markdown text splitter with section-aware chunking capabilities. The splitter intelligently breaks markdown text into chunks using a hierarchical approach while preserving markdown formatting and semantic relationships between content (e.g., keeping headings with their related content when possible).
+This is a TypeScript library called "chunkdown" that provides an AST-based Markdown text splitter with section-aware chunking capabilities. The splitter intelligently breaks markdown text into chunks using a hierarchical approach while preserving markdown formatting and semantic relationships between content (e.g., keeping headings with their related content when possible).
 
 ## Key Architecture
 
 ### Main Components
 
-1. **text-splitter.ts** - Core implementation containing:
-   - `createMarkdownSplitter()` - Factory function that creates a configured splitter instance
+1. **src/splitter.ts** - Core implementation containing:
+   - `chunkdown()` - Factory function that creates a configured splitter instance
    - AST-based parsing using `mdast-util-from-markdown` and `mdast-util-to-markdown`
    - Section-aware chunking logic that combines related content (headings + following content)
    - Hierarchical text splitting fallback for oversized content
 
-2. **hierarchical-ast.ts** - AST transformation utilities:
+2. **src/ast.ts** - AST transformation utilities:
    - `createHierarchicalAST()` - Transforms flat mdast AST into hierarchical sections
    - `Section` interface representing headings with their associated content
    - Helper functions for working with hierarchical AST structures
 
-3. **text-splitter.test.ts** - Comprehensive test suite using Vitest that validates:
-   - Basic functionality and chunk size limits
-   - Markdown formatting preservation
-   - Breaking point behavior at different levels (paragraphs, sentences, punctuation, words)
+3. **src/markdown.ts** - Markdown parsing utilities:
+   - Wrapper functions around mdast utilities with GFM (GitHub Flavored Markdown) support
+   - `fromMarkdown()` and `toMarkdown()` functions with GFM extensions enabled
 
 ### Core Algorithm
 
@@ -53,10 +52,19 @@ pnpm test
 pnpm test -- --watch
 
 # Run a specific test file
-pnpm test src/text-splitter.test.ts
+pnpm test src/splitter.test.ts
 
 # Run tests matching a pattern
 pnpm test -- -t "Basic Functionality"
+
+# Build the library
+pnpm build
+
+# Lint and format code
+pnpm lint
+
+# Check type definitions
+pnpm types
 ```
 
 ## Testing Approach
@@ -66,4 +74,16 @@ The project uses Vitest for testing. Tests are organized into logical groups:
 - Markdown Formatting Preservation - Ensures all markdown elements are preserved correctly
 - Breaking Point Behavior - Validates the hierarchical splitting logic
 
+Test files are located alongside their implementation files:
+- `src/splitter.test.ts` - Main splitter functionality tests
+- `src/ast.test.ts` - AST transformation tests
+- `src/markdown.test.ts` - Markdown parsing tests
+
 When adding new features or fixing bugs, ensure corresponding tests are added to maintain coverage.
+
+## Package Structure
+
+The library exports multiple entry points:
+- Main export: `chunkdown` function from `src/index.ts`
+- Sub-exports: `./ast`, `./splitter`, `./markdown` modules can be imported directly
+- Built outputs: CommonJS and ESM formats in `dist/` directory
