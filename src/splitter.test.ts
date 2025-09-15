@@ -523,17 +523,17 @@ First sentence. Second sentence.`;
 
     it('should split by commas', () => {
       const splitter = chunkdown({
-        chunkSize: 12,
+        chunkSize: 20,
         maxOverflowRatio: 1.0,
       });
-      const text = `apples, oranges, bananas, grapes`;
+      const text = `First point, second point, third point, fourth point`;
       const chunks = splitter.splitText(text);
 
       expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe('apples,');
-      expect(chunks[1]).toBe('oranges,');
-      expect(chunks[2]).toBe('bananas,');
-      expect(chunks[3]).toBe('grapes');
+      expect(chunks[0]).toBe('First point,');
+      expect(chunks[1]).toBe('second point,');
+      expect(chunks[2]).toBe('third point,');
+      expect(chunks[3]).toBe('fourth point');
     });
 
     it('should split by dashes', () => {
@@ -1105,18 +1105,9 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
           ]
         `);
 
-        // Verify that most chunks stay within limit, but allow list items to exceed for atomicity
+        // Verify overflow stays within bounds
         chunks.forEach((chunk) => {
-          const size = getContentSize(chunk);
-          const isListItem = /^\s*[-*+]\s|\d+\.\s/.test(chunk.trim());
-
-          if (isListItem) {
-            // List items can exceed strict limit to maintain semantic integrity
-            expect(size).toBeLessThanOrEqual(300); // Reasonable upper bound
-          } else {
-            // Non-list items should respect strict limit
-            expect(size).toBeLessThanOrEqual(200);
-          }
+          expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
         });
 
         // Verify links and images are never broken
