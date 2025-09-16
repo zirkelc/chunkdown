@@ -407,7 +407,27 @@ function HomeContent() {
     // Always encode the current active text
     const currentText = texts[activeTab];
     if (currentText) {
-      params.set('text', encodeText(currentText));
+      const encodedText = encodeText(currentText);
+      // Check if encoded text would make URL too long (rough estimate)
+      const estimatedUrlLength =
+        window.location.origin.length +
+        window.location.pathname.length +
+        encodedText.length;
+
+      // Chrome supports URLs up to ~32,767 characters
+      if (estimatedUrlLength > 32_767) {
+        setToast({
+          message:
+            'Text too large to include in URL. Share functionality limited.',
+          visible: true,
+        });
+        setTimeout(() => {
+          setToast({ message: '', visible: false });
+        }, 4000);
+        // Don't include text in URL if it's too long
+      } else {
+        params.set('text', encodedText);
+      }
     }
 
     // Store the tab
@@ -438,7 +458,19 @@ function HomeContent() {
     }
 
     const newUrl = params.toString() ? `?${params.toString()}` : '/';
-    router.replace(newUrl, { scroll: false });
+
+    try {
+      router.replace(newUrl, { scroll: false });
+    } catch (error) {
+      console.error('Failed to update URL:', error);
+      setToast({
+        message: 'URL too long error. Text sharing disabled.',
+        visible: true,
+      });
+      setTimeout(() => {
+        setToast({ message: '', visible: false });
+      }, 4000);
+    }
   }, [
     activeTab,
     texts,
