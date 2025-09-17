@@ -120,17 +120,37 @@ const chunks = splitter.splitText(text);
 
 Creates a new markdown splitter instance.
 
-#### Options
-
-- `chunkSize: number`: The target size for each chunk in content characters, not raw markdown.
-- `maxOverflowRatio: number`: The maximum overflow ratio for preserving semantic units. 
-  - `1.0`: strict chunk size, no overflow allowed
-  - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
-
 #### Returns
 
 An object with the following method:
 - `splitText(text: string): string[]`: Splits the input markdown text into chunks
+
+#### Options
+
+- `chunkSize: number`: The target content size for each chunk, counting only content characters, not raw markdown.
+- `maxOverflowRatio: number`: The maximum overflow ratio for preserving semantic units. 
+  - `1.0`: strict chunk size, no overflow allowed
+  - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
+- `maxRawSize?: number`: (optional) The maximum raw size for each chunk, counting all characters. This is a hard limit that cannot be exceeded.
+
+##### `maxRawSize`
+
+Certain markdown elements like links and images with long URLs can have disproportionately long raw sizes compared to their content size.
+For example, this text has a content size of 21 but a raw size of 117 chars due to the long URL:
+
+```markdown
+This is a [link with short text](https://example.com/with/a/very/long/url/that/increases/the/raw/size/significantly).
+```
+
+This is usually not a problem, but if a text contains a lot of such elements (e.g. scraped from a website with many links and images), the resulting chunks can become very large in raw size, even if their content size is within limits.
+When the text is then embedded by a model, the large raw size could exceed the model's token limit, causing errors.
+For example, OpenAI's latest embedding model [`text-embedding-3-large`](https://platform.openai.com/docs/guides/embeddings#embedding-models) has a maximum limit of 8192 tokens, which roughly translates to about 32,000 characters ([rules of thumb: 1 token ≈ 4 characters](https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them)).
+
+The `maxRawSize` option acts as a safety net that enforces a hard limit on the total number of characters allowed in each chunk.
+It is guaranteed that no chunk will exceed this limit, even if it means splitting semantic units that would otherwise be preserved.
+
+> [!NOTE]
+> It is recommended to set this option to the upper limit of your embedding model.
 
 ## Visualization
 
@@ -207,3 +227,22 @@ Chunk 2:
 | Row 2   | Row 2   |
 ```
 
+### Normalize Links and Images
+
+Links and images can be inline or reference style:
+
+```markdown
+Inline style:
+![alt text](image.jpg)
+[link text](http://example.com)
+
+Reference style:
+![alt text][1]
+[link text][2]
+
+[1]: image.jpg
+[2]: http://example.com
+```
+
+When splitting, the reference definitions can end up in a different chunk than the link/image usage, breaking the reference.
+The splitter could normalize all links/images to inline style to preserve meaning.

@@ -25,6 +25,13 @@ export type ChunkdownOptions = {
    * to keep semantic units (sections, lists, code blocks) together.
    */
   maxOverflowRatio: number;
+  /**
+   * Optional maximum raw markdown length (characters) for embedding model compatibility.
+   * If set, chunks will be further split when their raw markdown exceeds this limit.
+   * Useful for embedding models with character limits (e.g., 7000 for OpenAI text-embedding-3-large).
+   * If undefined, defaults to chunkSize * maxOverflowRatio * 4 for reasonable safety.
+   */
+  maxRawSize?: number;
 };
 
 // TODO
@@ -33,13 +40,11 @@ type Breakpoints = {
 };
 
 // TODO
-type Breakpoint =
-  | number
-  | {
-      size: number;
-      breakMode?: 'keep' | 'clean' | 'extend';
-      onBreak?: (node: Node) => void;
-    };
+type Breakpoint = {
+  contentSize: number;
+  breakMode?: 'keep' | 'clean' | 'extend';
+  onBreak?: (node: Node) => void;
+};
 
 /**
  * Represents a protected range in the text that should not be split
@@ -68,7 +73,7 @@ type Boundary = {
  * @param input - The markdown text or AST node to measure
  * @returns The size of the actual text content (without formatting)
  */
-export const getContentSize = (input: string | Node): number => {
+export const getContentSize = (input: string | Nodes): number => {
   if (!input) return 0;
 
   // If input is a string, parse it first
@@ -80,6 +85,27 @@ export const getContentSize = (input: string | Node): number => {
   // If input is already an AST node, extract text directly
   const plainText = toString(input);
   return plainText.length;
+};
+
+export const getRawSize = (input: string | Nodes): number => {
+  if (!input) return 0;
+
+  // If input is a string, return its length directly
+  if (typeof input === 'string') {
+    return input.length;
+  }
+
+  // If input is an AST node, use the position to calculate raw size
+  if (
+    input.position?.start?.offset !== undefined &&
+    input.position?.end?.offset !== undefined
+  ) {
+    return input.position.end.offset - input.position.start.offset;
+  }
+
+  // Fallback: convert AST back to markdown and measure length
+  const markdown = toMarkdown(input);
+  return markdown.length;
 };
 
 /**
@@ -147,7 +173,7 @@ class Chunks extends Array<string> {
  * that preserves document structure and semantic relationships.
  */
 export const chunkdown = (options: ChunkdownOptions) => {
-  const { chunkSize, maxOverflowRatio } = options;
+  const { chunkSize, maxOverflowRatio, maxRawSize } = options;
   const maxAllowedSize = chunkSize * maxOverflowRatio;
 
   /**
@@ -155,24 +181,33 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * Constructs shorter than these values will be protected from splitting
    */
   const BREAKPOINTS: Breakpoints = {
-    link: Number.POSITIVE_INFINITY,
-    image: Number.POSITIVE_INFINITY,
-    emphasis: Math.min(30, maxAllowedSize),
-    strong: Math.min(30, maxAllowedSize),
-    delete: Math.min(30, maxAllowedSize),
-    heading: Math.min(80, maxAllowedSize),
-    inlineCode: Math.min(100, maxAllowedSize),
+    link: { contentSize: Number.POSITIVE_INFINITY },
+    image: { contentSize: Number.POSITIVE_INFINITY },
+    emphasis: { contentSize: Math.min(30, maxAllowedSize) },
+    strong: { contentSize: Math.min(30, maxAllowedSize) },
+    delete: { contentSize: Math.min(30, maxAllowedSize) },
+    heading: { contentSize: Math.min(80, maxAllowedSize) },
+    inlineCode: { contentSize: Math.min(100, maxAllowedSize) },
   };
 
   /**
-   * Check if a size is within the soft limit (target size + allowed overflow)
+   * Check if content and raw sizes are within allowed limits
    *
-   * @param size - The size to check
-   * @param targetSize - The target chunk size
-   * @returns True if within soft limit
+   * @param contentSize - The content size (visible text without markdown formatting)
+   * @param rawSize - The raw markdown size (including formatting and URLs)
+   * @returns True if within both content and raw size limits
    */
-  const isWithinAllowedSize = (size: number): boolean => {
-    return size <= maxAllowedSize;
+  const isWithinAllowedSize = (
+    contentSize: number,
+    rawSize: number,
+  ): boolean => {
+    // Check content size limit (for semantic chunking decisions)
+    if (contentSize > maxAllowedSize) return false;
+
+    // Check raw markdown size limit (for embedding model compatibility)
+    if (maxRawSize && rawSize > maxRawSize) return false;
+
+    return true;
   };
 
   /**
@@ -181,14 +216,19 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * @param node - The AST node to check
    * @returns true if the node is within its breakpoint, false otherwise
    */
-  const isWithinBreakpoint = (node: Node): boolean => {
+  const isWithinBreakpoint = (node: Nodes): boolean => {
     const breakpoint = BREAKPOINTS[node.type];
     if (!breakpoint) return false;
 
-    const breakingSize =
-      typeof breakpoint === 'object' ? breakpoint.size : breakpoint;
+    const breakingSize = breakpoint.contentSize;
     const contentSize = getContentSize(node);
-    return contentSize <= breakingSize;
+    const rawSize = getRawSize(node);
+
+    if (contentSize > breakingSize) return false;
+
+    if (maxRawSize && rawSize > maxRawSize) return false;
+
+    return true;
   };
 
   /**
@@ -200,10 +240,10 @@ export const chunkdown = (options: ChunkdownOptions) => {
    */
   const processHierarchicalSection = (section: Section): string[] => {
     const sectionSize = getSectionSize(section);
+    const sectionMarkdown = convertSectionToMarkdown(section);
 
-    // Case 1: Section fits within soft limit - keep it together
-    if (isWithinAllowedSize(sectionSize)) {
-      const sectionMarkdown = convertSectionToMarkdown(section);
+    // Case 1: Section fits within both content and raw size limits - keep it together
+    if (isWithinAllowedSize(sectionSize, sectionMarkdown.length)) {
       return [sectionMarkdown];
     }
 
@@ -221,9 +261,9 @@ export const chunkdown = (options: ChunkdownOptions) => {
   const processLargeContentNode = (contentNode: Nodes): string[] => {
     const chunks: string[] = [];
     const contentSize = getContentSize(contentNode);
+    const contentMarkdown = toMarkdown(contentNode);
 
-    if (isWithinAllowedSize(contentSize)) {
-      const contentMarkdown = toMarkdown(contentNode);
+    if (isWithinAllowedSize(contentSize, contentMarkdown.length)) {
       chunks.push(contentMarkdown);
     } else {
       // Content too large - check if it's a container that can be split by items
@@ -237,7 +277,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         chunks.push(...processContainerItems(contentNode));
       } else {
         // Not a container - fall back to text splitting
-        chunks.push(...splitLongText(toMarkdown(contentNode)));
+        chunks.push(...splitLongText(contentMarkdown));
       }
     }
 
@@ -266,7 +306,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
       const headingMarkdown = toMarkdown(section.heading);
       const headingSize = getContentSize(headingMarkdown);
 
-      if (isWithinAllowedSize(headingSize)) {
+      if (isWithinAllowedSize(headingSize, headingMarkdown.length)) {
         return [headingMarkdown];
       } else {
         return processLargeContentNode(section.heading);
@@ -306,7 +346,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
       });
       const testItemsSize = getContentSize(testItemsMarkdown);
 
-      if (isWithinAllowedSize(testItemsSize)) {
+      if (isWithinAllowedSize(testItemsSize, testItemsMarkdown.length)) {
         // Item fits - add to current group to maximize utilization
         currentItems.push(item);
       } else {
@@ -317,7 +357,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         const itemMarkdown = toMarkdown(item);
         const itemSize = getContentSize(itemMarkdown);
 
-        if (isWithinAllowedSize(itemSize)) {
+        if (isWithinAllowedSize(itemSize, itemMarkdown.length)) {
           // Item fits alone - start new group with it
           currentItems = [item];
         } else {
@@ -403,43 +443,60 @@ export const chunkdown = (options: ChunkdownOptions) => {
     let mergedWithParent = false;
 
     // Strategy 1: Try to merge parent section with child sections
-    if (parentSection && isWithinAllowedSize(parentSize)) {
-      const candidateSections: Section[] = [];
-      let accumulatedSize = parentSize;
+    if (parentSection) {
+      const parentMarkdown = convertSectionToMarkdown(parentSection);
+      if (isWithinAllowedSize(parentSize, parentMarkdown.length)) {
+        const candidateSections: Section[] = [];
+        let accumulatedSize = parentSize;
 
-      // Find consecutive child sections that can merge with parent
-      for (const childSection of nestedSections) {
-        const childSize = getSectionSize(childSection);
-        const combinedSize = accumulatedSize + childSize;
+        // Find consecutive child sections that can merge with parent
+        for (const childSection of nestedSections) {
+          const childSize = getSectionSize(childSection);
+          const combinedSize = accumulatedSize + childSize;
 
-        if (isWithinAllowedSize(combinedSize)) {
-          candidateSections.push(childSection);
-          accumulatedSize = combinedSize;
-        } else {
-          break; // Stop at first child that doesn't fit
+          // Create a temporary merged section to check raw size
+          const tempMergedSection: Section = {
+            type: 'section',
+            depth: parentSection.depth,
+            heading: parentSection.heading,
+            children: [
+              ...parentSection.children,
+              ...candidateSections,
+              childSection,
+            ],
+          };
+          const tempMergedMarkdown =
+            convertSectionToMarkdown(tempMergedSection);
+
+          if (isWithinAllowedSize(combinedSize, tempMergedMarkdown.length)) {
+            candidateSections.push(childSection);
+            accumulatedSize = combinedSize;
+          } else {
+            break; // Stop at first child that doesn't fit
+          }
         }
-      }
 
-      // If we found sections to merge with parent, create merged section
-      if (candidateSections.length > 0) {
-        const mergedSection: Section = {
-          type: 'section',
-          depth: parentSection.depth,
-          heading: parentSection.heading,
-          children: [...parentSection.children, ...candidateSections],
-        };
+        // If we found sections to merge with parent, create merged section
+        if (candidateSections.length > 0) {
+          const mergedSection: Section = {
+            type: 'section',
+            depth: parentSection.depth,
+            heading: parentSection.heading,
+            children: [...parentSection.children, ...candidateSections],
+          };
 
-        const mergedChunk = convertSectionToMarkdown(mergedSection);
-        chunks.push(mergedChunk);
-        mergedWithParent = true;
+          const mergedChunk = convertSectionToMarkdown(mergedSection);
+          chunks.push(mergedChunk);
+          mergedWithParent = true;
 
-        // Process remaining child sections that didn't merge with parent
-        const remainingSections = nestedSections.slice(
-          candidateSections.length,
-        );
-        if (remainingSections.length > 0) {
-          const remainingChunks = mergeSiblingSections(remainingSections);
-          chunks.push(...remainingChunks);
+          // Process remaining child sections that didn't merge with parent
+          const remainingSections = nestedSections.slice(
+            candidateSections.length,
+          );
+          if (remainingSections.length > 0) {
+            const remainingChunks = mergeSiblingSections(remainingSections);
+            chunks.push(...remainingChunks);
+          }
         }
       }
     }
@@ -499,9 +556,10 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
     for (const section of sections) {
       const sectionSize = getSectionSize(section);
+      const sectionMarkdown = convertSectionToMarkdown(section);
 
       // Check if section fits within allowed size by itself
-      if (!isWithinAllowedSize(sectionSize)) {
+      if (!isWithinAllowedSize(sectionSize, sectionMarkdown.length)) {
         // Section is too large - flush current group and process this section separately
         flushCurrentGroup();
         const sectionChunks = processHierarchicalSection(section);
@@ -511,7 +569,19 @@ export const chunkdown = (options: ChunkdownOptions) => {
 
       // Check if adding this section to current group would exceed allowed size
       const combinedSize = currentGroupSize + sectionSize;
-      if (currentGroup.length > 0 && !isWithinAllowedSize(combinedSize)) {
+      // Create temporary merged section to check raw size
+      const tempMergedSection: Section = {
+        type: 'section',
+        depth: 0, // Orphaned section depth
+        heading: undefined,
+        children: [...currentGroup, section],
+      };
+      const tempMergedMarkdown = convertSectionToMarkdown(tempMergedSection);
+
+      if (
+        currentGroup.length > 0 &&
+        !isWithinAllowedSize(combinedSize, tempMergedMarkdown.length)
+      ) {
         // Doesn't fit - flush current group and start new one
         flushCurrentGroup();
       }
@@ -588,7 +658,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
         } as TContainer);
         const combinedSize = getContentSize(secondRowMarkdown);
 
-        if (isWithinAllowedSize(combinedSize)) {
+        if (isWithinAllowedSize(combinedSize, secondRowMarkdown.length)) {
           // Keep first item with second item
           currentItems = [item, items[1]];
           currentSize = combinedSize;
@@ -607,17 +677,25 @@ export const chunkdown = (options: ChunkdownOptions) => {
           setListStart(itemNode);
         }
 
-        if (isWithinAllowedSize(itemSize)) {
+        const itemNodeMarkdown = toMarkdown(itemNode);
+        if (isWithinAllowedSize(itemSize, itemNodeMarkdown.length)) {
           // Item is within allowed size - add as its own chunk
-          chunks.push(toMarkdown(itemNode));
+          chunks.push(itemNodeMarkdown);
         } else {
           // Item too large even with overflow - fall back to text splitting
-          chunks.push(...splitLongText(toMarkdown(itemNode)));
+          chunks.push(...splitLongText(itemNodeMarkdown));
         }
 
         firstItemIndex += 1; // Increment for this processed item
       } else {
-        if (isWithinAllowedSize(currentSize + itemSize)) {
+        // Create temporary container to check combined raw size
+        const tempContainer = {
+          ...container,
+          children: [...currentItems, item],
+        };
+        const tempMarkdown = toMarkdown(tempContainer);
+
+        if (isWithinAllowedSize(currentSize + itemSize, tempMarkdown.length)) {
           // Add item to current chunk
           currentItems.push(item);
           currentSize += itemSize;
@@ -717,13 +795,13 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * @param ast - Parsed mdast AST with position information
    * @returns Array of protected ranges that must stay together
    */
-  const extractProtectedRangesFromAST = (ast: Node): ProtectedRange[] => {
+  const extractProtectedRangesFromAST = (ast: Nodes): ProtectedRange[] => {
     const ranges: ProtectedRange[] = [];
 
     /**
      * Recursively traverse AST nodes to find inline constructs that need protection
      */
-    const traverse = (node: Node): void => {
+    const traverse = (node: Nodes): void => {
       // Only protect nodes that have position information
       if (
         !node.position?.start?.offset ||
@@ -879,35 +957,19 @@ export const chunkdown = (options: ChunkdownOptions) => {
       // Example: "Note: this is important; very important" → splits after ":" and ";"
       { regex: /[:;](?=\s)/g, type: 'colon_semicolon', priority: priority++ },
 
-      // Closing parentheses, brackets, or braces followed by space
-      // Example: "Hello (world) there" → splits after ")"
+      // Complete bracket pairs (parentheses, square brackets, curly braces)
+      // Example: "Hello (world) there" → splits after ")" regardless of what follows
       {
-        regex: /[)\]}](?=\s)/g,
-        type: 'closing_brackets',
+        regex: /\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g,
+        type: 'bracket_pairs',
         priority: priority++,
       },
 
-      // Opening parentheses, brackets, or braces preceded by space
-      // Example: "Hello (world)" → splits before "("
+      // Complete quote pairs (various quote styles)
+      // Example: 'He said "hello".' → splits after closing quote regardless of what follows
       {
-        regex: /(?<=\s)[([{]/g,
-        type: 'opening_brackets',
-        priority: priority++,
-      },
-
-      // Closing quotes (various styles) followed by space
-      // Example: "He said 'hello' there" → splits after closing quote
-      {
-        regex: /["'"`´''](?=\s)/g,
-        type: 'closing_quotes',
-        priority: priority++,
-      },
-
-      // Opening quotes (various styles) preceded by space
-      // Example: "He said 'hello'" → splits before opening quote
-      {
-        regex: /(?<=\s)["'"`´'']/g,
-        type: 'opening_quotes',
+        regex: /"[^"]*"|'[^']*'|`[^`]*`|´[^´]*´|'[^']*'|'[^']*'/g,
+        type: 'quote_pairs',
         priority: priority++,
       },
 
@@ -935,6 +997,15 @@ export const chunkdown = (options: ChunkdownOptions) => {
       // Example: "hello   world" → splits between words at spaces
       { regex: /\s+/g, type: 'whitespace', priority: priority++ },
     ];
+
+    // Add maxRawSize boundary as last resort if defined
+    if (maxRawSize !== undefined) {
+      boundaryPatterns.push({
+        regex: new RegExp(`.{1,${maxRawSize}}(?=\\s|$)|.{${maxRawSize}}`, 'g'),
+        type: 'max_raw_size',
+        priority: priority++,
+      });
+    }
 
     const boundaries: Boundary[] = [];
 
@@ -1008,10 +1079,14 @@ export const chunkdown = (options: ChunkdownOptions) => {
     const textSize = getContentSize(text);
 
     // Base cases: text fits within limits
-    if (isWithinAllowedSize(textSize)) return [text];
+    if (isWithinAllowedSize(textSize, text.length)) {
+      return [text];
+    }
 
     // If no boundaries available, return as single chunk (protected)
-    if (boundaries.length === 0) return [text];
+    if (boundaries.length === 0) {
+      return [text];
+    }
 
     for (const boundary of boundaries) {
       // Get all boundaries at this priority level (should be same type)
@@ -1044,8 +1119,8 @@ export const chunkdown = (options: ChunkdownOptions) => {
           const firstPartSize = getContentSize(firstPart);
           const secondPartSize = getContentSize(secondPart);
           const bothWithinLimits =
-            isWithinAllowedSize(firstPartSize) &&
-            isWithinAllowedSize(secondPartSize);
+            isWithinAllowedSize(firstPartSize, firstPart.length) &&
+            isWithinAllowedSize(secondPartSize, secondPart.length);
           const distance = Math.abs(firstPartSize - secondPartSize);
 
           return {
@@ -1085,7 +1160,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
       );
 
       // Recursively process first part if needed
-      if (isWithinAllowedSize(firstPartSize)) {
+      if (isWithinAllowedSize(firstPartSize, firstPart.length)) {
         chunks.push(firstPart);
       } else {
         const firstPartRanges = adjustProtectedRangesForSubstring(
@@ -1109,7 +1184,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
       }
 
       // Recursively process second part if needed
-      if (isWithinAllowedSize(secondPartSize)) {
+      if (isWithinAllowedSize(secondPartSize, secondPart.length)) {
         chunks.push(secondPart);
       } else {
         const secondPartRanges = adjustProtectedRangesForSubstring(
@@ -1136,7 +1211,7 @@ export const chunkdown = (options: ChunkdownOptions) => {
       return chunks;
     }
 
-    // Fallback: return text as single oversized chunk (probably words)
+    // Return text as single chunk
     return [text];
   };
 

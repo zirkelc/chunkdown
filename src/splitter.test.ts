@@ -51,18 +51,43 @@ describe('getContentSize', () => {
 });
 
 describe('createMarkdownSplitter', () => {
-  describe('Content Size', () => {
+  describe('Size', () => {
+    const longUrl = `https://example.com/${'x'.repeat(100)}`;
+    const text = `Text [link1](${longUrl}) and [link2](${longUrl}) here.`;
+
     it('should use content size for splitting', () => {
       const splitter = chunkdown({
-        chunkSize: 25,
+        chunkSize: 50,
         maxOverflowRatio: 1.0,
       });
 
-      const text = `**Bold text** and *italic text*`;
       const chunks = splitter.splitText(text);
 
       expect(chunks.length).toBe(1);
-      expect(getContentSize(chunks[0])).toBe(25);
+      expect(getContentSize(chunks[0])).toBe(26);
+    });
+
+    it('should use raw size exceeds limit even if content size is fine', () => {
+      const maxRawSize = 150;
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+        maxRawSize,
+      });
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(2);
+
+      const link1Chunk = chunks.find((chunk) => chunk.includes('link1'));
+      const link2Chunk = chunks.find((chunk) => chunk.includes('link2'));
+
+      expect(link1Chunk).toBeDefined();
+      expect(link2Chunk).toBeDefined();
+
+      chunks.forEach((chunk) => {
+        expect(chunk.length).toBeLessThanOrEqual(maxRawSize);
+      });
     });
   });
 
@@ -151,7 +176,7 @@ Third sentence.
   });
 
   describe('Protected Constructs', () => {
-    it('should never split links', () => {
+    it('should not split links', () => {
       const splitter = chunkdown({
         chunkSize: 10,
         maxOverflowRatio: 1.0,
@@ -165,7 +190,38 @@ Third sentence.
       expect(linkChunk).toBe('[documentation](https://example.com)');
     });
 
-    it('should never split images', () => {
+    it('should only split links if they exceed raw size limit', () => {
+      const splitter = chunkdown({
+        chunkSize: 100,
+        maxOverflowRatio: 1.5,
+        maxRawSize: 200, // Small limit to force splitting
+      });
+
+      // Create a link that exceeds the raw size limit
+      const longUrl = `https://example.com/${'x'.repeat(300)}`;
+      const text = `Text with [huge link](${longUrl}) more text.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(5);
+
+      const prefixChunk = chunks.find((chunk) => chunk.includes('Text with'));
+      expect(prefixChunk).toBeDefined();
+
+      const suffixChunk = chunks.find((chunk) => chunk.includes('more text.'));
+      expect(suffixChunk).toBeDefined();
+
+      const linkDescriptionChunk = chunks.find((chunk) =>
+        chunk.includes('[huge link]'),
+      );
+      expect(linkDescriptionChunk).toBeDefined();
+
+      chunks.forEach((chunk) => {
+        expect(chunk.length).toBeLessThanOrEqual(200);
+      });
+    });
+
+    it('should not split images', () => {
       const chunkSize = 10;
       const splitter = chunkdown({
         chunkSize,
@@ -178,10 +234,40 @@ Third sentence.
         chunk.includes('![logo](./logo.png)'),
       );
       expect(imageChunk).toBeDefined();
-      expect(imageChunk!).toBeLessThanContentSize(chunkSize);
     });
 
-    it('should never split words', () => {
+    it('should only split images if they exceed raw size limit', () => {
+      const splitter = chunkdown({
+        chunkSize: 100,
+        maxOverflowRatio: 1.5,
+        maxRawSize: 200, // Small limit to force splitting
+      });
+
+      // Create a link that exceeds the raw size limit
+      const longUrl = `https://example.com/${'x'.repeat(300)}`;
+      const text = `Text with ![huge image](${longUrl}) more text.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(5);
+
+      const prefixChunk = chunks.find((chunk) => chunk.includes('Text with'));
+      expect(prefixChunk).toBeDefined();
+
+      const suffixChunk = chunks.find((chunk) => chunk.includes('more text.'));
+      expect(suffixChunk).toBeDefined();
+
+      const imageDescriptionChunk = chunks.find((chunk) =>
+        chunk.includes('![huge image]'),
+      );
+      expect(imageDescriptionChunk).toBeDefined();
+
+      chunks.forEach((chunk) => {
+        expect(chunk.length).toBeLessThanOrEqual(200);
+      });
+    });
+
+    it('should not split words', () => {
       const splitter = chunkdown({
         chunkSize: 5,
         maxOverflowRatio: 1.0,
@@ -193,6 +279,27 @@ Third sentence.
       expect(chunks.length).toBe(2);
       expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
       expect(chunks[1]).toBe('antidisestablishmentarianism');
+    });
+
+    it('should only split words if they exceed raw size limit', () => {
+      const splitter = chunkdown({
+        chunkSize: 5,
+        maxOverflowRatio: 1.0,
+        maxRawSize: 20, // Small limit to force splitting
+      });
+
+      const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(4);
+      expect(chunks[0]).toBe('supercalifragilistic');
+      expect(chunks[1]).toBe('expialidocious');
+      expect(chunks[2]).toBe('antidisestablishmen');
+      expect(chunks[3]).toBe('tarianism');
+
+      chunks.forEach((chunk) => {
+        expect(chunk.length).toBeLessThanOrEqual(20);
+      });
     });
 
     it('should not split inline code if below breakpoint', () => {
@@ -229,11 +336,8 @@ Third sentence.
       );
 
       expect(strongChunk).toBeDefined();
-      expect(getContentSize(strongChunk!)).toBeLessThanContentSize(chunkSize);
       expect(italicChunk).toBeDefined();
-      expect(getContentSize(italicChunk!)).toBeLessThanContentSize(chunkSize);
       expect(deletedChunk).toBeDefined();
-      expect(getContentSize(deletedChunk!)).toBeLessThanContentSize(chunkSize);
     });
 
     it('should split formatting if above breakpoint', () => {
@@ -257,6 +361,31 @@ Third sentence.
       expect(strongChunk).toBeUndefined();
       expect(italicChunk).toBeUndefined();
       expect(deletedChunk).toBeUndefined();
+    });
+
+    it('should split formatting if exceeds raw size limit', () => {
+      const chunkSize = 30;
+      const splitter = chunkdown({
+        chunkSize,
+        maxOverflowRatio: 1.0,
+        maxRawSize: 10, // Small limit to force splitting
+      });
+      const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(12);
+
+      const strongChunk = chunks.find((chunk) => chunk.includes('**long'));
+      const italicChunk = chunks.find((chunk) => chunk.includes('*long'));
+      const deletedChunk = chunks.find((chunk) => chunk.includes('~~long'));
+
+      expect(strongChunk).toBeDefined();
+      expect(italicChunk).toBeDefined();
+      expect(deletedChunk).toBeDefined();
+
+      chunks.forEach((chunk) => {
+        expect(chunk.length).toBeLessThanOrEqual(15);
+      });
     });
   });
 
