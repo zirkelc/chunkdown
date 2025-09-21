@@ -246,3 +246,14 @@ Reference style:
 
 When splitting, the reference definitions can end up in a different chunk than the link/image usage, breaking the reference.
 The splitter could normalize all links/images to inline style to preserve meaning.
+
+### Remove Extra Long URLs
+
+If a link's or image's URL is very long (e.g. > 2048 chars), it usually means it contains some kind of state. For example, an image could be have [data URL](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data) of a base64 encoded image:
+
+```markdown 
+![alt text](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAYAAAD0...)
+```
+
+This will create many useless chunks without any meaningful content.
+The splitter could detect such URLs and remove them from the chunk, keeping only the alt text or link text.
