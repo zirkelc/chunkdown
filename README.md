@@ -127,13 +127,19 @@ An object with the following method:
 
 #### Options
 
-- `chunkSize: number`: The target content size for each chunk, counting only content characters, not raw markdown.
-- `maxOverflowRatio: number`: The maximum overflow ratio for preserving semantic units. 
-  - `1.0`: strict chunk size, no overflow allowed
-  - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
-- `maxRawSize?: number`: (optional) The maximum raw size for each chunk, counting all characters. This is a hard limit that cannot be exceeded.
+#### `chunkSize: number` 
 
-##### `maxRawSize`
+The target content size for each chunk, counting only content characters, not raw markdown.
+
+#### `maxOverflowRatio: number` 
+
+The maximum overflow ratio for preserving semantic units:
+- `1.0`: strict chunk size, no overflow allowed
+- `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
+
+##### `maxRawSize?: number`: (optional)
+
+The maximum raw size for each chunk, counting all characters including markdown formatting.
 
 Certain markdown elements, such as links and images with long URLs, can have disproportionately long raw sizes compared to their actual content size.
 For example, the following text has a content size of 21 but a raw size of 117 chars due to the long URL:
