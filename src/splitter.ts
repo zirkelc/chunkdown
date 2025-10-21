@@ -34,6 +34,38 @@ export type ChunkdownOptions = {
   maxRawSize?: number;
 };
 
+type Range = {
+  start: number;
+  end: number;
+};
+
+type Document = {
+  text: string;
+};
+
+/**
+ * Document chunk with text and its corresponding ranges in the original document.
+ * In most cases, it will be a single range, but some features like table extension add the header row to each data row for better context.
+ * Therefore, we use an array of ranges to represent all included parts from the original document.
+ */
+type DocumentChunk = {
+  text: string;
+  ranges: Array<Range>;
+};
+
+// TODO
+type SplitDocument = {
+  /**
+   * The original markdown document in a normalized format.
+   * It is parsed and stringified using `fromMarkdown` and `toMarkdown` to ensure consistent formatting.
+   */
+  document: Document;
+  /**
+   * Chunks of the document after splitting.
+   */
+  chunks: Array<DocumentChunk>;
+};
+
 // TODO
 type Breakpoints = {
   [node: Node['type']]: Breakpoint;
@@ -152,19 +184,6 @@ const convertSectionToMarkdown = (section: Section): string => {
 
   return toMarkdown(flattened);
 };
-
-// TODO
-class Chunks extends Array<string> {
-  override push(...items: Array<string | Nodes>): number {
-    for (const item of items) {
-      const markdown = typeof item === 'string' ? item : toMarkdown(item);
-      if (markdown) {
-        super.push(markdown);
-      }
-    }
-    return this.length;
-  }
-}
 
 /**
  * Hierarchical Markdown Text Splitter with Semantic Awareness
@@ -1255,6 +1274,9 @@ export const chunkdown = (options: ChunkdownOptions) => {
       .map((chunk) => chunk.trim())
       .filter((chunk) => chunk.length > 0);
   };
+
+  // TODO
+  const splitDocument = (text: string): SplitDocument => {};
 
   return { splitText };
 };
