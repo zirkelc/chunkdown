@@ -10,12 +10,11 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "prepublishOnly": "pnpm build && pnpm types",
+    "prepublishOnly": "pnpm build",
     "dev": "pnpm --filter chunkdown-www dev",
     "test": "vitest",
     "build": "tsdown",
-    "lint": "biome check . --write --no-errors-on-unmatched",
-    "types": "TARBALL=$(pnpm pack | tail -n1) && attw $TARBALL && rm -f $TARBALL"
+    "lint": "biome check . --write --no-errors-on-unmatched"
   },
   "keywords": [
     "markdown",
