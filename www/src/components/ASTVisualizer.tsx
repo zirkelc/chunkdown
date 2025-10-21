@@ -1,5 +1,7 @@
 'use client';
 
+import type { Node, Parent, RootContent } from 'mdast';
+import { useEffect, useState } from 'react';
 import {
   createHierarchicalAST,
   type HierarchicalRoot,
@@ -7,8 +9,6 @@ import {
   type Section,
 } from '../../../src/ast';
 import { fromMarkdown } from '../../../src/markdown';
-import type { Node, Parent, RootContent } from 'mdast';
-import { useEffect, useState } from 'react';
 
 interface ASTVisualizerProps {
   text: string;

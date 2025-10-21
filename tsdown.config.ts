@@ -7,9 +7,9 @@ export default defineConfig({
    */
   attw: {
     profile: 'esmOnly',
-    entrypoints: ['.']
+    entrypoints: ['.'],
   },
   publint: true,
-    exports: true,
+  exports: true,
   format: ['esm'],
 });
