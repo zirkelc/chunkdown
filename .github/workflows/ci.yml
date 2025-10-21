@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 concurrency:
@@ -19,11 +21,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
       - name: Setup Biome
         uses: biomejs/setup-biome@v2
-
       - name: Lint
         run: biome ci --no-errors-on-unmatched .
 
@@ -32,34 +32,96 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup and Install
-        uses: zirkelc/setup-and-install@v1
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
       - name: Build
         run: pnpm build
-
       - name: Test
         run: pnpm test
 
   preview:
     name: Preview
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
-
-      - run: corepack enable
-
-      - name: Setup and Install
-        uses: zirkelc/setup-and-install@v1
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
-
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
       - name: Build
         run: pnpm build
-
       - name: Publish Preview
         run: npx pkg-pr-new publish --pnpm --packageManager=pnpm
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      id: ${{ steps.release.outputs.id }}
+      name: ${{ steps.release.outputs.name }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+      body: ${{ steps.release.outputs.body }}
+      html_url: ${{ steps.release.outputs.html_url }}
+      draft: ${{ steps.release.outputs.draft }}
+      upload_url: ${{ steps.release.outputs.upload_url }}
+      path: ${{ steps.release.outputs.path }}
+      version: ${{ steps.release.outputs.version }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      patch: ${{ steps.release.outputs.patch }}
+      paths_released: ${{ steps.release.outputs.paths_released }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+    steps:
+      # https://github.com/googleapis/release-please-action
+      - name: Release Please
+        uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # https://github.com/googleapis/release-please-action?tab=readme-ov-file#github-credentials
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          release-type: node
+
+      - name: Output Release Information
+        run: |
+          {
+            echo "releases_created=${{ steps.release.outputs.releases_created }}"
+            echo "release_created=${{ steps.release.outputs.release_created }}"
+            echo "id=${{ steps.release.outputs.id }}"
+            echo "name=${{ steps.release.outputs.name }}"
+            echo "tag_name=${{ steps.release.outputs.tag_name }}"
+            echo "sha=${{ steps.release.outputs.sha }}"
+            echo "body<<EOF"
+            echo "${{ steps.release.outputs.body }}"
+            echo "EOF"
+            echo "html_url=${{ steps.release.outputs.html_url }}"
+            echo "draft=${{ steps.release.outputs.draft }}"
+            echo "upload_url=${{ steps.release.outputs.upload_url }}"
+            echo "path=${{ steps.release.outputs.path }}"
+            echo "version=${{ steps.release.outputs.version }}"
+            echo "major=${{ steps.release.outputs.major }}"
+            echo "minor=${{ steps.release.outputs.minor }}"
+            echo "patch=${{ steps.release.outputs.patch }}"
+            echo "paths_released=${{ steps.release.outputs.paths_released }}"
+            echo "prs_created=${{ steps.release.outputs.prs_created }}"
+          } | tee -a "$GITHUB_OUTPUT"
+
+      - name: Print Release Details
+        env:
+          RELEASE: ${{ toJSON(steps.release.outputs) }}
+        run: echo "$RELEASE"
