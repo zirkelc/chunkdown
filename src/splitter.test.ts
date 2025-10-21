@@ -1,6 +1,6 @@
 import { toMarkdown } from 'mdast-util-to-markdown';
 import { describe, expect, it } from 'vitest';
-import { chunkdown, getContentSize } from './splitter';
+import { chunkdown, defaultBreakpoints, getContentSize } from './splitter';
 
 interface CustomMatchers<R = unknown> {
   toBeLessThanContentSize: (
@@ -386,6 +386,80 @@ Third sentence.
       chunks.forEach((chunk) => {
         expect(chunk.length).toBeLessThanOrEqual(15);
       });
+    });
+
+    it('should allow custom breakpoint configuration', () => {
+      const splitter = chunkdown({
+        chunkSize: 30,
+        maxOverflowRatio: 1.0,
+        breakpoints: {
+          link: { maxSize: 50 },
+        },
+      });
+      const text = `Check out [this link](https://example.com) for more info.`;
+      const chunks = splitter.splitText(text);
+
+      const linkChunk = chunks.find((chunk) =>
+        chunk.includes('[this link](https://example.com)'),
+      );
+      expect(linkChunk).toBeDefined();
+    });
+
+    it('should cap finite breakpoints at maxAllowedSize', () => {
+      const splitter = chunkdown({
+        chunkSize: 30,
+        maxOverflowRatio: 1.0,
+        breakpoints: {
+          ...defaultBreakpoints,
+          strong: { maxSize: 100 },
+        },
+      });
+      const text = `Some **very very very long strong text** here.`;
+      const chunks = splitter.splitText(text);
+
+      // maxSize: 100 gets capped to maxAllowedSize: 30
+      // "very very very long strong text" is 32 chars, exceeds 30
+      const strongChunk = chunks.find((chunk) =>
+        chunk.includes('**very very very long strong text**'),
+      );
+      expect(strongChunk).toBeUndefined();
+    });
+
+    it('should use Infinity to protect regardless of chunk size', () => {
+      const splitter = chunkdown({
+        chunkSize: 10,
+        maxOverflowRatio: 1.0,
+        breakpoints: {
+          ...defaultBreakpoints,
+          link: { maxSize: Infinity },
+        },
+      });
+      const text = `Check [documentation](https://example.com) for details.`;
+      const chunks = splitter.splitText(text);
+
+      // Link should be protected with Infinity even though it exceeds chunk size
+      const linkChunk = chunks.find((chunk) =>
+        chunk.includes('[documentation](https://example.com)'),
+      );
+      expect(linkChunk).toBe('[documentation](https://example.com)');
+    });
+
+    it('should allow merging custom breakpoints with defaults', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+        breakpoints: {
+          ...defaultBreakpoints,
+          link: { maxSize: 100 },
+        },
+      });
+      const text = `Use \`const splitter = new MarkdownSplitter();\` for chunking in your projects.`;
+      const chunks = splitter.splitText(text);
+
+      const codeChunk = chunks.find((chunk) =>
+        chunk.includes('`const splitter = new MarkdownSplitter();`'),
+      );
+      expect(codeChunk).toBeDefined();
     });
   });
 

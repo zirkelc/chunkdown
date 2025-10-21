@@ -130,15 +130,70 @@ An object with the following method:
 
 #### Options
 
-#### `chunkSize: number` 
+##### `chunkSize: number` 
 
 The target content size for each chunk, counting only content characters, not raw markdown.
 
-#### `maxOverflowRatio: number` 
+##### `maxOverflowRatio?: number` (optional)
 
 The maximum overflow ratio for preserving semantic units:
 - `1.0`: strict chunk size, no overflow allowed
 - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
+
+##### `breakpoints?: Partial<Breakpoints>`: (optional)
+
+Configure when specific markdown elements can be split during chunking. The `maxSize` of each element type defines the maximum content size (in characters) until that element can be split across chunks. The value will be capped at the max allowed chunk size (`chunkSize * maxOverflowRatio`).
+
+```typescript
+import { chunkdown, defaultBreakpoints } from 'chunkdown';
+
+chunkdown({
+  chunkSize: 500,
+  breakpoints: {
+    ...defaultBreakpoints,  // Include defaults for other elements
+    link: { maxSize: 100 }, // Allow splitting links over 100 chars
+    bold: { maxSize: 0 }    // Allow splitting bold text at any size
+  }
+});
+```
+
+When you provide custom breakpoints, they completely replace the defaults. Use the spread operator `...defaultBreakpoints` to merge with defaults if you only want to override specific elements. By default, links and images are never split, while formatting elements like bold, italic, and inline code can be split when they exceed certain sizes.
+
+```ts
+const defaultBreakpoints: Breakpoints = {
+  link: { maxSize: Infinity },
+  image: { maxSize: Infinity },
+  emphasis: { maxSize: 30 },
+  strong: { maxSize: 30 },
+  delete: { maxSize: 30 },
+  heading: { maxSize: 80 },
+  inlineCode: { maxSize: 100 },
+};
+```
+
+The value [`Infinity`](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Infinity) can be used to indicate that a particular markdown element should never be split, regardless of its size.
+
+```typescript
+chunkdown({
+  chunkSize: 500,
+  breakpoints: {
+    ...defaultBreakpoints,
+    heading: { maxSize: Infinity }, // Never split headings regardless of size
+  }
+});
+```
+
+The value `0` can be used to indicate that a particular markdown element can always be split, regardless of its size.
+
+```typescript
+chunkdown({
+  chunkSize: 500,
+  breakpoints: {
+    ...defaultBreakpoints,
+    heading: { maxSize: 0 }, // Allow splitting headings at any size
+  }
+});
+```
 
 ##### `maxRawSize?: number`: (optional)
 
@@ -167,22 +222,10 @@ The chunk visualizer hosted at [chunkdown.zirkelc.dev](https://chunkdown.zirkelc
 
 <img width="1272" height="2167" alt="image" src="https://github.com/user-attachments/assets/84294851-0abe-4f23-acdd-9450af756b62" />
 
+
+Protection sizes are automatically capped at the maximum allowed chunk size to prevent infinite loops.
+
 ## Future Improvements
-
-### Configurable Breakpoints
-Currently, certain elements have hardcoded protection breakpoints. Future versions will allow configuring when elements can be split:
-
-```typescript
-chunkdown({
-  chunkSize: 500,
-  maxOverflowRatio: 1.5,
-  breakpoints: {
-    link: 100,      // Split links over 100 chars
-    emphasis: 50,   // Split emphasis over 50 chars
-    heading: 150    // Split headings over 150 chars
-  }
-});
-```
 
 ### Clean Formatting on Split
 When forced to split semantic elements across chunks, the formatting loses its meaning:

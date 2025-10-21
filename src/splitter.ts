@@ -32,18 +32,43 @@ export type ChunkdownOptions = {
    * If undefined, defaults to chunkSize * maxOverflowRatio * 4 for reasonable safety.
    */
   maxRawSize?: number;
+  /**
+   * Optional breakpoints for controlling when specific node types can be split.
+   * If not provided, uses the exported `breakpoints` defaults.
+   * If provided, completely replaces all defaults (merge manually if needed).
+   * If maxSize is not set or is 0, the node type has no special protection and can always be split.
+   *
+   * @example Replace all defaults with custom breakpoints
+   * ```typescript
+   * {
+   *   link: { maxSize: 100 },
+   *   emphasis: { maxSize: 50 },
+   * }
+   * ```
+   *
+   * @example Merge with defaults to override specific breakpoints
+   * ```typescript
+   * import { breakpoints } from 'chunkdown';
+   *
+   * {
+   *   ...breakpoints,
+   *   link: { maxSize: 100 },
+   *   emphasis: { maxSize: 50 },
+   * }
+   * ```
+   */
+  breakpoints?: Partial<Breakpoints>;
 };
 
-// TODO
-type Breakpoints = {
+export type Breakpoints = {
   [node: Node['type']]: Breakpoint;
 };
 
-// TODO
-type Breakpoint = {
-  contentSize: number;
-  breakMode?: 'keep' | 'clean' | 'extend';
-  onBreak?: (node: Node) => void;
+export type Breakpoint = {
+  maxSize?: number;
+  // TODO breakmode and onBreak callback for custom behavior
+  // breakMode?: 'keep' | 'clean' | 'extend';
+  // onBreak?: (node: Node) => Array<Node>;
 };
 
 /**
@@ -167,28 +192,61 @@ class Chunks extends Array<string> {
 }
 
 /**
+ * Default breakpoints for protecting markdown constructs based on content length.
+ * Constructs shorter than these values will be protected from splitting.
+ *
+ * Note: Finite maxSize values are automatically capped at maxAllowedSize (chunkSize * maxOverflowRatio).
+ * Use Infinity to protect constructs regardless of chunk size.
+ *
+ * @example Protect constructs with finite limits (auto-capped)
+ * ```typescript
+ * chunkdown({
+ *   chunkSize: 500,
+ *   maxOverflowRatio: 1.5,
+ *   breakpoints: {
+ *     ...defaultBreakpoints,
+ *     strong: { maxSize: 50 },  // Protected up to min(50, 750)
+ *   }
+ * });
+ * ```
+ *
+ * @example Protect constructs regardless of size
+ * ```typescript
+ * chunkdown({
+ *   chunkSize: 100,
+ *   breakpoints: {
+ *     ...defaultBreakpoints,
+ *     link: { maxSize: Infinity },  // Never split links
+ *   }
+ * });
+ * ```
+ */
+export const defaultBreakpoints: Breakpoints = {
+  link: { maxSize: Infinity },
+  image: { maxSize: Infinity },
+  emphasis: { maxSize: 30 },
+  strong: { maxSize: 30 },
+  delete: { maxSize: 30 },
+  heading: { maxSize: 80 },
+  inlineCode: { maxSize: 100 },
+};
+
+/**
  * Hierarchical Markdown Text Splitter with Semantic Awareness
  *
  * This splitter intelligently breaks markdown text into chunks using a hierarchical approach
  * that preserves document structure and semantic relationships.
  */
 export const chunkdown = (options: ChunkdownOptions) => {
-  const { chunkSize, maxOverflowRatio, maxRawSize } = options;
+  const {
+    chunkSize,
+    maxOverflowRatio,
+    maxRawSize,
+    breakpoints: userBreakpoints,
+  } = options;
   const maxAllowedSize = chunkSize * maxOverflowRatio;
 
-  /**
-   * Breakpoints for protecting markdown constructs based on content length
-   * Constructs shorter than these values will be protected from splitting
-   */
-  const BREAKPOINTS: Breakpoints = {
-    link: { contentSize: Number.POSITIVE_INFINITY },
-    image: { contentSize: Number.POSITIVE_INFINITY },
-    emphasis: { contentSize: Math.min(30, maxAllowedSize) },
-    strong: { contentSize: Math.min(30, maxAllowedSize) },
-    delete: { contentSize: Math.min(30, maxAllowedSize) },
-    heading: { contentSize: Math.min(80, maxAllowedSize) },
-    inlineCode: { contentSize: Math.min(100, maxAllowedSize) },
-  };
+  const breakpoints = userBreakpoints ?? defaultBreakpoints;
 
   /**
    * Check if content and raw sizes are within allowed limits
@@ -217,14 +275,23 @@ export const chunkdown = (options: ChunkdownOptions) => {
    * @returns true if the node is within its breakpoint, false otherwise
    */
   const isWithinBreakpoint = (node: Nodes): boolean => {
-    const breakpoint = BREAKPOINTS[node.type];
+    const breakpoint = breakpoints[node.type];
     if (!breakpoint) return false;
 
-    const breakingSize = breakpoint.contentSize;
+    const breakingSize = breakpoint.maxSize ?? 0;
+    if (breakingSize === 0) return false;
+
     const contentSize = getContentSize(node);
     const rawSize = getRawSize(node);
 
-    if (contentSize > breakingSize) return false;
+    // To protect constructs regardless of chunk size, use Infinity.
+    // Otherwise, cap protection at the smaller of breakingSize and maxAllowedSize.
+    const effectiveBreakingSize =
+      breakingSize === Infinity
+        ? breakingSize
+        : Math.min(breakingSize, maxAllowedSize);
+
+    if (contentSize > effectiveBreakingSize) return false;
 
     if (maxRawSize && rawSize > maxRawSize) return false;
 
