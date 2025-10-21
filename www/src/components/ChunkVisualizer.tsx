@@ -6,7 +6,7 @@ import {
   RecursiveCharacterTextSplitter,
   type TextSplitter,
 } from '@langchain/textsplitters';
-import { chunkdown, getContentSize } from 'chunkdown/splitter';
+import { chunkdown, getContentSize } from '../../../src/splitter';
 import type { MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import Toast from './Toast';

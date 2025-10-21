@@ -5,8 +5,8 @@ import {
   type HierarchicalRoot,
   isSection,
   type Section,
-} from 'chunkdown/ast';
-import { fromMarkdown } from 'chunkdown/markdown';
+} from '../../../src/ast';
+import { fromMarkdown } from '../../../src/markdown';
 import type { Node, Parent, RootContent } from 'mdast';
 import { useEffect, useState } from 'react';
 

@@ -2,6 +2,9 @@
   "name": "chunkdown-www",
   "version": "0.1.0",
   "private": true,
+  "imports": {
+    "#chunkdown/*": "../src/ast.ts"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
