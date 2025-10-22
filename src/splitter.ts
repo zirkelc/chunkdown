@@ -224,11 +224,6 @@ class Chunks extends Array<string> {
 export const defaultBreakpoints: Breakpoints = {
   link: { maxSize: Infinity },
   image: { maxSize: Infinity },
-  emphasis: { maxSize: 30 },
-  strong: { maxSize: 30 },
-  delete: { maxSize: 30 },
-  heading: { maxSize: 80 },
-  inlineCode: { maxSize: 100 },
 };
 
 /**

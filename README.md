@@ -157,17 +157,12 @@ chunkdown({
 });
 ```
 
-When you provide custom breakpoints, they completely replace the defaults. Use the spread operator `...defaultBreakpoints` to merge with defaults if you only want to override specific elements. By default, links and images are never split, while formatting elements like bold, italic, and inline code can be split when they exceed certain sizes.
+When you provide custom breakpoints, they completely replace the defaults. Use the spread operator `...defaultBreakpoints` to merge with defaults if you only want to override specific elements. By default, links and images will never split.
 
 ```ts
 const defaultBreakpoints: Breakpoints = {
   link: { maxSize: Infinity },
   image: { maxSize: Infinity },
-  emphasis: { maxSize: 30 },
-  strong: { maxSize: 30 },
-  delete: { maxSize: 30 },
-  heading: { maxSize: 80 },
-  inlineCode: { maxSize: 100 },
 };
 ```
 
@@ -227,28 +222,39 @@ Protection sizes are automatically capped at the maximum allowed chunk size to p
 
 ## Future Improvements
 
-### Clean Formatting on Split
-When forced to split semantic elements across chunks, the formatting loses its meaning:
+### Normalize Broken Markdown Formatting
+Splitting markdown text into multiple chunks often breaks formatting, because the start and end delimiters end up in different chunks. This broken formatting provides no real semantic meaning but adds unnecessary noise:
 
-```markdown
-**This is a very long bold text that might be split into two chunks**
-```
+```ts
+import { chunkdown } from "chunkdown";
 
-This text has a content size of 65 chars and could be split into two chunks.
-The `**bold**` formatting could be either kept, removed or extended:
+const text = `**This is a very long bold text that might be split into two chunks**`;
 
-```markdown
-Keep formatting:
-- **This is a very long bold text that
-- might be split into two chunks**
+const splitter = chunkdown({
+  chunkSize: 50,
+  maxOverflowRatio: 1.0
+});
 
-Remove formatting:
-- This is a very long bold text that
-- might be split into two chunks
+const chunks = splitter.splitText(text, {
+  breakMode: 'keep'
+});
+// Keep broken markdown:
+// - **This is a very long bold text that
+// - might be split into two chunks**
 
-Extend formatting:
-- **This is a very long bold text that**
-- **might be split into two chunks**
+const chunks = splitter.splitText(text, {
+  breakMode: 'remove'
+});
+// Remove broken markdown:
+// - This is a very long bold text that
+// - might be split into two chunks
+
+const chunks = splitter.splitText(text, {
+  breakMode: 'extend'
+});
+// Extend broken markdown:
+// - **This is a very long bold text that**
+// - **might be split into two chunks**
 ```
 
 ### Improve Table Chunks

@@ -302,25 +302,39 @@ Third sentence.
       });
     });
 
-    it('should not split inline code if below breakpoint', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Use \`const splitter = new MarkdownSplitter();\` for chunking.`;
-      const chunks = splitter.splitText(text);
-
-      const codeChunk = chunks.find((chunk) =>
-        chunk.includes('`const splitter = new MarkdownSplitter();`'),
-      );
-      expect(codeChunk).toBeDefined();
-    });
-
-    it('should not split formatting if below breakpoint', () => {
+    it('may split formatting when breakpoints are not set', () => {
       const chunkSize = 30;
       const splitter = chunkdown({
         chunkSize,
         maxOverflowRatio: 1.0,
+        breakpoints: undefined,
+      });
+      const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
+      const chunks = splitter.splitText(text);
+
+      const strongChunk = chunks.find((chunk) =>
+        chunk.includes('**long strong text**'),
+      );
+      const italicChunk = chunks.find((chunk) =>
+        chunk.includes('*long italic text*'),
+      );
+      const deletedChunk = chunks.find((chunk) =>
+        chunk.includes('~~long deleted text~~'),
+      );
+
+      expect([strongChunk, italicChunk, deletedChunk]).toContain(undefined);
+    });
+
+    it('should not split formatting when breakpoints are explicitly set', () => {
+      const chunkSize = 30;
+      const splitter = chunkdown({
+        chunkSize,
+        maxOverflowRatio: 1.0,
+        breakpoints: {
+          strong: { maxSize: 30 },
+          emphasis: { maxSize: 30 },
+          delete: { maxSize: 30 },
+        },
       });
       const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
       const chunks = splitter.splitText(text);
@@ -344,6 +358,11 @@ Third sentence.
       const splitter = chunkdown({
         chunkSize: 30,
         maxOverflowRatio: 1.0,
+        breakpoints: {
+          strong: { maxSize: 30 },
+          emphasis: { maxSize: 30 },
+          delete: { maxSize: 30 },
+        },
       });
       const text = `Some **very very very long strong text** with some *very very very long italic text* and ~~very very very long deleted text~~.`;
       const chunks = splitter.splitText(text);
@@ -451,6 +470,7 @@ Third sentence.
         breakpoints: {
           ...defaultBreakpoints,
           link: { maxSize: 100 },
+          inlineCode: { maxSize: 100 },
         },
       });
       const text = `Use \`const splitter = new MarkdownSplitter();\` for chunking in your projects.`;
