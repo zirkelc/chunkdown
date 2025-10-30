@@ -1,4 +1,5 @@
 import type { Node, Nodes } from 'mdast';
+import { isSection, type Section } from './ast';
 import { fromMarkdown, toMarkdown, toString } from './markdown';
 import { MarkdownTreeSplitter } from './splitters/tree';
 
@@ -117,6 +118,28 @@ export const getRawSize = (input: string | Nodes): number => {
   return markdown.length;
 };
 
+export const getSectionSize = (section: Section): number => {
+  let totalLength = 0;
+
+  // Get heading text length if it exists (not a orphaned section)
+  if (section.heading) {
+    totalLength = getContentSize(section.heading);
+  }
+
+  // Add length of all children (content and nested sections)
+  for (const child of section.children) {
+    if (isSection(child)) {
+      // Recursively calculate nested section size
+      totalLength += getSectionSize(child);
+    } else {
+      // Get text length directly from child node
+      totalLength += getContentSize(child);
+    }
+  }
+
+  return totalLength;
+};
+
 /**
  * Default breakpoints for protecting markdown constructs based on content length.
  * Constructs shorter than these values will be protected from splitting.
@@ -153,7 +176,11 @@ export const defaultBreakpoints: Breakpoints = {
 };
 
 export const chunkdown = (options: ChunkdownOptions) => {
-  const splitter = new MarkdownTreeSplitter(options);
+  const breapoints = options.breakpoints ?? defaultBreakpoints;
+  const splitter = new MarkdownTreeSplitter({
+    ...options,
+    breakpoints: breapoints,
+  });
   return {
     splitText: (text: string) => {
       const ast = fromMarkdown(text);

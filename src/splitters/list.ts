@@ -67,13 +67,6 @@ export class ListSplitter extends AbstractNodeSplitter<List> {
         }
 
         for (const subListItem of this.splitListItem(subList, listItem)) {
-          // subList = { ...list, children: [item] };
-          // subListSize = listItemSize;
-
-          // if (list.ordered) {
-          //   subList.start = listOriginalStart + listItemIndex;
-          // }
-
           yield subListItem;
         }
 

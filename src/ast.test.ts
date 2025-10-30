@@ -33,9 +33,15 @@ describe('createHierarchicalAST', () => {
 
     it('handles content without headings', () => {
       const result = createAST('Just text.\n\nAnother paragraph.');
-      expect(result.children.length).toBe(2);
-      expect(result.children[0].type).toBe('paragraph');
-      expect(result.children[1].type).toBe('paragraph');
+      // Content without headings is wrapped in an orphaned section
+      expect(result.children.length).toBe(1);
+      const orphanedSection = result.children[0] as Section;
+      expect(isSection(orphanedSection)).toBe(true);
+      expect(orphanedSection.depth).toBe(0);
+      expect(orphanedSection.heading).toBeUndefined();
+      expect(orphanedSection.children.length).toBe(2);
+      expect(orphanedSection.children[0].type).toBe('paragraph');
+      expect(orphanedSection.children[1].type).toBe('paragraph');
     });
 
     it('creates section for single heading', () => {
@@ -53,7 +59,13 @@ describe('createHierarchicalAST', () => {
     it('handles content before first heading', () => {
       const result = createAST('Intro text.\n\n# Heading\n\nContent.');
       expect(result.children.length).toBe(2);
-      expect(result.children[0].type).toBe('paragraph');
+      // First child is an orphaned section containing the intro text
+      const orphanedSection = result.children[0] as Section;
+      expect(isSection(orphanedSection)).toBe(true);
+      expect(orphanedSection.depth).toBe(0);
+      expect(orphanedSection.heading).toBeUndefined();
+      expect(orphanedSection.children[0].type).toBe('paragraph');
+      // Second child is the regular section
       expect(isSection(result.children[1])).toBe(true);
     });
   });
@@ -125,21 +137,41 @@ describe('createHierarchicalAST', () => {
       const result = createAST(
         '# Section\n\nBefore break.\n\n---\n\nAfter break.',
       );
-      expect(result.children.length).toBe(3);
+      expect(result.children.length).toBe(2);
 
       const section = getSection(result, [0]);
       expect(section.children.length).toBe(1); // only content before break
-      expect(result.children[1].type).toBe('thematicBreak');
-      expect(result.children[2].type).toBe('paragraph');
+
+      // Thematic break and content after it are wrapped in an orphaned section
+      const orphanedSection = result.children[1] as Section;
+      expect(isSection(orphanedSection)).toBe(true);
+      expect(orphanedSection.depth).toBe(0);
+      expect(orphanedSection.heading).toBeUndefined();
+      expect(orphanedSection.children.length).toBe(2); // thematicBreak + paragraph
+      expect(orphanedSection.children[0].type).toBe('thematicBreak');
+      expect(orphanedSection.children[1].type).toBe('paragraph');
     });
 
     it('handles multiple thematic breaks', () => {
       const result = createAST(
         '# Title\n\nContent.\n\n---\n\nMiddle.\n\n---\n\nEnd.',
       );
-      expect(result.children.length).toBe(5); // section, break, paragraph, break, paragraph
-      expect(result.children[1].type).toBe('thematicBreak');
-      expect(result.children[3].type).toBe('thematicBreak');
+      expect(result.children.length).toBe(2); // section + orphaned section with breaks
+
+      // First section with content before first break
+      const section = getSection(result, [0]);
+      expect(section.children.length).toBe(1); // just the content paragraph
+
+      // All content after first break (including breaks and paragraphs) wrapped in orphaned section
+      const orphanedSection = result.children[1] as Section;
+      expect(isSection(orphanedSection)).toBe(true);
+      expect(orphanedSection.depth).toBe(0);
+      expect(orphanedSection.heading).toBeUndefined();
+      expect(orphanedSection.children.length).toBe(4); // break, paragraph, break, paragraph
+      expect(orphanedSection.children[0].type).toBe('thematicBreak');
+      expect(orphanedSection.children[1].type).toBe('paragraph');
+      expect(orphanedSection.children[2].type).toBe('thematicBreak');
+      expect(orphanedSection.children[3].type).toBe('paragraph');
     });
   });
 

@@ -13,12 +13,15 @@ export interface Section extends Node {
 }
 
 /**
- * Hierarchical AST root that can contain sections or regular content
+ * Hierarchical AST root that contains only sections (including orphaned sections)
+ * All non-section content is wrapped in orphaned sections (depth 0, heading undefined)
  */
 export interface HierarchicalRoot extends Node {
   type: 'root';
-  children: (RootContent | Section)[];
+  children: Section[];
 }
+
+export type HierarchicalNodes = Nodes | Section;
 
 /**
  * Transform a flat mdast AST into a hierarchical structure where headings
@@ -60,16 +63,17 @@ export interface HierarchicalRoot extends Node {
  * // }
  * ```
  */
-export const createHierarchicalAST = (node: Nodes): HierarchicalRoot => {
-  if (!('children' in node) || node.children.length === 0) {
-    if (node.type === 'root') {
-      return { type: 'root', children: node.children };
-    }
-    return { type: 'root', children: [node] };
-  }
+export const createHierarchicalAST = (root: Root): HierarchicalRoot => {
+  // if (!('children' in node) || node.children.length === 0) {
+  //   if (node.type === 'root') {
+  //     return { type: 'root', children: node.children };
+  //   }
+  //   return { type: 'root', children: [node] };
+  // }
 
   /**
    * Transform nodes into hierarchical sections using a simple iterative approach
+   * Groups consecutive non-section children into orphaned sections (depth 0, heading undefined)
    */
   const transformToSections = (
     nodes: RootContent[],
@@ -132,13 +136,47 @@ export const createHierarchicalAST = (node: Nodes): HierarchicalRoot => {
     return result;
   };
 
-  const sections = transformToSections(
-    node.type === 'root' ? node.children : [node],
-  );
+  const sections = transformToSections(root.children);
+
+  // Group consecutive non-section children into orphaned sections
+  const groupedSections: Section[] = [];
+  let currentOrphanedContent: RootContent[] = [];
+
+  for (const child of sections) {
+    if (isSection(child)) {
+      // If we have accumulated orphaned content, create an orphaned section
+      if (currentOrphanedContent.length > 0) {
+        const orphanedSection: Section = {
+          type: 'section',
+          depth: 0,
+          heading: undefined,
+          children: currentOrphanedContent,
+        };
+        groupedSections.push(orphanedSection);
+        currentOrphanedContent = [];
+      }
+      // Add the regular section
+      groupedSections.push(child);
+    } else {
+      // Accumulate orphaned content
+      currentOrphanedContent.push(child);
+    }
+  }
+
+  // Don't forget any remaining orphaned content at the end
+  if (currentOrphanedContent.length > 0) {
+    const orphanedSection: Section = {
+      type: 'section',
+      depth: 0,
+      heading: undefined,
+      children: currentOrphanedContent,
+    };
+    groupedSections.push(orphanedSection);
+  }
 
   return {
     type: 'root',
-    children: sections,
+    children: groupedSections,
   };
 };
 
@@ -147,6 +185,22 @@ export const createHierarchicalAST = (node: Nodes): HierarchicalRoot => {
  */
 export const isSection = (node: Node): node is Section => {
   return node?.type === 'section';
+};
+
+export const createTree = (nodes: Nodes[]): Root => {
+  return {
+    type: 'root',
+    children: nodes as RootContent[],
+  };
+};
+
+export const createSection = (section: Partial<Section>): Section => {
+  return {
+    type: 'section',
+    depth: section.depth ?? 0,
+    heading: section.heading,
+    children: section.children ?? [],
+  };
 };
 
 /**

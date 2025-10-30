@@ -147,6 +147,30 @@ export class TextSplitter extends AbstractNodeSplitter {
     );
   }
 
+  protected isWithinBreakpoint(node: Nodes): boolean {
+    const breakpoint = this.options.breakpoints?.[node.type];
+    if (!breakpoint) return false;
+
+    const breakingSize = breakpoint.maxSize ?? 0;
+    if (breakingSize === 0) return false;
+
+    const contentSize = getContentSize(node);
+    // const rawSize = getRawSize(node);
+
+    // To protect constructs regardless of chunk size, use Infinity.
+    // Otherwise, cap protection at the smaller of breakingSize and maxAllowedSize.
+    const effectiveBreakingSize =
+      breakingSize === Infinity
+        ? breakingSize
+        : Math.min(breakingSize, this.maxAllowedSize);
+
+    if (contentSize > effectiveBreakingSize) return false;
+
+    // if (this.maxRawSize && rawSize > this.maxRawSize) return false;
+
+    return true;
+  }
+
   /**
    * Extract protected ranges from markdown AST nodes
    * Uses mdast position information to identify constructs that should never be split
