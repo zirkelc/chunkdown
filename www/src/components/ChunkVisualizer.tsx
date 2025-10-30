@@ -17,6 +17,7 @@ interface ChunkVisualizerProps {
   splitterType?: 'markdown' | 'character' | 'langchain-markdown';
   maxOverflowRatio?: number;
   langchainSplitterType?: 'markdown' | 'character' | 'sentence';
+  experimentalTableHeaders?: boolean;
 }
 
 function ChunkVisualizer({
@@ -25,8 +26,10 @@ function ChunkVisualizer({
   splitterType = 'markdown',
   maxOverflowRatio = 1.5,
   langchainSplitterType = 'markdown',
+  experimentalTableHeaders = false,
 }: ChunkVisualizerProps) {
   const [chunks, setChunks] = useState<string[]>([]);
+  const [statsCollapsed, setStatsCollapsed] = useState(true);
   const [stats, setStats] = useState({
     inputCharacters: 0,
     inputContentLength: 0,
@@ -144,6 +147,7 @@ function ChunkVisualizer({
           const splitter = chunkdown({
             chunkSize: effectiveChunkSize,
             maxOverflowRatio: maxOverflowRatio,
+            experimental: { preserveTableHeaders: experimentalTableHeaders },
           });
           newChunks = splitter.splitText(text);
         }
@@ -228,6 +232,7 @@ function ChunkVisualizer({
     splitterType,
     maxOverflowRatio,
     langchainSplitterType,
+    experimentalTableHeaders,
   ]);
 
   const colors = generateColors(chunks.length);
@@ -328,9 +333,22 @@ function ChunkVisualizer({
     <div className="w-full">
       {/* Stats */}
       <div className="p-3 bg-gray-50 rounded-lg mb-4">
-        <h4 className="text-sm font-medium text-black mb-3">Statistics</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium text-black">Statistics</h4>
+          <button
+            onClick={() => setStatsCollapsed(!statsCollapsed)}
+            type="button"
+            title={
+              statsCollapsed ? 'Expand statistics' : 'Collapse statistics'
+            }
+            className="w-4 h-4 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
+          >
+            {statsCollapsed ? '+' : '−'}
+          </button>
+        </div>
 
-        <div className="grid grid-cols-3 gap-4 text-center">
+        {!statsCollapsed && (
+          <div className="grid grid-cols-3 gap-4 text-center">
           {/* Input Length */}
           <div>
             <div className="mb-2">
@@ -466,6 +484,7 @@ function ChunkVisualizer({
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Chunk Visualization */}

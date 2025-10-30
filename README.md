@@ -117,6 +117,44 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
 const chunks = splitter.splitText(text);
 ```
 
+### Table Headers (experimental)
+
+When a table is split into multiple chunks, the header row and data rows often end up in separate chunks.
+That means the data rows lose their context since they no longer have the header row to indicate what each column represents.
+
+Chunkdown provides a header preservation feature that can be enabled to automatically include the header row in each data chunk.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const splitter = chunkdown({
+  chunkSize: 20,
+  experimental: {
+    preserveTableHeaders: true
+  }       
+});
+
+const text = `
+| Header 1 | Header 2 |
+|----------|----------|
+| Row 1   | Row 1   |
+| Row 2   | Row 2   |
+`;
+
+const chunks = splitter.splitText(text);
+// Resulting chunks:
+// chunks[0]: 
+// | Header 1 | Header 2 |
+// |----------|----------|
+// | Row 1   | Row 1   |
+
+// chunks[1]:
+// | Header 1 | Header 2 |
+// |----------|----------|
+// | Row 2   | Row 2   |
+```
+
+
 ## API Reference
 
 ### `chunkdown(options: ChunkdownOptions)`
@@ -255,34 +293,6 @@ const chunks = splitter.splitText(text, {
 // Extend broken markdown:
 // - **This is a very long bold text that**
 // - **might be split into two chunks**
-```
-
-### Improve Table Chunks
-When splitting tables, ensure that each chunk retains its header and is properly formatted:
-
-```markdown
-| Header 1 | Header 2 |
-|----------|----------|
-| Row 1   | Row 1   |
-| Row 2   | Row 2   |
-```
-
-This table could be split into three chunks for the header and each data row..
-Since the data rows have no relationship to the header, they lose some of their meaning. 
-To improve the semantic meaning of each row, the header could be removed as standalone chunk and instead be added to each data row:
-
-```markdown
-Chunk 1:
-
-| Header 1 | Header 2 |
-|----------|----------|
-| Row 1   | Row 1   |
-
-Chunk 2:
-
-| Header 1 | Header 2 |
-|----------|----------|
-| Row 2   | Row 2   |
 ```
 
 ### Normalize Links and Images

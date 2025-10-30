@@ -322,6 +322,9 @@ function HomeContent() {
   const [langchainSplitterType, setLangchainSplitterType] = useState<
     'markdown' | 'character' | 'sentence'
   >('markdown');
+  const [experimentalTableHeaders, setExperimentalTableHeaders] =
+    useState(false);
+  const [experimentalCollapsed, setExperimentalCollapsed] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Toast state
@@ -395,6 +398,10 @@ function HomeContent() {
     const syncDisabled = params.get('syncDisabled');
     setSyncChunkSizes(syncDisabled !== 'true');
 
+    // Load table headers option
+    const tableHeaders = params.get('tableHeaders');
+    setExperimentalTableHeaders(tableHeaders === 'true');
+
     setIsInitialized(true);
   }, [searchParams]);
 
@@ -457,6 +464,10 @@ function HomeContent() {
       params.set('syncDisabled', 'true');
     }
 
+    if (experimentalTableHeaders) {
+      params.set('tableHeaders', 'true');
+    }
+
     const newUrl = params.toString() ? `?${params.toString()}` : '/';
 
     try {
@@ -480,6 +491,7 @@ function HomeContent() {
     astCollapsed,
     maxOverflowRatio,
     langchainSplitterType,
+    experimentalTableHeaders,
     isInitialized,
     router,
   ]);
@@ -836,6 +848,53 @@ function HomeContent() {
                     />
                   </div>
                 </div>
+
+                {/* Experimental Options */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-gray-700">
+                      Experimental
+                    </h4>
+                    <button
+                      onClick={() =>
+                        setExperimentalCollapsed(!experimentalCollapsed)
+                      }
+                      type="button"
+                      title={
+                        experimentalCollapsed
+                          ? 'Expand experimental options'
+                          : 'Collapse experimental options'
+                      }
+                      className="w-4 h-4 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
+                    >
+                      {experimentalCollapsed ? '+' : '−'}
+                    </button>
+                  </div>
+                  {!experimentalCollapsed && (
+                    <div className="mb-3">
+                      <label
+                        htmlFor="table-headers"
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <input
+                          id="table-headers"
+                          type="checkbox"
+                          checked={experimentalTableHeaders}
+                          onChange={(e) =>
+                            setExperimentalTableHeaders(e.target.checked)
+                          }
+                          className="w-4 h-4 border border-gray-300 rounded text-black cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-black">
+                          Preserve Table Headers
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1 ml-6">
+                        Prepend header row to each table chunk
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -922,6 +981,7 @@ function HomeContent() {
             chunkSize={customChunkSize}
             splitterType="markdown"
             maxOverflowRatio={maxOverflowRatio}
+            experimentalTableHeaders={experimentalTableHeaders}
           />
           <ChunkVisualizer
             text={activeText}

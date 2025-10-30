@@ -1,4 +1,4 @@
-import type { Heading, Node, Root, RootContent } from 'mdast';
+import type { Heading, Node, Nodes, Root, RootContent } from 'mdast';
 
 /**
  * Section node type for hierarchical AST
@@ -60,9 +60,12 @@ export interface HierarchicalRoot extends Node {
  * // }
  * ```
  */
-export const createHierarchicalAST = (ast: Root): HierarchicalRoot => {
-  if (!ast.children || ast.children.length === 0) {
-    return { type: 'root', children: [] };
+export const createHierarchicalAST = (node: Nodes): HierarchicalRoot => {
+  if (!('children' in node) || node.children.length === 0) {
+    if (node.type === 'root') {
+      return { type: 'root', children: node.children };
+    }
+    return { type: 'root', children: [node] };
   }
 
   /**
@@ -129,7 +132,9 @@ export const createHierarchicalAST = (ast: Root): HierarchicalRoot => {
     return result;
   };
 
-  const sections = transformToSections(ast.children);
+  const sections = transformToSections(
+    node.type === 'root' ? node.children : [node],
+  );
 
   return {
     type: 'root',

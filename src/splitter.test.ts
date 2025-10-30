@@ -176,320 +176,335 @@ Third sentence.
   });
 
   describe('Protected Constructs', () => {
-    it('should not split links', () => {
-      const splitter = chunkdown({
-        chunkSize: 10,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Check [documentation](https://example.com) for more details.`;
-      const chunks = splitter.splitText(text);
+    describe('Links', () => {
+      it('should not split links', () => {
+        const splitter = chunkdown({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Check [documentation](https://example.com) for more details.`;
+        const chunks = splitter.splitText(text);
 
-      const linkChunk = chunks.find((chunk) =>
-        chunk.includes('[documentation](https://example.com)'),
-      );
-      expect(linkChunk).toBe('[documentation](https://example.com)');
-    });
-
-    it('should only split links if they exceed raw size limit', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.5,
-        maxRawSize: 200, // Small limit to force splitting
+        const linkChunk = chunks.find((chunk) =>
+          chunk.includes('[documentation](https://example.com)'),
+        );
+        expect(linkChunk).toBe('[documentation](https://example.com)');
       });
 
-      // Create a link that exceeds the raw size limit
-      const longUrl = `https://example.com/${'x'.repeat(300)}`;
-      const text = `Text with [huge link](${longUrl}) more text.`;
+      it('should only split links if they exceed raw size limit', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.5,
+          maxRawSize: 200, // Small limit to force splitting
+        });
 
-      const chunks = splitter.splitText(text);
+        // Create a link that exceeds the raw size limit
+        const longUrl = `https://example.com/${'x'.repeat(300)}`;
+        const text = `Text with [huge link](${longUrl}) more text.`;
 
-      expect(chunks.length).toBe(5);
+        const chunks = splitter.splitText(text);
 
-      const prefixChunk = chunks.find((chunk) => chunk.includes('Text with'));
-      expect(prefixChunk).toBeDefined();
+        expect(chunks.length).toBe(5);
 
-      const suffixChunk = chunks.find((chunk) => chunk.includes('more text.'));
-      expect(suffixChunk).toBeDefined();
+        const prefixChunk = chunks.find((chunk) => chunk.includes('Text with'));
+        expect(prefixChunk).toBeDefined();
 
-      const linkDescriptionChunk = chunks.find((chunk) =>
-        chunk.includes('[huge link]'),
-      );
-      expect(linkDescriptionChunk).toBeDefined();
+        const suffixChunk = chunks.find((chunk) =>
+          chunk.includes('more text.'),
+        );
+        expect(suffixChunk).toBeDefined();
 
-      chunks.forEach((chunk) => {
-        expect(chunk.length).toBeLessThanOrEqual(200);
-      });
-    });
+        const linkDescriptionChunk = chunks.find((chunk) =>
+          chunk.includes('[huge link]'),
+        );
+        expect(linkDescriptionChunk).toBeDefined();
 
-    it('should not split images', () => {
-      const chunkSize = 10;
-      const splitter = chunkdown({
-        chunkSize,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `See ![logo](./logo.png) for the brand.`;
-      const chunks = splitter.splitText(text);
-
-      const imageChunk = chunks.find((chunk) =>
-        chunk.includes('![logo](./logo.png)'),
-      );
-      expect(imageChunk).toBeDefined();
-    });
-
-    it('should only split images if they exceed raw size limit', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.5,
-        maxRawSize: 200, // Small limit to force splitting
-      });
-
-      // Create a link that exceeds the raw size limit
-      const longUrl = `https://example.com/${'x'.repeat(300)}`;
-      const text = `Text with ![huge image](${longUrl}) more text.`;
-
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(5);
-
-      const prefixChunk = chunks.find((chunk) => chunk.includes('Text with'));
-      expect(prefixChunk).toBeDefined();
-
-      const suffixChunk = chunks.find((chunk) => chunk.includes('more text.'));
-      expect(suffixChunk).toBeDefined();
-
-      const imageDescriptionChunk = chunks.find((chunk) =>
-        chunk.includes('![huge image]'),
-      );
-      expect(imageDescriptionChunk).toBeDefined();
-
-      chunks.forEach((chunk) => {
-        expect(chunk.length).toBeLessThanOrEqual(200);
+        chunks.forEach((chunk) => {
+          expect(chunk.length).toBeLessThanOrEqual(200);
+        });
       });
     });
 
-    it('should not split words', () => {
-      const splitter = chunkdown({
-        chunkSize: 5,
-        maxOverflowRatio: 1.0,
+    describe('Images', () => {
+      it('should not split images', () => {
+        const chunkSize = 10;
+        const splitter = chunkdown({
+          chunkSize,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `See ![logo](./logo.png) for the brand.`;
+        const chunks = splitter.splitText(text);
+
+        const imageChunk = chunks.find((chunk) =>
+          chunk.includes('![logo](./logo.png)'),
+        );
+        expect(imageChunk).toBeDefined();
       });
 
-      const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
-      const chunks = splitter.splitText(text);
+      it('should only split images if they exceed raw size limit', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.5,
+          maxRawSize: 200, // Small limit to force splitting
+        });
 
-      expect(chunks.length).toBe(2);
-      expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
-      expect(chunks[1]).toBe('antidisestablishmentarianism');
-    });
+        // Create a link that exceeds the raw size limit
+        const longUrl = `https://example.com/${'x'.repeat(300)}`;
+        const text = `Text with ![huge image](${longUrl}) more text.`;
 
-    it('should only split words if they exceed raw size limit', () => {
-      const splitter = chunkdown({
-        chunkSize: 5,
-        maxOverflowRatio: 1.0,
-        maxRawSize: 20, // Small limit to force splitting
-      });
+        const chunks = splitter.splitText(text);
 
-      const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
-      const chunks = splitter.splitText(text);
+        expect(chunks.length).toBe(5);
 
-      expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe('supercalifragilistic');
-      expect(chunks[1]).toBe('expialidocious');
-      expect(chunks[2]).toBe('antidisestablishmen');
-      expect(chunks[3]).toBe('tarianism');
+        const prefixChunk = chunks.find((chunk) => chunk.includes('Text with'));
+        expect(prefixChunk).toBeDefined();
 
-      chunks.forEach((chunk) => {
-        expect(chunk.length).toBeLessThanOrEqual(20);
-      });
-    });
+        const suffixChunk = chunks.find((chunk) =>
+          chunk.includes('more text.'),
+        );
+        expect(suffixChunk).toBeDefined();
 
-    it('may split formatting when breakpoints are not set', () => {
-      const chunkSize = 30;
-      const splitter = chunkdown({
-        chunkSize,
-        maxOverflowRatio: 1.0,
-        breakpoints: undefined,
-      });
-      const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
-      const chunks = splitter.splitText(text);
+        const imageDescriptionChunk = chunks.find((chunk) =>
+          chunk.includes('![huge image]'),
+        );
+        expect(imageDescriptionChunk).toBeDefined();
 
-      const strongChunk = chunks.find((chunk) =>
-        chunk.includes('**long strong text**'),
-      );
-      const italicChunk = chunks.find((chunk) =>
-        chunk.includes('*long italic text*'),
-      );
-      const deletedChunk = chunks.find((chunk) =>
-        chunk.includes('~~long deleted text~~'),
-      );
-
-      expect([strongChunk, italicChunk, deletedChunk]).toContain(undefined);
-    });
-
-    it('should not split formatting when breakpoints are explicitly set', () => {
-      const chunkSize = 30;
-      const splitter = chunkdown({
-        chunkSize,
-        maxOverflowRatio: 1.0,
-        breakpoints: {
-          strong: { maxSize: 30 },
-          emphasis: { maxSize: 30 },
-          delete: { maxSize: 30 },
-        },
-      });
-      const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
-      const chunks = splitter.splitText(text);
-
-      const strongChunk = chunks.find((chunk) =>
-        chunk.includes('**long strong text**'),
-      );
-      const italicChunk = chunks.find((chunk) =>
-        chunk.includes('*long italic text*'),
-      );
-      const deletedChunk = chunks.find((chunk) =>
-        chunk.includes('~~long deleted text~~'),
-      );
-
-      expect(strongChunk).toBeDefined();
-      expect(italicChunk).toBeDefined();
-      expect(deletedChunk).toBeDefined();
-    });
-
-    it('should split formatting if above breakpoint', () => {
-      const splitter = chunkdown({
-        chunkSize: 30,
-        maxOverflowRatio: 1.0,
-        breakpoints: {
-          strong: { maxSize: 30 },
-          emphasis: { maxSize: 30 },
-          delete: { maxSize: 30 },
-        },
-      });
-      const text = `Some **very very very long strong text** with some *very very very long italic text* and ~~very very very long deleted text~~.`;
-      const chunks = splitter.splitText(text);
-
-      const strongChunk = chunks.find((chunk) =>
-        chunk.includes('**very very very long strong text**'),
-      );
-      const italicChunk = chunks.find((chunk) =>
-        chunk.includes('*very very very long italic text*'),
-      );
-      const deletedChunk = chunks.find((chunk) =>
-        chunk.includes('~~very very very long deleted text~~'),
-      );
-
-      expect(strongChunk).toBeUndefined();
-      expect(italicChunk).toBeUndefined();
-      expect(deletedChunk).toBeUndefined();
-    });
-
-    it('should split formatting if exceeds raw size limit', () => {
-      const chunkSize = 30;
-      const splitter = chunkdown({
-        chunkSize,
-        maxOverflowRatio: 1.0,
-        maxRawSize: 10, // Small limit to force splitting
-      });
-      const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(12);
-
-      const strongChunk = chunks.find((chunk) => chunk.includes('**long'));
-      const italicChunk = chunks.find((chunk) => chunk.includes('*long'));
-      const deletedChunk = chunks.find((chunk) => chunk.includes('~~long'));
-
-      expect(strongChunk).toBeDefined();
-      expect(italicChunk).toBeDefined();
-      expect(deletedChunk).toBeDefined();
-
-      chunks.forEach((chunk) => {
-        expect(chunk.length).toBeLessThanOrEqual(15);
+        chunks.forEach((chunk) => {
+          expect(chunk.length).toBeLessThanOrEqual(200);
+        });
       });
     });
 
-    it('should allow custom breakpoint configuration', () => {
-      const splitter = chunkdown({
-        chunkSize: 30,
-        maxOverflowRatio: 1.0,
-        breakpoints: {
-          link: { maxSize: 50 },
-        },
-      });
-      const text = `Check out [this link](https://example.com) for more info.`;
-      const chunks = splitter.splitText(text);
+    describe('Words', () => {
+      it('should not split words', () => {
+        const splitter = chunkdown({
+          chunkSize: 5,
+          maxOverflowRatio: 1.0,
+        });
 
-      const linkChunk = chunks.find((chunk) =>
-        chunk.includes('[this link](https://example.com)'),
-      );
-      expect(linkChunk).toBeDefined();
+        const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(2);
+        expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
+        expect(chunks[1]).toBe('antidisestablishmentarianism');
+      });
+
+      it('should only split words if they exceed raw size limit', () => {
+        const splitter = chunkdown({
+          chunkSize: 5,
+          maxOverflowRatio: 1.0,
+          maxRawSize: 20, // Small limit to force splitting
+        });
+
+        const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(4);
+        expect(chunks[0]).toBe('supercalifragilistic');
+        expect(chunks[1]).toBe('expialidocious');
+        expect(chunks[2]).toBe('antidisestablishmen');
+        expect(chunks[3]).toBe('tarianism');
+
+        chunks.forEach((chunk) => {
+          expect(chunk.length).toBeLessThanOrEqual(20);
+        });
+      });
     });
 
-    it('should cap finite breakpoints at maxAllowedSize', () => {
-      const splitter = chunkdown({
-        chunkSize: 30,
-        maxOverflowRatio: 1.0,
-        breakpoints: {
-          ...defaultBreakpoints,
-          strong: { maxSize: 100 },
-        },
-      });
-      const text = `Some **very very very long strong text** here.`;
-      const chunks = splitter.splitText(text);
+    describe('Formatting', () => {
+      it('may split formatting when breakpoints are not set', () => {
+        const chunkSize = 30;
+        const splitter = chunkdown({
+          chunkSize,
+          maxOverflowRatio: 1.0,
+          breakpoints: undefined,
+        });
+        const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
+        const chunks = splitter.splitText(text);
 
-      // maxSize: 100 gets capped to maxAllowedSize: 30
-      // "very very very long strong text" is 32 chars, exceeds 30
-      const strongChunk = chunks.find((chunk) =>
-        chunk.includes('**very very very long strong text**'),
-      );
-      expect(strongChunk).toBeUndefined();
+        const strongChunk = chunks.find((chunk) =>
+          chunk.includes('**long strong text**'),
+        );
+        const italicChunk = chunks.find((chunk) =>
+          chunk.includes('*long italic text*'),
+        );
+        const deletedChunk = chunks.find((chunk) =>
+          chunk.includes('~~long deleted text~~'),
+        );
+
+        expect([strongChunk, italicChunk, deletedChunk]).toContain(undefined);
+      });
+
+      it('should not split formatting when breakpoints are explicitly set', () => {
+        const chunkSize = 30;
+        const splitter = chunkdown({
+          chunkSize,
+          maxOverflowRatio: 1.0,
+          breakpoints: {
+            strong: { maxSize: 30 },
+            emphasis: { maxSize: 30 },
+            delete: { maxSize: 30 },
+          },
+        });
+        const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
+        const chunks = splitter.splitText(text);
+
+        const strongChunk = chunks.find((chunk) =>
+          chunk.includes('**long strong text**'),
+        );
+        const italicChunk = chunks.find((chunk) =>
+          chunk.includes('*long italic text*'),
+        );
+        const deletedChunk = chunks.find((chunk) =>
+          chunk.includes('~~long deleted text~~'),
+        );
+
+        expect(strongChunk).toBeDefined();
+        expect(italicChunk).toBeDefined();
+        expect(deletedChunk).toBeDefined();
+      });
+
+      it('should split formatting if above breakpoint', () => {
+        const splitter = chunkdown({
+          chunkSize: 30,
+          maxOverflowRatio: 1.0,
+          breakpoints: {
+            strong: { maxSize: 30 },
+            emphasis: { maxSize: 30 },
+            delete: { maxSize: 30 },
+          },
+        });
+        const text = `Some **very very very long strong text** with some *very very very long italic text* and ~~very very very long deleted text~~.`;
+        const chunks = splitter.splitText(text);
+
+        const strongChunk = chunks.find((chunk) =>
+          chunk.includes('**very very very long strong text**'),
+        );
+        const italicChunk = chunks.find((chunk) =>
+          chunk.includes('*very very very long italic text*'),
+        );
+        const deletedChunk = chunks.find((chunk) =>
+          chunk.includes('~~very very very long deleted text~~'),
+        );
+
+        expect(strongChunk).toBeUndefined();
+        expect(italicChunk).toBeUndefined();
+        expect(deletedChunk).toBeUndefined();
+      });
+
+      it('should split formatting if exceeds raw size limit', () => {
+        const chunkSize = 30;
+        const splitter = chunkdown({
+          chunkSize,
+          maxOverflowRatio: 1.0,
+          maxRawSize: 10, // Small limit to force splitting
+        });
+        const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(12);
+
+        const strongChunk = chunks.find((chunk) => chunk.includes('**long'));
+        const italicChunk = chunks.find((chunk) => chunk.includes('*long'));
+        const deletedChunk = chunks.find((chunk) => chunk.includes('~~long'));
+
+        expect(strongChunk).toBeDefined();
+        expect(italicChunk).toBeDefined();
+        expect(deletedChunk).toBeDefined();
+
+        chunks.forEach((chunk) => {
+          expect(chunk.length).toBeLessThanOrEqual(15);
+        });
+      });
     });
 
-    it('should use Infinity to protect regardless of chunk size', () => {
-      const splitter = chunkdown({
-        chunkSize: 10,
-        maxOverflowRatio: 1.0,
-        breakpoints: {
-          ...defaultBreakpoints,
-          link: { maxSize: Infinity },
-        },
+    describe('Custom Breakpoints', () => {
+      it('should allow custom breakpoint configuration', () => {
+        const splitter = chunkdown({
+          chunkSize: 30,
+          maxOverflowRatio: 1.0,
+          breakpoints: {
+            link: { maxSize: 50 },
+          },
+        });
+        const text = `Check out [this link](https://example.com) for more info.`;
+        const chunks = splitter.splitText(text);
+
+        const linkChunk = chunks.find((chunk) =>
+          chunk.includes('[this link](https://example.com)'),
+        );
+        expect(linkChunk).toBeDefined();
       });
-      const text = `Check [documentation](https://example.com) for details.`;
-      const chunks = splitter.splitText(text);
 
-      // Link should be protected with Infinity even though it exceeds chunk size
-      const linkChunk = chunks.find((chunk) =>
-        chunk.includes('[documentation](https://example.com)'),
-      );
-      expect(linkChunk).toBe('[documentation](https://example.com)');
-    });
+      it('should cap finite breakpoints at maxAllowedSize', () => {
+        const splitter = chunkdown({
+          chunkSize: 30,
+          maxOverflowRatio: 1.0,
+          breakpoints: {
+            ...defaultBreakpoints,
+            strong: { maxSize: 100 },
+          },
+        });
+        const text = `Some **very very very long strong text** here.`;
+        const chunks = splitter.splitText(text);
 
-    it('should allow merging custom breakpoints with defaults', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
-        breakpoints: {
-          ...defaultBreakpoints,
-          link: { maxSize: 100 },
-          inlineCode: { maxSize: 100 },
-        },
+        // maxSize: 100 gets capped to maxAllowedSize: 30
+        // "very very very long strong text" is 32 chars, exceeds 30
+        const strongChunk = chunks.find((chunk) =>
+          chunk.includes('**very very very long strong text**'),
+        );
+        expect(strongChunk).toBeUndefined();
       });
-      const text = `Use \`const splitter = new MarkdownSplitter();\` for chunking in your projects.`;
-      const chunks = splitter.splitText(text);
 
-      const codeChunk = chunks.find((chunk) =>
-        chunk.includes('`const splitter = new MarkdownSplitter();`'),
-      );
-      expect(codeChunk).toBeDefined();
+      it('should use Infinity to protect regardless of chunk size', () => {
+        const splitter = chunkdown({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+          breakpoints: {
+            ...defaultBreakpoints,
+            link: { maxSize: Infinity },
+          },
+        });
+        const text = `Check [documentation](https://example.com) for details.`;
+        const chunks = splitter.splitText(text);
+
+        // Link should be protected with Infinity even though it exceeds chunk size
+        const linkChunk = chunks.find((chunk) =>
+          chunk.includes('[documentation](https://example.com)'),
+        );
+        expect(linkChunk).toBe('[documentation](https://example.com)');
+      });
+
+      it('should allow merging custom breakpoints with defaults', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+          breakpoints: {
+            ...defaultBreakpoints,
+            link: { maxSize: 100 },
+            inlineCode: { maxSize: 100 },
+          },
+        });
+        const text = `Use \`const splitter = new MarkdownSplitter();\` for chunking in your projects.`;
+        const chunks = splitter.splitText(text);
+
+        const codeChunk = chunks.find((chunk) =>
+          chunk.includes('`const splitter = new MarkdownSplitter();`'),
+        );
+        expect(codeChunk).toBeDefined();
+      });
     });
   });
 
   describe('Progressive Splitting', () => {
-    it('should split at thematic breaks', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `# Section 1
+    describe('Hierarchical Boundaries', () => {
+      it('should split at thematic breaks', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `# Section 1
 
 First sentence. Second sentence.
 
@@ -499,20 +514,20 @@ First sentence. Second sentence.
 
 First sentence. Second sentence.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
-      expect(chunks[0].startsWith('# Section 1')).toBe(true);
-      expect(chunks[1]).toBe(THEMATIC_BREAK);
-      expect(chunks[2].startsWith('# Section 2')).toBe(true);
-    });
-
-    it('should split by sections', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
+        expect(chunks.length).toBe(3);
+        expect(chunks[0].startsWith('# Section 1')).toBe(true);
+        expect(chunks[1]).toBe(THEMATIC_BREAK);
+        expect(chunks[2].startsWith('# Section 2')).toBe(true);
       });
-      const text = `# Section 1
+
+      it('should split by sections', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `# Section 1
 
 First sentence. Second sentence.
 
@@ -527,31 +542,31 @@ First sentence. Second sentence.
 ## Sub-section 2.1
 
 First sentence. Second sentence.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(2);
-      expect(chunks[0]).toBe(`# Section 1
+        expect(chunks.length).toBe(2);
+        expect(chunks[0]).toBe(`# Section 1
 
 First sentence. Second sentence.
 
 ## Sub-section 1.1
 
 First sentence. Second sentence.`);
-      expect(chunks[1]).toBe(`# Section 2
+        expect(chunks[1]).toBe(`# Section 2
 
 First sentence. Second sentence.
 
 ## Sub-section 2.1
 
 First sentence. Second sentence.`);
-    });
-
-    it('should split by sub-sections', () => {
-      const splitter = chunkdown({
-        chunkSize: 80,
-        maxOverflowRatio: 1.0,
       });
-      const text = `# Section 1
+
+      it('should split by sub-sections', () => {
+        const splitter = chunkdown({
+          chunkSize: 80,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `# Section 1
 
 First sentence. Second sentence.
 
@@ -566,310 +581,314 @@ First sentence. Second sentence.
 ## Sub-section 2.1
 
 First sentence. Second sentence.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe(`# Section 1
-
-First sentence. Second sentence.`);
-      expect(chunks[1]).toBe(`## Sub-section 1.1
+        expect(chunks.length).toBe(4);
+        expect(chunks[0]).toBe(`# Section 1
 
 First sentence. Second sentence.`);
-      expect(chunks[2]).toBe(`# Section 2
+        expect(chunks[1]).toBe(`## Sub-section 1.1
 
 First sentence. Second sentence.`);
-      expect(chunks[3]).toBe(`## Sub-section 2.1
+        expect(chunks[2]).toBe(`# Section 2
 
 First sentence. Second sentence.`);
-    });
+        expect(chunks[3]).toBe(`## Sub-section 2.1
 
-    it('should split by paragraph', () => {
-      const splitter = chunkdown({
-        chunkSize: 60,
-        maxOverflowRatio: 1.0,
+First sentence. Second sentence.`);
       });
-      const text = `First sentence. Second sentence.
+
+      it('should split by paragraph', () => {
+        const splitter = chunkdown({
+          chunkSize: 60,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First sentence. Second sentence.
 
 First sentence. Second sentence.
 
 First sentence. Second sentence.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('First sentence. Second sentence.');
-      expect(chunks[1]).toBe('First sentence. Second sentence.');
-      expect(chunks[2]).toBe('First sentence. Second sentence.');
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('First sentence. Second sentence.');
+        expect(chunks[1]).toBe('First sentence. Second sentence.');
+        expect(chunks[2]).toBe('First sentence. Second sentence.');
+      });
     });
 
-    it('should split by period before newline', () => {
-      const splitter = chunkdown({
-        chunkSize: 20,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `First sentence.\nSecond sentence.\nThird sentence.`;
-      const chunks = splitter.splitText(text);
+    describe('Sentence Boundaries', () => {
+      it('should split by period before newline', () => {
+        const splitter = chunkdown({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First sentence.\nSecond sentence.\nThird sentence.`;
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('First sentence.');
-      expect(chunks[1]).toBe('Second sentence.');
-      expect(chunks[2]).toBe('Third sentence.');
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('First sentence.');
+        expect(chunks[1]).toBe('Second sentence.');
+        expect(chunks[2]).toBe('Third sentence.');
+      });
+
+      it('should split by period before uppercase', () => {
+        const splitter = chunkdown({
+          chunkSize: 25,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Hello world. The sun is shining. Today is nice.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('Hello world.');
+        expect(chunks[1]).toBe('The sun is shining.');
+        expect(chunks[2]).toBe('Today is nice.');
+      });
+
+      it('should split by question and exclamation marks', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Really? Yes! Maybe?? Absolutely!!!`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('Really?');
+        expect(chunks[1]).toBe('Yes! Maybe??');
+        expect(chunks[2]).toBe('Absolutely!!!');
+      });
+
+      it('should split by safe periods avoiding abbreviations', () => {
+        const splitter = chunkdown({
+          chunkSize: 25,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is e.g. example. This is proper sentence. End.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('This is e.g. example.');
+        expect(chunks[1]).toBe('This is proper sentence.');
+        expect(chunks[2]).toBe('End.');
+      });
+
+      it('should split by colons and semicolons', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Note: this is important; very important: indeed.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(5);
+        expect(chunks[0]).toBe('Note:');
+        expect(chunks[1]).toBe('this');
+        expect(chunks[2]).toBe('is important;');
+        expect(chunks[3]).toBe('very important:');
+        expect(chunks[4]).toBe('indeed.');
+      });
+
+      it('should split by closing brackets', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Hello (world) there [friend] now {buddy} end.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(4);
+        expect(chunks[0]).toBe('Hello (world)');
+        expect(chunks[1]).toBe('there \\[friend]');
+        expect(chunks[2]).toBe('now {buddy}');
+        expect(chunks[3]).toBe('end.');
+      });
+
+      it('should split by opening brackets', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First (second) and (third) done.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('First (second)');
+        expect(chunks[1]).toBe('and (third)');
+        expect(chunks[2]).toBe('done.');
+      });
+
+      it('should split by closing quotes', () => {
+        const splitter = chunkdown({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `He said "hello" there and 'goodbye' now.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('He said "hello"');
+        expect(chunks[1]).toBe("there and 'goodbye'");
+        expect(chunks[2]).toBe('now.');
+      });
+
+      it('should split by opening quotes', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First "second" and "third" done.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('First "second"');
+        expect(chunks[1]).toBe('and "third"');
+        expect(chunks[2]).toBe('done.');
+      });
+
+      it('should split by line breaks', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First line\nSecond line\nThird line`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('First line');
+        expect(chunks[1]).toBe('Second line');
+        expect(chunks[2]).toBe('Third line');
+      });
+
+      it('should split by commas', () => {
+        const splitter = chunkdown({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First point, second point, third point, fourth point`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(4);
+        expect(chunks[0]).toBe('First point,');
+        expect(chunks[1]).toBe('second point,');
+        expect(chunks[2]).toBe('third point,');
+        expect(chunks[3]).toBe('fourth point');
+      });
+
+      it('should split by dashes', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Paris – the city of lights – is beautiful — really beautiful - very nice.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(7);
+        expect(chunks[0]).toBe('Paris –');
+        expect(chunks[1]).toBe('the city');
+        expect(chunks[2]).toBe('of lights –');
+        expect(chunks[3]).toBe('is beautiful —');
+        expect(chunks[4]).toBe('really');
+        expect(chunks[5]).toBe('beautiful -');
+        expect(chunks[6]).toBe('very nice.');
+      });
+
+      it('should split by ellipsis', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Wait... what happened... I don't know....`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(5);
+        expect(chunks[0]).toBe('Wait...');
+        expect(chunks[1]).toBe('what happened.');
+        expect(chunks[2]).toBe('..');
+        expect(chunks[3]).toBe("I don't know\\..");
+        expect(chunks[4]).toBe('..');
+      });
+
+      it('should split by period fallback', () => {
+        const splitter = chunkdown({
+          chunkSize: 5,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `etc. End`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(2);
+        expect(chunks[0]).toBe('etc.');
+        expect(chunks[1]).toBe('End');
+      });
+
+      it('should split by whitespace as final fallback', () => {
+        const splitter = chunkdown({
+          chunkSize: 1,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `word1 word2 word3`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('word1');
+        expect(chunks[1]).toBe('word2');
+        expect(chunks[2]).toBe('word3');
+      });
     });
 
-    it('should split by period before uppercase', () => {
-      const splitter = chunkdown({
-        chunkSize: 25,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Hello world. The sun is shining. Today is nice.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Hello world.');
-      expect(chunks[1]).toBe('The sun is shining.');
-      expect(chunks[2]).toBe('Today is nice.');
-    });
-
-    it('should split by question and exclamation marks', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Really? Yes! Maybe?? Absolutely!!!`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Really?');
-      expect(chunks[1]).toBe('Yes! Maybe??');
-      expect(chunks[2]).toBe('Absolutely!!!');
-    });
-
-    it('should split by safe periods avoiding abbreviations', () => {
-      const splitter = chunkdown({
-        chunkSize: 25,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `This is e.g. example. This is proper sentence. End.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('This is e.g. example.');
-      expect(chunks[1]).toBe('This is proper sentence.');
-      expect(chunks[2]).toBe('End.');
-    });
-
-    it('should split by colons and semicolons', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Note: this is important; very important: indeed.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(5);
-      expect(chunks[0]).toBe('Note:');
-      expect(chunks[1]).toBe('this');
-      expect(chunks[2]).toBe('is important;');
-      expect(chunks[3]).toBe('very important:');
-      expect(chunks[4]).toBe('indeed.');
-    });
-
-    it('should split by closing brackets', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Hello (world) there [friend] now {buddy} end.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe('Hello (world)');
-      expect(chunks[1]).toBe('there \\[friend]');
-      expect(chunks[2]).toBe('now {buddy}');
-      expect(chunks[3]).toBe('end.');
-    });
-
-    it('should split by opening brackets', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `First (second) and (third) done.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('First (second)');
-      expect(chunks[1]).toBe('and (third)');
-      expect(chunks[2]).toBe('done.');
-    });
-
-    it('should split by closing quotes', () => {
-      const splitter = chunkdown({
-        chunkSize: 20,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `He said "hello" there and 'goodbye' now.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('He said "hello"');
-      expect(chunks[1]).toBe("there and 'goodbye'");
-      expect(chunks[2]).toBe('now.');
-    });
-
-    it('should split by opening quotes', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `First "second" and "third" done.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('First "second"');
-      expect(chunks[1]).toBe('and "third"');
-      expect(chunks[2]).toBe('done.');
-    });
-
-    it('should split by line breaks', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `First line\nSecond line\nThird line`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('First line');
-      expect(chunks[1]).toBe('Second line');
-      expect(chunks[2]).toBe('Third line');
-    });
-
-    it('should split by commas', () => {
-      const splitter = chunkdown({
-        chunkSize: 20,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `First point, second point, third point, fourth point`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe('First point,');
-      expect(chunks[1]).toBe('second point,');
-      expect(chunks[2]).toBe('third point,');
-      expect(chunks[3]).toBe('fourth point');
-    });
-
-    it('should split by dashes', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Paris – the city of lights – is beautiful — really beautiful - very nice.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(7);
-      expect(chunks[0]).toBe('Paris –');
-      expect(chunks[1]).toBe('the city');
-      expect(chunks[2]).toBe('of lights –');
-      expect(chunks[3]).toBe('is beautiful —');
-      expect(chunks[4]).toBe('really');
-      expect(chunks[5]).toBe('beautiful -');
-      expect(chunks[6]).toBe('very nice.');
-    });
-
-    it('should split by ellipsis', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Wait... what happened... I don't know....`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(5);
-      expect(chunks[0]).toBe('Wait...');
-      expect(chunks[1]).toBe('what happened.');
-      expect(chunks[2]).toBe('..');
-      expect(chunks[3]).toBe("I don't know\\..");
-      expect(chunks[4]).toBe('..');
-    });
-
-    it('should split by period fallback', () => {
-      const splitter = chunkdown({
-        chunkSize: 5,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `etc. End`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(2);
-      expect(chunks[0]).toBe('etc.');
-      expect(chunks[1]).toBe('End');
-    });
-
-    it('should split by whitespace as final fallback', () => {
-      const splitter = chunkdown({
-        chunkSize: 1,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `word1 word2 word3`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('word1');
-      expect(chunks[1]).toBe('word2');
-      expect(chunks[2]).toBe('word3');
-    });
-
-    it('should keep lists together if possible', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Start of list.
+    describe('Lists', () => {
+      it('should keep lists together if possible', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Start of list.
 
 - First list item
 - Second list item
 - Third list item
 
 End of list.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Start of list.');
-      expect(chunks[1]).toBe(
-        '* First list item\n* Second list item\n* Third list item',
-      );
-      expect(chunks[2]).toBe('End of list.');
-    });
-
-    it('should split list by items', () => {
-      const splitter = chunkdown({
-        chunkSize: 40,
-        maxOverflowRatio: 1.0,
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('Start of list.');
+        expect(chunks[1]).toBe(
+          '* First list item\n* Second list item\n* Third list item',
+        );
+        expect(chunks[2]).toBe('End of list.');
       });
-      const text = `Start of list.
+
+      it('should split list by items', () => {
+        const splitter = chunkdown({
+          chunkSize: 40,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Start of list.
 
 - First list item. Some more content
 - Second list item. Some more content
 - Third list item. Some more content
 
 End of list.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(5);
-      expect(chunks[0]).toBe('Start of list.');
-      expect(chunks[1]).toBe('* First list item. Some more content');
-      expect(chunks[2]).toBe('* Second list item. Some more content');
-      expect(chunks[3]).toBe('* Third list item. Some more content');
-      expect(chunks[4]).toBe('End of list.');
-    });
-
-    it('should preserve ordered list numbering when splitting', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        expect(chunks.length).toBe(5);
+        expect(chunks[0]).toBe('Start of list.');
+        expect(chunks[1]).toBe('* First list item. Some more content');
+        expect(chunks[2]).toBe('* Second list item. Some more content');
+        expect(chunks[3]).toBe('* Third list item. Some more content');
+        expect(chunks[4]).toBe('End of list.');
       });
-      const text = `Instructions:
+
+      it('should preserve ordered list numbering when splitting', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Instructions:
 
 1. First step with some content
 2. Second step with some content
@@ -879,23 +898,25 @@ End of list.`;
 6. Sixth step with some content
 
 End of instructions.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      // Find the chunks containing ordered list items
-      const listChunks = chunks.filter((chunk) => /^\d+\./.test(chunk.trim()));
+        // Find the chunks containing ordered list items
+        const listChunks = chunks.filter((chunk) =>
+          /^\d+\./.test(chunk.trim()),
+        );
 
-      expect(listChunks.length).toBe(6);
-      for (let i = 1; i < listChunks.length; i++) {
-        expect(listChunks[i]).toMatch(new RegExp(`^[${i + 1}].`));
-      }
-    });
-
-    it('should preserve ordered list numbering with long items that get split', () => {
-      const splitter = chunkdown({
-        chunkSize: 200,
-        maxOverflowRatio: 1.5,
+        expect(listChunks.length).toBe(6);
+        for (let i = 1; i < listChunks.length; i++) {
+          expect(listChunks[i]).toMatch(new RegExp(`^[${i + 1}].`));
+        }
       });
-      const text = `1. **First item with very long content.** This item contains substantial text that will exceed the chunk size limit and force the splitter to break it into multiple chunks, which can cause numbering issues if not handled correctly.
+
+      it('should preserve ordered list numbering with long items that get split', () => {
+        const splitter = chunkdown({
+          chunkSize: 200,
+          maxOverflowRatio: 1.5,
+        });
+        const text = `1. **First item with very long content.** This item contains substantial text that will exceed the chunk size limit and force the splitter to break it into multiple chunks, which can cause numbering issues if not handled correctly.
 
 2. **Second item with moderate content.** This item has enough content to potentially cause issues but should fit in a single chunk.
 
@@ -913,106 +934,159 @@ End of instructions.`;
 
 9. **Ninth and final item.**`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      // Extract all list item numbers from all chunks (not just those that start chunks)
-      const allListNumbers: number[] = [];
-      chunks.forEach((chunk) => {
-        const matches = chunk.matchAll(/^(\d+)\./gm);
-        for (const match of matches) {
-          allListNumbers.push(Number.parseInt(match[1], 10));
-        }
+        // Extract all list item numbers from all chunks (not just those that start chunks)
+        const allListNumbers: number[] = [];
+        chunks.forEach((chunk) => {
+          const matches = chunk.matchAll(/^(\d+)\./gm);
+          for (const match of matches) {
+            allListNumbers.push(Number.parseInt(match[1], 10));
+          }
+        });
+
+        // Should preserve sequential numbering: 1, 2, 3, 4, 5, 6, 7, 8, 9
+        const expectedNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+        expect(allListNumbers).toEqual(expectedNumbers);
+
+        // Verify that we have exactly 9 list items
+        expect(allListNumbers.length).toBe(9);
+
+        // Additional verification: ensure no numbering resets to 1 after the first item
+        const numbersAfterFirst = allListNumbers.slice(1);
+        expect(numbersAfterFirst).not.toContain(1);
       });
-
-      // Should preserve sequential numbering: 1, 2, 3, 4, 5, 6, 7, 8, 9
-      const expectedNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-
-      expect(allListNumbers).toEqual(expectedNumbers);
-
-      // Verify that we have exactly 9 list items
-      expect(allListNumbers.length).toBe(9);
-
-      // Additional verification: ensure no numbering resets to 1 after the first item
-      const numbersAfterFirst = allListNumbers.slice(1);
-      expect(numbersAfterFirst).not.toContain(1);
     });
 
-    it('should keep tables together if possible', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Start of table.
+    describe('Tables', () => {
+      it('should keep tables together if possible', () => {
+        const splitter = chunkdown({
+          chunkSize: 60,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Start of table.
 
-| Column 1 | Column 2 |
-|----------|----------|
-| Row 1    | Data 1   |
-| Row 2    | Data 2   |
+| Col A   | Col B   |
+|---------|---------|
+| Row A1  | Row B1  |
+| Row A2  | Row B2  |
+| Row A3  | Row B3  |
+| Row A4  | Row B4  |
 
 End of table.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Start of table.');
-      expect(chunks[1]).toBe(
-        '| Column 1 | Column 2 |\n| -------- | -------- |\n| Row 1    | Data 1   |\n| Row 2    | Data 2   |',
-      );
-      expect(chunks[2]).toBe('End of table.');
-    });
-
-    it('should split table by rows', () => {
-      const splitter = chunkdown({
-        chunkSize: 15,
-        maxOverflowRatio: 1.0,
+        expect(chunks.length).toBe(3);
+        expect(chunks).toEqual([
+          'Start of table.',
+          `| Col A  | Col B  |
+| ------ | ------ |
+| Row A1 | Row B1 |
+| Row A2 | Row B2 |
+| Row A3 | Row B3 |
+| Row A4 | Row B4 |`,
+          'End of table.',
+        ]);
       });
-      const text = `Start of table.
 
-| Col1 | Col2 |
-|------|------|
-| A1 | B1 |
-| A2 | B2 |
-| A3 | B3 |
+      it('should split table by rows', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Start of table.
+
+| Col A   | Col B   |
+|---------|---------|
+| Row A1  | Row B1  |
+| Row A2  | Row B2  |
+| Row A3  | Row B3  |
+| Row A4  | Row B4  |
 
 End of table.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe('Start of table.');
-      expect(chunks[1]).toBe(
-        '| Col1 | Col2 |\n| ---- | ---- |\n| A1   | B1   |',
-      );
-      expect(chunks[2]).toBe('| A2 | B2 |\n| -- | -- |\n| A3 | B3 |');
-      expect(chunks[3]).toBe('End of table.');
+        expect(chunks.length).toBe(7);
+        expect(chunks).toEqual([
+          'Start of table.',
+          `| Col A | Col B |
+| ----- | ----- |`,
+          '| Row A1 | Row B1 |',
+          '| Row A2 | Row B2 |',
+          '| Row A3 | Row B3 |',
+          '| Row A4 | Row B4 |',
+          'End of table.',
+        ]);
+      });
+
+      it('should prepend table header if preserveTableHeaders is true', () => {
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+          experimental: { preserveTableHeaders: true },
+        });
+        const text = `Start of table.
+
+| Col A   | Col B   |
+|---------|---------|
+| Row A1  | Row B1  |
+| Row A2  | Row B2  |
+| Row A3  | Row B3  |
+| Row A4  | Row B4  |
+
+End of table.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(6);
+        expect(chunks).toEqual([
+          'Start of table.',
+          `| Col A  | Col B  |
+| ------ | ------ |
+| Row A1 | Row B1 |`,
+          `| Col A  | Col B  |
+| ------ | ------ |
+| Row A2 | Row B2 |`,
+          `| Col A  | Col B  |
+| ------ | ------ |
+| Row A3 | Row B3 |`,
+          `| Col A  | Col B  |
+| ------ | ------ |
+| Row A4 | Row B4 |`,
+          'End of table.',
+        ]);
+      });
     });
 
-    it('should keep blockquotes together if possible', () => {
-      const splitter = chunkdown({
-        chunkSize: 90,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `Start of blockquote
+    describe('Blockquotes', () => {
+      it('should keep blockquotes together if possible', () => {
+        const splitter = chunkdown({
+          chunkSize: 90,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Start of blockquote
 
 > This is a blockquote with two paragraphs.
 >
 > This is the second paragraph in the blockquote.
 
 End of blockquote.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Start of blockquote');
-      expect(chunks[1]).toBe(
-        '> This is a blockquote with two paragraphs.\n>\n> This is the second paragraph in the blockquote.',
-      );
-      expect(chunks[2]).toBe('End of blockquote.');
-    });
-
-    it('should split large blockquotes by paragraphs', () => {
-      const splitter = chunkdown({
-        chunkSize: 35,
-        maxOverflowRatio: 1.0,
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe('Start of blockquote');
+        expect(chunks[1]).toBe(
+          '> This is a blockquote with two paragraphs.\n>\n> This is the second paragraph in the blockquote.',
+        );
+        expect(chunks[2]).toBe('End of blockquote.');
       });
-      const text = `Start of blockquote
+
+      it('should split large blockquotes by paragraphs', () => {
+        const splitter = chunkdown({
+          chunkSize: 35,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `Start of blockquote
 
 > Short blockquote paragraph.
 >
@@ -1021,14 +1095,15 @@ End of blockquote.`;
 > Third short paragraph.
 
 End of blockquote.`;
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(5);
-      expect(chunks[0]).toBe('Start of blockquote');
-      expect(chunks[1]).toBe('> Short blockquote paragraph.');
-      expect(chunks[2]).toBe('> Another short paragraph.');
-      expect(chunks[3]).toBe('> Third short paragraph.');
-      expect(chunks[4]).toBe('End of blockquote.');
+        expect(chunks.length).toBe(5);
+        expect(chunks[0]).toBe('Start of blockquote');
+        expect(chunks[1]).toBe('> Short blockquote paragraph.');
+        expect(chunks[2]).toBe('> Another short paragraph.');
+        expect(chunks[3]).toBe('> Third short paragraph.');
+        expect(chunks[4]).toBe('End of blockquote.');
+      });
     });
   });
 

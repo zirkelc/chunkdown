@@ -39,6 +39,9 @@ importers:
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
+      f-strings:
+        specifier: ^0.0.0
+        version: 0.0.0
       publint:
         specifier: ^0.3.15
         version: 0.3.15
@@ -1214,6 +1217,9 @@ packages:
   expect-type@1.2.2:
     resolution: {integrity: sha512-JhFGDVJ7tmDJItKhYgJCGLOWjuK9vPxiXoUFLwLDc99NlmklilbiQJwoctZtt13+xMw91MCk/REan6MWHqDjyA==}
     engines: {node: '>=12.0.0'}
+
+  f-strings@0.0.0:
+    resolution: {integrity: sha512-mHgxcdARPj3MMlodGLw/62Dg4p3AwlI5XaOF00hBRDnGSPNBGcdroYCu2kx7Edlwef2UrSFNo8+RM9jV4NSA0w==}
 
   fdir@6.4.6:
     resolution: {integrity: sha512-hiFoqpyZcfNm1yc4u8oWCf9A2c4D3QjCrks3zmoVKVxpQRzmPNar1hUJcBG2RQHvEVGDN+Jm81ZheVLAQMK6+w==}
@@ -2943,6 +2949,8 @@ snapshots:
   eventemitter3@4.0.7: {}
 
   expect-type@1.2.2: {}
+
+  f-strings@0.0.0: {}
 
   fdir@6.4.6(picomatch@4.0.3):
     optionalDependencies:
