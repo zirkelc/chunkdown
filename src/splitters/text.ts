@@ -1,6 +1,7 @@
 import type { List, Nodes, Text } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
-import { type ChunkdownOptions, getContentSize } from '../splitter';
+import { getContentSize } from '../size';
+import type { ChunkdownOptions } from '../splitter';
 import { AbstractNodeSplitter } from './base';
 
 /**
@@ -115,18 +116,6 @@ export class TextSplitter extends AbstractNodeSplitter {
       // Example: "hello   world" → splits between words at spaces
       { regex: /\s+/g, type: 'whitespace', priority: priority++ },
     ];
-
-    if (this.maxRawSize !== undefined) {
-      // Add maxRawSize boundary as last resort if defined
-      this.patterns.push({
-        regex: new RegExp(
-          `.{1,${this.maxRawSize}}(?=\\s|$)|.{${this.maxRawSize}}`,
-          'g',
-        ),
-        type: 'max_raw_size',
-        priority: priority++,
-      });
-    }
   }
 
   splitText(text: string): string[] {
@@ -155,7 +144,6 @@ export class TextSplitter extends AbstractNodeSplitter {
     if (breakingSize === 0) return false;
 
     const contentSize = getContentSize(node);
-    // const rawSize = getRawSize(node);
 
     // To protect constructs regardless of chunk size, use Infinity.
     // Otherwise, cap protection at the smaller of breakingSize and maxAllowedSize.
@@ -165,8 +153,6 @@ export class TextSplitter extends AbstractNodeSplitter {
         : Math.min(breakingSize, this.maxAllowedSize);
 
     if (contentSize > effectiveBreakingSize) return false;
-
-    // if (this.maxRawSize && rawSize > this.maxRawSize) return false;
 
     return true;
   }

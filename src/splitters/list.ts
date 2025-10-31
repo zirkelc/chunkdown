@@ -1,6 +1,7 @@
 import type { List, ListItem, Nodes, Root } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
-import { type ChunkdownOptions, getContentSize } from '../splitter';
+import { getContentSize } from '../size';
+import type { ChunkdownOptions } from '../splitter';
 import { AbstractNodeSplitter } from './base';
 import { MarkdownTreeSplitter } from './tree';
 
@@ -119,7 +120,6 @@ export class ListSplitter extends AbstractNodeSplitter<List> {
       }
       const subListItem: ListItem = {
         ...listItem,
-        // children: fromMarkdown(chunk).children as ListItem['children'],
         children: chunk.children as ListItem['children'],
       };
       const subList: List = {

@@ -1,6 +1,6 @@
-import type { Node, Nodes } from 'mdast';
-import { isSection, type Section } from './ast';
-import { fromMarkdown, toMarkdown, toString } from './markdown';
+import type { Node } from 'mdast';
+import { fromMarkdown, toMarkdown } from './markdown';
+import { splitByMaxRawSize } from './size';
 import { MarkdownTreeSplitter } from './splitters/tree';
 
 // TODO add option to merge sections: parent-children, siblings, orphaned sections (root-level section without parents)
@@ -53,16 +53,6 @@ export type ChunkdownOptions = {
    * ```
    */
   breakpoints?: Partial<Breakpoints>;
-
-  /**
-   * Experimental features options
-   */
-  experimental?: {
-    /**
-     * Preserve header row by prepending it row to each chunk
-     */
-    preserveTableHeaders?: boolean;
-  };
 };
 
 export type Breakpoints = {
@@ -74,70 +64,6 @@ export type Breakpoint = {
   // TODO breakmode and onBreak callback for custom behavior
   // breakMode?: 'keep' | 'clean' | 'extend';
   // onBreak?: (node: Node) => Array<Node>;
-};
-
-/**
- * Calculate the content size of markdown content or AST node
- * Uses the actual text content without markdown formatting characters
- *
- * @param input - The markdown text or AST node to measure
- * @returns The size of the actual text content (without formatting)
- */
-export const getContentSize = (input: string | Nodes): number => {
-  if (!input) return 0;
-
-  // If input is a string, parse it first
-  if (typeof input === 'string') {
-    const ast = fromMarkdown(input);
-    return getContentSize(ast);
-  }
-
-  // If input is already an AST node, extract text directly
-  const plainText = toString(input);
-  return plainText.length;
-};
-
-export const getRawSize = (input: string | Nodes): number => {
-  if (!input) return 0;
-
-  // If input is a string, return its length directly
-  if (typeof input === 'string') {
-    return input.length;
-  }
-
-  // If input is an AST node, use the position to calculate raw size
-  if (
-    input.position?.start?.offset !== undefined &&
-    input.position?.end?.offset !== undefined
-  ) {
-    return input.position.end.offset - input.position.start.offset;
-  }
-
-  // Fallback: convert AST back to markdown and measure length
-  const markdown = toMarkdown(input);
-  return markdown.length;
-};
-
-export const getSectionSize = (section: Section): number => {
-  let totalLength = 0;
-
-  // Get heading text length if it exists (not a orphaned section)
-  if (section.heading) {
-    totalLength = getContentSize(section.heading);
-  }
-
-  // Add length of all children (content and nested sections)
-  for (const child of section.children) {
-    if (isSection(child)) {
-      // Recursively calculate nested section size
-      totalLength += getSectionSize(child);
-    } else {
-      // Get text length directly from child node
-      totalLength += getContentSize(child);
-    }
-  }
-
-  return totalLength;
 };
 
 /**
@@ -176,18 +102,26 @@ export const defaultBreakpoints: Breakpoints = {
 };
 
 export const chunkdown = (options: ChunkdownOptions) => {
-  const breapoints = options.breakpoints ?? defaultBreakpoints;
+  const breakpoints = options.breakpoints ?? defaultBreakpoints;
   const splitter = new MarkdownTreeSplitter({
     ...options,
-    breakpoints: breapoints,
+    breakpoints,
   });
+
   return {
     splitText: (text: string) => {
       const ast = fromMarkdown(text);
-      return splitter
+      const chunks = splitter
         .splitNode(ast)
         .map((node) => toMarkdown(node).trim())
         .filter((chunk) => chunk.length > 0);
+
+      // Apply maxRawSize as final safety check if defined
+      if (options.maxRawSize !== undefined) {
+        return Array.from(splitByMaxRawSize(chunks, options.maxRawSize));
+      }
+
+      return chunks;
     },
   };
 };

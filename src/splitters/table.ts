@@ -1,6 +1,6 @@
 import type { Table, TableCell, TableRow } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
-import { getContentSize } from '../splitter';
+import { getContentSize } from '../size';
 import { AbstractNodeSplitter } from './base';
 import { MarkdownTreeSplitter } from './tree';
 

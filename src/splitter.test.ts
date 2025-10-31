@@ -1,6 +1,7 @@
 import { toMarkdown } from 'mdast-util-to-markdown';
 import { describe, expect, it } from 'vitest';
-import { chunkdown, defaultBreakpoints, getContentSize } from './splitter';
+import { getContentSize } from './size';
+import { chunkdown, defaultBreakpoints } from './splitter';
 
 interface CustomMatchers<R = unknown> {
   toBeLessThanContentSize: (
@@ -31,24 +32,6 @@ expect.extend({
 });
 
 const THEMATIC_BREAK = toMarkdown({ type: 'thematicBreak' }).trim();
-
-describe('getContentSize', () => {
-  it('should measure plain text correctly', () => {
-    expect(getContentSize('Hello world')).toBe(11);
-    expect(getContentSize('')).toBe(0);
-    expect(getContentSize('A')).toBe(1);
-  });
-
-  it('should ignore markdown formatting', () => {
-    expect(getContentSize('**Hello** *world*')).toBe(11);
-    expect(getContentSize('`Hello` world')).toBe(11);
-    expect(getContentSize('[Hello](http://example.com) world')).toBe(11);
-    expect(getContentSize('# Hello world')).toBe(11);
-    expect(getContentSize('***`Hello`*** [world](https://example.com)')).toBe(
-      11,
-    );
-  });
-});
 
 describe('createMarkdownSplitter', () => {
   describe('Size', () => {
@@ -303,8 +286,8 @@ Third sentence.
         expect(chunks.length).toBe(4);
         expect(chunks[0]).toBe('supercalifragilistic');
         expect(chunks[1]).toBe('expialidocious');
-        expect(chunks[2]).toBe('antidisestablishmen');
-        expect(chunks[3]).toBe('tarianism');
+        expect(chunks[2]).toBe('antidisestablishment');
+        expect(chunks[3]).toBe('arianism');
 
         chunks.forEach((chunk) => {
           expect(chunk.length).toBeLessThanOrEqual(20);
@@ -1024,7 +1007,6 @@ End of table.`;
         const splitter = chunkdown({
           chunkSize: 15,
           maxOverflowRatio: 1.0,
-          experimental: { preserveTableHeaders: true },
         });
         const text = `Start of table.
 

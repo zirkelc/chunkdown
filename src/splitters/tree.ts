@@ -10,11 +10,8 @@ import {
   type Section,
 } from '../ast';
 import { fromMarkdown, toMarkdown } from '../markdown';
-import {
-  type ChunkdownOptions,
-  getContentSize,
-  getSectionSize,
-} from '../splitter';
+import { getContentSize, getSectionSize } from '../size';
+import type { ChunkdownOptions } from '../splitter';
 import { AbstractNodeSplitter } from './base';
 import { BlockquoteSplitter } from './blockquote';
 import type { NodeSplitter } from './interface';

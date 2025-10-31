@@ -1,5 +1,6 @@
 import type { Nodes } from 'mdast';
-import { type ChunkdownOptions, getContentSize, getRawSize } from '../splitter';
+import { getContentSize, getRawSize } from '../size';
+import type { ChunkdownOptions } from '../splitter';
 import type { NodeSplitter } from './interface';
 
 export abstract class AbstractNodeSplitter<T extends Nodes = Nodes>
