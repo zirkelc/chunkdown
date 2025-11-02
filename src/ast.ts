@@ -120,22 +120,22 @@ export const createHierarchicalAST = (root: Root): HierarchicalRoot => {
    * Group consecutive non-section children into orphaned sections
    */
   const groupedSections: Section[] = [];
-  let currentOrphanedContent: RootContent[] = [];
+  let orphanedContent: RootContent[] = [];
 
   for (const child of sections) {
     if (isSection(child)) {
       /**
        * If we have accumulated orphaned content, create an orphaned section
        */
-      if (currentOrphanedContent.length > 0) {
+      if (orphanedContent.length > 0) {
         const orphanedSection: Section = {
           type: 'section',
           depth: 0,
           heading: undefined,
-          children: currentOrphanedContent,
+          children: orphanedContent,
         };
         groupedSections.push(orphanedSection);
-        currentOrphanedContent = [];
+        orphanedContent = [];
       }
       /**
        * Add the regular section
@@ -145,19 +145,19 @@ export const createHierarchicalAST = (root: Root): HierarchicalRoot => {
       /**
        * Add orphaned content
        */
-      currentOrphanedContent.push(child);
+      orphanedContent.push(child);
     }
   }
 
   /**
-   * Don't forget any remaining orphaned content at the end
+   * Add any remaining orphaned content to the grouped sections
    */
-  if (currentOrphanedContent.length > 0) {
+  if (orphanedContent.length > 0) {
     const orphanedSection: Section = {
       type: 'section',
       depth: 0,
       heading: undefined,
-      children: currentOrphanedContent,
+      children: orphanedContent,
     };
     groupedSections.push(orphanedSection);
   }
