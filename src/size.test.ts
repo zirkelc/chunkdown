@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { getContentSize, splitByMaxRawSize } from './size';
+import {
+  getContentSize,
+  getRawSize,
+  getSectionSize,
+  splitByMaxRawSize,
+} from './size';
+import { fromMarkdown } from './markdown';
+import { createHierarchicalAST } from './ast';
 
 describe('getContentSize', () => {
   it('should measure plain text correctly', () => {
@@ -16,6 +23,79 @@ describe('getContentSize', () => {
     expect(getContentSize('***`Hello`*** [world](https://example.com)')).toBe(
       11,
     );
+  });
+
+  it('should measure AST node content', () => {
+    const ast = fromMarkdown('**Hello** world');
+    expect(getContentSize(ast)).toBe(11);
+  });
+
+  it('should handle empty AST node', () => {
+    const ast = fromMarkdown('');
+    expect(getContentSize(ast)).toBe(0);
+  });
+});
+
+describe('getRawSize', () => {
+  it('should measure raw string length', () => {
+    expect(getRawSize('Hello world')).toBe(11);
+    expect(getRawSize('')).toBe(0);
+  });
+
+  it('should include markdown formatting in size', () => {
+    expect(getRawSize('**Hello** world')).toBe(15);
+    expect(getRawSize('# Hello')).toBe(7);
+  });
+
+  it('should measure AST node raw size from position', () => {
+    const ast = fromMarkdown('**Hello** world');
+    expect(getRawSize(ast)).toBe(15);
+  });
+
+  it('should fallback to toMarkdown when no position data', () => {
+    const ast = fromMarkdown('Hello');
+    // Remove position data
+    delete ast.position;
+    // toMarkdown adds a newline, so it's 6 instead of 5
+    expect(getRawSize(ast)).toBe(6);
+  });
+});
+
+describe('getSectionSize', () => {
+  it('should measure section with heading and content', () => {
+    const ast = fromMarkdown('# Title\n\nContent here.');
+    const hierarchical = createHierarchicalAST(ast);
+    const section = hierarchical.children[0];
+
+    // "Title" (5) + "Content here." (13) = 18
+    expect(getSectionSize(section)).toBe(18);
+  });
+
+  it('should measure orphaned section without heading', () => {
+    const ast = fromMarkdown('Just text.\n\nMore text.');
+    const hierarchical = createHierarchicalAST(ast);
+    const section = hierarchical.children[0];
+
+    // "Just text." (10) + "More text." (10) = 20
+    expect(getSectionSize(section)).toBe(20);
+  });
+
+  it('should recursively measure nested sections', () => {
+    const ast = fromMarkdown('# Main\n\nContent.\n\n## Sub\n\nMore.');
+    const hierarchical = createHierarchicalAST(ast);
+    const section = hierarchical.children[0];
+
+    // "Main" (4) + "Content." (8) + "Sub" (3) + "More." (5) = 20
+    expect(getSectionSize(section)).toBe(20);
+  });
+
+  it('should handle empty section', () => {
+    const ast = fromMarkdown('# Empty\n\n# Next');
+    const hierarchical = createHierarchicalAST(ast);
+    const section = hierarchical.children[0];
+
+    // Just "Empty" (5)
+    expect(getSectionSize(section)).toBe(5);
   });
 });
 

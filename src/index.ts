@@ -1,6 +1,2 @@
-export type { Breakpoint, Breakpoints, ChunkdownOptions } from './splitter';
-export {
-  chunkdown,
-  defaultBreakpoints,
-} from './splitter';
-export { getContentSize, getRawSize } from './size';
+export { chunkdown } from './chunkdown';
+export type { SplitterOptions } from './types';

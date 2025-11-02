@@ -1,7 +1,7 @@
-import type { List, Nodes, Text } from 'mdast';
+import type { Nodes } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
-import type { ChunkdownOptions } from '../splitter';
+import type { SplitterOptions } from '../types';
 import { AbstractNodeSplitter } from './base';
 
 /**
@@ -16,7 +16,6 @@ type ProtectedRange = {
 
 /**
  * Text boundary with position, type, and priority information
- * Used for intelligent text splitting based on document structure and semantic patterns
  */
 type Boundary = {
   position: number;
@@ -24,6 +23,9 @@ type Boundary = {
   priority: number;
 };
 
+/**
+ * Text pattern with regex for semantic boundaries
+ */
 type Pattern = {
   regex: RegExp;
   type: string;
@@ -33,7 +35,7 @@ type Pattern = {
 export class TextSplitter extends AbstractNodeSplitter {
   private patterns: Array<Pattern>;
 
-  constructor(options: ChunkdownOptions) {
+  constructor(options: SplitterOptions) {
     super(options);
 
     let priority = 0;
@@ -121,40 +123,27 @@ export class TextSplitter extends AbstractNodeSplitter {
   splitText(text: string): string[] {
     const ast = fromMarkdown(text);
     const chunks = this.splitNode(ast);
-    return chunks.map((chunk) => toMarkdown(chunk).trim());
+    return chunks
+      .map((chunk) => toMarkdown(chunk).trim())
+      .filter((chunk) => chunk.length > 0);
   }
 
   splitNode(node: Nodes): Nodes[] {
-    // const markdown = toMarkdown(text);
-    // const ast = fromMarkdown(markdown);
     const text = toMarkdown(node);
     const protectedRanges = this.extractProtectedRangesFromAST(node);
     const boundaries = this.extractSemanticBoundaries(text, protectedRanges);
 
-    return this.splitRecursive(text, boundaries, protectedRanges).map((text) =>
-      fromMarkdown(text),
-    );
-  }
+    const nodes: Nodes[] = [];
 
-  protected isWithinBreakpoint(node: Nodes): boolean {
-    const breakpoint = this.options.breakpoints?.[node.type];
-    if (!breakpoint) return false;
+    for (const textChunk of this.splitRecursive(
+      text,
+      boundaries,
+      protectedRanges,
+    )) {
+      nodes.push(fromMarkdown(textChunk));
+    }
 
-    const breakingSize = breakpoint.maxSize ?? 0;
-    if (breakingSize === 0) return false;
-
-    const contentSize = getContentSize(node);
-
-    // To protect constructs regardless of chunk size, use Infinity.
-    // Otherwise, cap protection at the smaller of breakingSize and maxAllowedSize.
-    const effectiveBreakingSize =
-      breakingSize === Infinity
-        ? breakingSize
-        : Math.min(breakingSize, this.maxAllowedSize);
-
-    if (contentSize > effectiveBreakingSize) return false;
-
-    return true;
+    return nodes;
   }
 
   /**
@@ -171,12 +160,16 @@ export class TextSplitter extends AbstractNodeSplitter {
      * Recursively traverse AST nodes to find inline constructs that need protection
      */
     const traverse = (node: Nodes): void => {
-      // Only protect nodes that have position information
+      /**
+       * Only protect nodes that have position information
+       */
       if (
         !node.position?.start?.offset ||
         node.position?.end?.offset === undefined
       ) {
-        // Still traverse children even if this node lacks position info
+        /**
+         * Still traverse children even if this node lacks position info
+         */
         if ('children' in node && Array.isArray(node.children)) {
           node.children.forEach(traverse);
         }
@@ -186,9 +179,9 @@ export class TextSplitter extends AbstractNodeSplitter {
       const start = node.position.start.offset;
       const end = node.position.end.offset;
 
-      // Protect inline markdown constructs that should never be split
-      // For constructs like links, we want to protect the entire construct
-      // but allow splitting between different constructs
+      /**
+       * Protect inline markdown constructs that should never be split
+       */
       switch (node.type) {
         case 'link':
         case 'linkReference':
@@ -199,13 +192,15 @@ export class TextSplitter extends AbstractNodeSplitter {
         case 'strong':
         case 'delete':
         case 'heading':
-          if (this.isWithinBreakpoint(node)) {
+          if (!this.canSplitNode(node)) {
             ranges.push({ start, end, type: node.type });
           }
           break;
       }
 
-      // Recursively traverse children
+      /**
+       * Recursively traverse children
+       */
       if ('children' in node && Array.isArray(node.children)) {
         node.children.forEach(traverse);
       }
@@ -214,7 +209,9 @@ export class TextSplitter extends AbstractNodeSplitter {
     // Start traversal from the root
     traverse(ast);
 
-    // Sort by start position and merge only truly overlapping ranges
+    /**
+     * Sort by start position and merge only truly overlapping ranges
+     */
     const sortedRanges = ranges.sort((a, b) => a.start - b.start);
     const mergedRanges: ProtectedRange[] = [];
 
@@ -222,11 +219,15 @@ export class TextSplitter extends AbstractNodeSplitter {
       const lastMerged = mergedRanges[mergedRanges.length - 1];
 
       if (lastMerged && range.start < lastMerged.end) {
-        // Only merge truly overlapping ranges (not adjacent ones)
+        /**
+         * Only merge truly overlapping ranges (not adjacent ones)
+         */
         lastMerged.end = Math.max(lastMerged.end, range.end);
         lastMerged.type = `${lastMerged.type}+${range.type}`;
       } else {
-        // Non-overlapping range - add it as separate range
+        /**
+         * Non-overlapping range - add it as separate range
+         */
         mergedRanges.push(range);
       }
     }
@@ -251,9 +252,13 @@ export class TextSplitter extends AbstractNodeSplitter {
     const adjustedRanges: ProtectedRange[] = [];
 
     for (const range of protectedRanges) {
-      // Only include ranges that intersect with the substring
+      /**
+       * Only include ranges that intersect with the substring
+       */
       if (range.end > substringStart && range.start < substringEnd) {
-        // Adjust the range positions relative to the substring
+        /**
+         * Adjust the range positions relative to the substring
+         */
         const adjustedRange = {
           start: Math.max(0, range.start - substringStart),
           end: Math.min(
@@ -263,7 +268,9 @@ export class TextSplitter extends AbstractNodeSplitter {
           type: range.type,
         };
 
-        // Only include valid ranges (where start < end)
+        /**
+         * Only include valid ranges (where start < end)
+         */
         if (adjustedRange.start < adjustedRange.end) {
           adjustedRanges.push(adjustedRange);
         }
@@ -288,20 +295,29 @@ export class TextSplitter extends AbstractNodeSplitter {
   ): Boundary[] {
     const boundaries: Boundary[] = [];
 
-    // Find all semantic boundaries for each pattern
+    /**
+     * Find all semantic boundaries for each pattern
+     */
     for (const pattern of this.patterns) {
-      const regex = new RegExp(pattern.regex.source, 'g');
+      /**
+       * Reset lastIndex to ensure the regex starts from the beginning
+       * This is important because the regex objects are reused across calls
+       */
+      pattern.regex.lastIndex = 0;
+
       let match: RegExpExecArray | null;
       // biome-ignore lint/suspicious/noAssignInExpressions: regex.exec assignment in while condition
-      while ((match = regex.exec(text)) !== null) {
+      while ((match = pattern.regex.exec(text)) !== null) {
         const position = match.index + match[0].length;
 
-        // Check if boundary is within a protected range
-        const isProtected = protectedRanges.some(
-          (range) => position > range.start && position < range.end,
-        );
+        /**
+         * Check if boundary is within a protected range using binary search
+         */
+        const isProtected = this.isPositionProtected(position, protectedRanges);
 
-        // Only add boundary if not protected
+        /**
+         * Only add boundary if not protected
+         */
         if (!isProtected) {
           boundaries.push({
             position,
@@ -312,13 +328,60 @@ export class TextSplitter extends AbstractNodeSplitter {
       }
     }
 
-    // Sort by priority (ascending), then by position (ascending)
-    // This gives us the highest priority boundaries first, in positional order
+    /**
+     * Sort by priority (ascending), then by position (ascending)
+     * This gives us the highest priority boundaries first, in positional order
+     */
     return boundaries.sort((a, b) =>
       a.priority !== b.priority
         ? a.priority - b.priority
         : a.position - b.position,
     );
+  }
+
+  /**
+   * Check if a position falls within any protected range using binary search
+   * Protected ranges are sorted by start position, so we can use binary search
+   *
+   * @param position - Position to check
+   * @param protectedRanges - Sorted array of protected ranges
+   * @returns True if position is within any protected range
+   */
+  private isPositionProtected(
+    position: number,
+    protectedRanges: ProtectedRange[],
+  ): boolean {
+    /**
+     * For small arrays, linear search is faster
+     */
+    if (protectedRanges.length < 10) {
+      return protectedRanges.some(
+        (range) => position > range.start && position < range.end,
+      );
+    }
+
+    /**
+     * Binary search for larger arrays
+     */
+    let left = 0;
+    let right = protectedRanges.length - 1;
+
+    while (left <= right) {
+      const mid = Math.floor((left + right) / 2);
+      const range = protectedRanges[mid];
+
+      if (position > range.start && position < range.end) {
+        return true;
+      }
+
+      if (position <= range.start) {
+        right = mid - 1;
+      } else {
+        left = mid + 1;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -347,34 +410,43 @@ export class TextSplitter extends AbstractNodeSplitter {
    * @param boundaries - Available boundaries sorted by priority desc, position asc
    * @param protectedRanges - Pre-computed protected ranges from AST
    * @param originalOffset - Offset of this text in the original document
-   * @returns Array of text chunks
+   * @returns Generator yielding text chunks
    */
-  protected splitRecursive(
+  private *splitRecursive(
     text: string,
     boundaries: Boundary[],
     protectedRanges: ProtectedRange[],
     originalOffset: number = 0,
-  ): string[] {
+  ): Generator<string> {
     const textSize = getContentSize(text);
 
-    // Base cases: text fits within limits
-    // if (this.isWithinAllowedSize(textSize, text.length)) {
+    /**
+     * Text fits within limits
+     */
     if (textSize <= this.maxAllowedSize) {
-      return [text];
+      yield text;
+      return;
     }
 
-    // If no boundaries available, return as single chunk (protected)
+    /**
+     * If no boundaries available, yield as single chunk (protected)
+     */
     if (boundaries.length === 0) {
-      return [text];
+      yield text;
+      return;
     }
 
     for (const boundary of boundaries) {
-      // Get all boundaries at this priority level (should be same type)
+      /**
+       * Get all boundaries at this priority level (should be same type)
+       */
       const currentBoundaries = boundaries.filter(
         (b) => b.priority === boundary.priority,
       );
 
-      // Get positions within current text bounds (exclude start and end positions)
+      /**
+       * Get positions within current text bounds (exclude start and end positions)
+       */
       const validPositions = currentBoundaries
         .map((b) => b.position)
         .filter((pos) => pos > 0 && pos < text.length)
@@ -382,15 +454,19 @@ export class TextSplitter extends AbstractNodeSplitter {
 
       if (validPositions.length === 0) continue;
 
-      // Generalized boundary selection strategy:
-      // Length=1 => [0], Length=2 => [0,1], Length=3 => [1], Length=4 => [1,2], etc.
+      /**
+       * Generalized boundary selection strategy:
+       * Length=1 => [0], Length=2 => [0,1], Length=3 => [1], Length=4 => [1,2], etc.
+       */
       const mid = Math.floor(validPositions.length / 2);
       const middlePositions =
         validPositions.length % 2 === 1
           ? [mid] // Odd length: try exact middle
           : [mid - 1, mid]; // Even length: try both middle positions
 
-      // Evaluate all middle position candidates to find the best one
+      /**
+       * Evaluate all middle position candidates to find the best one
+       */
       const positionCandidates = middlePositions
         .map((index) => {
           const position = validPositions[index];
@@ -398,9 +474,6 @@ export class TextSplitter extends AbstractNodeSplitter {
           const secondPart = text.substring(position);
           const firstPartSize = getContentSize(firstPart);
           const secondPartSize = getContentSize(secondPart);
-          // const bothWithinLimits =
-          //   this.isWithinAllowedSize(firstPartSize, firstPart.length) &&
-          //   this.isWithinAllowedSize(secondPartSize, secondPart.length);
           const bothWithinLimits =
             firstPartSize <= this.maxAllowedSize &&
             secondPartSize <= this.maxAllowedSize;
@@ -417,35 +490,44 @@ export class TextSplitter extends AbstractNodeSplitter {
           };
         })
         .sort((a, b) => {
-          // Primary: bothWithinLimits
+          /**
+           * Primary: bothWithinLimits
+           */
           if (a.bothWithinLimits && !b.bothWithinLimits) return -1;
           if (!a.bothWithinLimits && b.bothWithinLimits) return 1;
 
-          // Secondary: distance (smaller is better)
+          /**
+           * Secondary: distance (smaller is better)
+           */
           return a.distance - b.distance;
         });
 
-      const bestCandidate = positionCandidates[0];
-
+      /**
+       * Pick the best candidate from the position candidates
+       */
       const { position, firstPart, secondPart, firstPartSize, secondPartSize } =
-        bestCandidate;
+        positionCandidates[0];
 
-      // Calculate actual positions for boundary adjustments
+      /**
+       * Calculate actual positions for boundary adjustments
+       */
       const firstPartActualStart = 0;
       const firstPartActualEnd = position;
       const secondPartActualStart = position;
       const secondPartActualEnd = text.length;
 
-      const chunks: string[] = [];
-      // Priority is ascending, so lower or equal priority boundaries for next level
+      /**
+       * Priority is ascending, so lower or equal priority boundaries for next level
+       */
       const lowerPriorityBoundaries = boundaries.filter(
         (b) => b.priority >= boundary.priority,
       );
 
-      // Recursively process first part if needed
-      // if (this.isWithinAllowedSize(firstPartSize, firstPart.length)) {
+      /**
+       * Recursively process first part if needed
+       */
       if (firstPartSize <= this.maxAllowedSize) {
-        chunks.push(firstPart);
+        yield firstPart;
       } else {
         const firstPartRanges = this.adjustProtectedRangesForSubstring(
           protectedRanges,
@@ -457,20 +539,19 @@ export class TextSplitter extends AbstractNodeSplitter {
           firstPartActualStart,
           firstPartActualEnd,
         );
-        chunks.push(
-          ...this.splitRecursive(
-            firstPart,
-            firstPartBoundaries,
-            firstPartRanges,
-            originalOffset,
-          ),
+        yield* this.splitRecursive(
+          firstPart,
+          firstPartBoundaries,
+          firstPartRanges,
+          originalOffset,
         );
       }
 
-      // Recursively process second part if needed
-      // if (this.isWithinAllowedSize(secondPartSize, secondPart.length)) {
+      /**
+       * Recursively process second part if needed
+       */
       if (secondPartSize <= this.maxAllowedSize) {
-        chunks.push(secondPart);
+        yield secondPart;
       } else {
         const secondPartRanges = this.adjustProtectedRangesForSubstring(
           protectedRanges,
@@ -482,21 +563,23 @@ export class TextSplitter extends AbstractNodeSplitter {
           secondPartActualStart,
           secondPartActualEnd,
         );
-        chunks.push(
-          ...this.splitRecursive(
-            secondPart,
-            secondPartBoundaries,
-            secondPartRanges,
-            originalOffset + secondPartActualStart,
-          ),
+        yield* this.splitRecursive(
+          secondPart,
+          secondPartBoundaries,
+          secondPartRanges,
+          originalOffset + secondPartActualStart,
         );
       }
 
-      // Return the chunks created from this valid split
-      return chunks;
+      /**
+       * Return after yielding chunks from this valid split
+       */
+      return;
     }
 
-    // Return text as single chunk
-    return [text];
+    /**
+     * Yield text as single chunk
+     */
+    yield text;
   }
 }

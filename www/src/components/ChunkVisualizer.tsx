@@ -8,7 +8,8 @@ import {
 } from '@langchain/textsplitters';
 import type { MouseEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { chunkdown, getContentSize } from '../../../src/splitter';
+import { chunkdown } from '../../../src/chunkdown';
+import { getContentSize } from '../../../src/size';
 import Toast from './Toast';
 
 interface ChunkVisualizerProps {
@@ -26,7 +27,6 @@ function ChunkVisualizer({
   splitterType = 'markdown',
   maxOverflowRatio = 1.5,
   langchainSplitterType = 'markdown',
-  experimentalTableHeaders = false,
 }: ChunkVisualizerProps) {
   const [chunks, setChunks] = useState<string[]>([]);
   const [statsCollapsed, setStatsCollapsed] = useState(true);
@@ -147,7 +147,6 @@ function ChunkVisualizer({
           const splitter = chunkdown({
             chunkSize: effectiveChunkSize,
             maxOverflowRatio: maxOverflowRatio,
-            experimental: { preserveTableHeaders: experimentalTableHeaders },
           });
           newChunks = splitter.splitText(text);
         }
@@ -232,7 +231,6 @@ function ChunkVisualizer({
     splitterType,
     maxOverflowRatio,
     langchainSplitterType,
-    experimentalTableHeaders,
   ]);
 
   const colors = generateColors(chunks.length);
@@ -338,9 +336,7 @@ function ChunkVisualizer({
           <button
             onClick={() => setStatsCollapsed(!statsCollapsed)}
             type="button"
-            title={
-              statsCollapsed ? 'Expand statistics' : 'Collapse statistics'
-            }
+            title={statsCollapsed ? 'Expand statistics' : 'Collapse statistics'}
             className="w-4 h-4 text-gray-500 hover:text-gray-700 flex items-center justify-center transition-colors"
           >
             {statsCollapsed ? '+' : '−'}
@@ -349,141 +345,147 @@ function ChunkVisualizer({
 
         {!statsCollapsed && (
           <div className="grid grid-cols-3 gap-4 text-center">
-          {/* Input Length */}
-          <div>
-            <div className="mb-2">
-              <div
-                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
-                onMouseEnter={(e) =>
-                  handleTooltipMouseEnter(
-                    e,
-                    'Original text length with markdown formatting, number in parentheses is content size without formatting',
-                  )
-                }
-                onMouseLeave={handleTooltipMouseLeave}
-              >
-                Input Length
-              </div>
-              <div className="font-bold text-black">
-                {stats.inputCharacters}{' '}
-                <span className="text-gray-500">
-                  ({stats.inputContentLength})
-                </span>
+            {/* Input Length */}
+            <div>
+              <div className="mb-2">
+                <div
+                  className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                  onMouseEnter={(e) =>
+                    handleTooltipMouseEnter(
+                      e,
+                      'Original text length with markdown formatting, number in parentheses is content size without formatting',
+                    )
+                  }
+                  onMouseLeave={handleTooltipMouseLeave}
+                >
+                  Input Length
+                </div>
+                <div className="font-bold text-black">
+                  {stats.inputCharacters}{' '}
+                  <span className="text-gray-500">
+                    ({stats.inputContentLength})
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Output Length */}
-          <div>
-            <div className="mb-2">
-              <div
-                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
-                onMouseEnter={(e) =>
-                  handleTooltipMouseEnter(
-                    e,
-                    'Combined length of all chunks with markdown formatting, number in parentheses is content size without formatting',
-                  )
-                }
-                onMouseLeave={handleTooltipMouseLeave}
-              >
-                Output Length
-              </div>
-              <div className="font-bold text-black">
-                {stats.outputCharacters}{' '}
-                <span className="text-gray-500">
-                  ({stats.outputContentLength})
-                </span>
+            {/* Output Length */}
+            <div>
+              <div className="mb-2">
+                <div
+                  className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                  onMouseEnter={(e) =>
+                    handleTooltipMouseEnter(
+                      e,
+                      'Combined length of all chunks with markdown formatting, number in parentheses is content size without formatting',
+                    )
+                  }
+                  onMouseLeave={handleTooltipMouseLeave}
+                >
+                  Output Length
+                </div>
+                <div className="font-bold text-black">
+                  {stats.outputCharacters}{' '}
+                  <span className="text-gray-500">
+                    ({stats.outputContentLength})
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Number of Chunks */}
-          <div>
-            <div className="mb-2">
-              <div
-                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
-                onMouseEnter={(e) =>
-                  handleTooltipMouseEnter(
-                    e,
-                    'How many chunks the text was split into',
-                  )
-                }
-                onMouseLeave={handleTooltipMouseLeave}
-              >
-                Number of Chunks
-              </div>
-              <div className="font-bold text-black text-lg">
-                {stats.numberOfChunks}
+            {/* Number of Chunks */}
+            <div>
+              <div className="mb-2">
+                <div
+                  className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                  onMouseEnter={(e) =>
+                    handleTooltipMouseEnter(
+                      e,
+                      'How many chunks the text was split into',
+                    )
+                  }
+                  onMouseLeave={handleTooltipMouseLeave}
+                >
+                  Number of Chunks
+                </div>
+                <div className="font-bold text-black text-lg">
+                  {stats.numberOfChunks}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Min Size */}
-          <div>
-            <div className="mb-2">
-              <div
-                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
-                onMouseEnter={(e) =>
-                  handleTooltipMouseEnter(
-                    e,
-                    'Smallest chunk length with markdown formatting, number in parentheses is content size without formatting',
-                  )
-                }
-                onMouseLeave={handleTooltipMouseLeave}
-              >
-                Min Size
-              </div>
-              <div className="font-bold text-black">
-                {stats.minChunkSize}{' '}
-                <span className="text-gray-500">({stats.minContentSize})</span>
+            {/* Min Size */}
+            <div>
+              <div className="mb-2">
+                <div
+                  className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                  onMouseEnter={(e) =>
+                    handleTooltipMouseEnter(
+                      e,
+                      'Smallest chunk length with markdown formatting, number in parentheses is content size without formatting',
+                    )
+                  }
+                  onMouseLeave={handleTooltipMouseLeave}
+                >
+                  Min Size
+                </div>
+                <div className="font-bold text-black">
+                  {stats.minChunkSize}{' '}
+                  <span className="text-gray-500">
+                    ({stats.minContentSize})
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Max Size */}
-          <div>
-            <div className="mb-2">
-              <div
-                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
-                onMouseEnter={(e) =>
-                  handleTooltipMouseEnter(
-                    e,
-                    'Largest chunk length with markdown formatting, number in parentheses is content size without formatting',
-                  )
-                }
-                onMouseLeave={handleTooltipMouseLeave}
-              >
-                Max Size
-              </div>
-              <div className="font-bold text-black">
-                {stats.maxChunkSize}{' '}
-                <span className="text-gray-500">({stats.maxContentSize})</span>
+            {/* Max Size */}
+            <div>
+              <div className="mb-2">
+                <div
+                  className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                  onMouseEnter={(e) =>
+                    handleTooltipMouseEnter(
+                      e,
+                      'Largest chunk length with markdown formatting, number in parentheses is content size without formatting',
+                    )
+                  }
+                  onMouseLeave={handleTooltipMouseLeave}
+                >
+                  Max Size
+                </div>
+                <div className="font-bold text-black">
+                  {stats.maxChunkSize}{' '}
+                  <span className="text-gray-500">
+                    ({stats.maxContentSize})
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Avg Size */}
-          <div>
-            <div className="mb-2">
-              <div
-                className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
-                onMouseEnter={(e) =>
-                  handleTooltipMouseEnter(
-                    e,
-                    'Average chunk length with markdown formatting, number in parentheses is content size without formatting',
-                  )
-                }
-                onMouseLeave={handleTooltipMouseLeave}
-              >
-                Avg Size
-              </div>
-              <div className="font-bold text-black">
-                {stats.avgChunkSize}{' '}
-                <span className="text-gray-500">({stats.avgContentSize})</span>
+            {/* Avg Size */}
+            <div>
+              <div className="mb-2">
+                <div
+                  className="text-xs text-black underline decoration-dotted decoration-gray-400 cursor-help mb-1"
+                  onMouseEnter={(e) =>
+                    handleTooltipMouseEnter(
+                      e,
+                      'Average chunk length with markdown formatting, number in parentheses is content size without formatting',
+                    )
+                  }
+                  onMouseLeave={handleTooltipMouseLeave}
+                >
+                  Avg Size
+                </div>
+                <div className="font-bold text-black">
+                  {stats.avgChunkSize}{' '}
+                  <span className="text-gray-500">
+                    ({stats.avgContentSize})
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         )}
       </div>
 

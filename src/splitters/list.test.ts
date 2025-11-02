@@ -1,23 +1,23 @@
-import { f } from 'f-strings';
 import { describe, expect, it } from 'vitest';
 import { ListSplitter } from './list';
 
 describe('ListSplitter', () => {
-  it('should keep lists together if possible', () => {
+  const text = `
+- First list item. Some more content
+- Second list item. Some more content
+- Third list item. Some more content`;
+
+  it('should not split lists if they fit', () => {
     const splitter = new ListSplitter({
-      chunkSize: 50,
+      chunkSize: 120,
       maxOverflowRatio: 1.0,
     });
-    const text = f`
-- First list item
-- Second list item
-- Third list item`;
 
     const chunks = splitter.splitText(text);
 
     expect(chunks.length).toBe(1);
     expect(chunks[0]).toBe(
-      `* First list item\n* Second list item\n* Third list item`,
+      `* First list item. Some more content\n* Second list item. Some more content\n* Third list item. Some more content`,
     );
   });
 
@@ -26,10 +26,6 @@ describe('ListSplitter', () => {
       chunkSize: 40,
       maxOverflowRatio: 1.0,
     });
-    const text = `
-- First list item. Some more content
-- Second list item. Some more content
-- Third list item. Some more content`;
 
     const chunks = splitter.splitText(text);
 
@@ -39,31 +35,24 @@ describe('ListSplitter', () => {
     expect(chunks[2]).toBe('* Third list item. Some more content');
   });
 
-  it('should preserve ordered list numbering when splitting', () => {
+  it('should split list by items further if items are too large', () => {
     const splitter = new ListSplitter({
-      chunkSize: 50,
+      chunkSize: 30,
       maxOverflowRatio: 1.0,
     });
-    const text = f`
-1. First step with some content
-2. Second step with some content
-3. Third step with some content
-4. Fourth step with some content
-5. Fifth step with some content
-6. Sixth step with some content
-`;
+
     const chunks = splitter.splitText(text);
 
-    // Find the chunks containing ordered list items
-    const listChunks = chunks.filter((chunk) => /^\d+\./.test(chunk.trim()));
-
-    expect(listChunks.length).toBe(6);
-    for (let i = 1; i < listChunks.length; i++) {
-      expect(listChunks[i]).toMatch(new RegExp(`^[${i + 1}].`));
-    }
+    expect(chunks.length).toBe(6);
+    expect(chunks[0]).toBe('* First list item.');
+    expect(chunks[1]).toBe('Some more content');
+    expect(chunks[2]).toBe('* Second list item.');
+    expect(chunks[3]).toBe('Some more content');
+    expect(chunks[4]).toBe('* Third list item.');
+    expect(chunks[5]).toBe('Some more content');
   });
 
-  it('should preserve ordered list numbering with long items that get split', () => {
+  it('should preserve ordered list numbering', () => {
     const splitter = new ListSplitter({
       chunkSize: 200,
       maxOverflowRatio: 1.5,
@@ -98,15 +87,88 @@ describe('ListSplitter', () => {
     });
 
     // Should preserve sequential numbering: 1, 2, 3, 4, 5, 6, 7, 8, 9
-    const expectedNumbers = [1, 2, 3, 4, 4, 5, 6, 7, 8, 9];
+    const expectedNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
     expect(allListNumbers).toEqual(expectedNumbers);
 
     // Verify that we have exactly 9 list items
-    expect(allListNumbers.length).toBe(10);
+    expect(allListNumbers.length).toBe(9);
 
     // Additional verification: ensure no numbering resets to 1 after the first item
     const numbersAfterFirst = allListNumbers.slice(1);
     expect(numbersAfterFirst).not.toContain(1);
+  });
+
+  describe('Rules', () => {
+    it('should split lists if rules are undefined', () => {
+      const splitter = new ListSplitter({
+        chunkSize: 40,
+        maxOverflowRatio: 1.0,
+        rules: { list: undefined },
+      });
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(3);
+      expect(chunks[0]).toBe('* First list item. Some more content');
+      expect(chunks[1]).toBe('* Second list item. Some more content');
+      expect(chunks[2]).toBe('* Third list item. Some more content');
+    });
+
+    it('should split lists if rules are set to allow-split', () => {
+      const splitter = new ListSplitter({
+        chunkSize: 40,
+        maxOverflowRatio: 1.0,
+        rules: { list: { split: { rule: 'allow-split' } } },
+      });
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(3);
+      expect(chunks[0]).toBe('* First list item. Some more content');
+      expect(chunks[1]).toBe('* Second list item. Some more content');
+      expect(chunks[2]).toBe('* Third list item. Some more content');
+    });
+
+    it('should not split lists if rules are set to never-split', () => {
+      const splitter = new ListSplitter({
+        chunkSize: 40,
+        maxOverflowRatio: 1.0,
+        rules: { list: { split: { rule: 'never-split' } } },
+      });
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toBe(
+        '* First list item. Some more content\n* Second list item. Some more content\n* Third list item. Some more content',
+      );
+    });
+
+    it('should split lists if exceeds size limit', () => {
+      const splitter = new ListSplitter({
+        chunkSize: 40,
+        maxOverflowRatio: 1.0,
+        rules: { list: { split: { rule: 'size-split', size: 30 } } },
+      });
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(3);
+      expect(chunks[0]).toBe('* First list item. Some more content');
+      expect(chunks[1]).toBe('* Second list item. Some more content');
+      expect(chunks[2]).toBe('* Third list item. Some more content');
+    });
+
+    it('should not split lists if does not exceed size limit', () => {
+      const splitter = new ListSplitter({
+        chunkSize: 40,
+        maxOverflowRatio: 1.0,
+        rules: { list: { split: { rule: 'size-split', size: 120 } } },
+      });
+      const chunks = splitter.splitText(text);
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toBe(
+        '* First list item. Some more content\n* Second list item. Some more content\n* Third list item. Some more content',
+      );
+    });
   });
 });

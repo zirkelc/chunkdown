@@ -1,11 +1,23 @@
-import type { List, ListItem, Nodes, Root } from 'mdast';
+import type { List, ListItem, Nodes, Root, RootContent } from 'mdast';
+import { createTree } from '../ast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
-import type { ChunkdownOptions } from '../splitter';
+import type { ComplexSplitRule, SplitRule, SplitterOptions } from '../types';
 import { AbstractNodeSplitter } from './base';
-import { MarkdownTreeSplitter } from './tree';
+import { TreeSplitter } from './tree';
 
+/**
+ * List splitter
+ */
 export class ListSplitter extends AbstractNodeSplitter<List> {
+  private splitRule: ComplexSplitRule<List> | undefined;
+
+  constructor(options: SplitterOptions) {
+    super(options);
+
+    this.splitRule = this.splitRules.list;
+  }
+
   splitText(text: string): Array<string> {
     const tree = fromMarkdown(text);
     const list = tree.children[0];
@@ -16,17 +28,22 @@ export class ListSplitter extends AbstractNodeSplitter<List> {
     return chunks.map((chunk) => toMarkdown(chunk).trim());
   }
 
-  splitNode(node: List): Array<List> {
-    const subLists: Array<List> = [];
+  splitNode(node: List): Array<Nodes> {
+    const nodes: Array<Nodes> = [];
 
     for (const subList of this.splitList(node)) {
-      subLists.push(subList);
+      nodes.push(subList);
     }
 
-    return subLists;
+    return nodes;
   }
 
-  private *splitList(list: List): Generator<List> {
+  private *splitList(list: List): Generator<Nodes> {
+    if (!this.canSplitNode(list)) {
+      yield list;
+      return;
+    }
+
     let subList: List = { ...list, children: [] };
     let subListSize = 0;
     const listOriginalStart = list.start || 1;
@@ -99,7 +116,7 @@ export class ListSplitter extends AbstractNodeSplitter<List> {
     }
   }
 
-  private *splitListItem(list: List, listItem: ListItem): Generator<List> {
+  private *splitListItem(list: List, listItem: ListItem): Generator<Nodes> {
     /**
      * Convert the list item to a tree
      */
@@ -108,25 +125,51 @@ export class ListSplitter extends AbstractNodeSplitter<List> {
     /**
      * Split the list item tree into chunks
      */
-    const treeSplitter = new MarkdownTreeSplitter(this.options);
+    const treeSplitter = new TreeSplitter(this.options);
     const listItemChunks = treeSplitter.splitNode(listItemTree);
 
-    /**
-     * Wrap each chunk back into list and yield it
-     */
-    for (const chunk of listItemChunks) {
+    for (let i = 0; i < listItemChunks.length; i++) {
+      const chunk = listItemChunks[i];
+
       if (!('children' in chunk) || chunk.children.length === 0) {
         continue;
       }
-      const subListItem: ListItem = {
-        ...listItem,
-        children: chunk.children as ListItem['children'],
-      };
-      const subList: List = {
-        ...list,
-        children: [subListItem],
-      };
-      yield subList;
+
+      /**
+       * Wrap the first chunk back into list item and yield it.
+       * The remaining chunks are yielded as is.
+       */
+      if (i === 0) {
+        const subListItem: ListItem = {
+          ...listItem,
+          children: chunk.children as ListItem['children'],
+        };
+        const subList: List = {
+          ...list,
+          children: [subListItem],
+        };
+        yield subList;
+      } else {
+        yield createTree(chunk);
+      }
+
+      // if (this.splitRule.strategy === 'extend-list-metadata') {
+      //   const subListItem: ListItem = {
+      //     ...listItem,
+      //     children: chunk.children as ListItem['children'],
+      //   };
+      //   const subList: List = {
+      //     ...list,
+      //     children: [subListItem],
+      //   };
+      //   yield subList;
+      // } else {
+      //   if (chunk.type === 'root') {
+      //     yield chunk;
+      //   } else {
+      //     yield { type: 'root', children: [chunk] };
+      //   }
+      // }
     }
   }
 }

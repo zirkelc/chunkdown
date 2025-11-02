@@ -11,7 +11,7 @@ import {
 } from '../ast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize, getSectionSize } from '../size';
-import type { ChunkdownOptions } from '../splitter';
+import type { SplitterOptions } from '../types';
 import { AbstractNodeSplitter } from './base';
 import { BlockquoteSplitter } from './blockquote';
 import type { NodeSplitter } from './interface';
@@ -19,19 +19,28 @@ import { ListSplitter } from './list';
 import { TableSplitter } from './table';
 import { TextSplitter } from './text';
 
-export class MarkdownTreeSplitter extends AbstractNodeSplitter {
+export class TreeSplitter extends AbstractNodeSplitter<Root> {
   private nodeSplitters: Map<string, NodeSplitter>;
   private textSplitter: TextSplitter;
 
-  constructor(options: ChunkdownOptions) {
+  constructor(options: SplitterOptions) {
     super(options);
+
+    /**
+     * Initialize node splitters
+     */
     this.nodeSplitters = new Map<string, NodeSplitter>([
       ['list', new ListSplitter(options)],
       ['table', new TableSplitter(options)],
       ['blockquote', new BlockquoteSplitter(options)],
     ]);
+
+    /**
+     * Text splitter for inline content
+     */
     this.textSplitter = new TextSplitter(options);
   }
+
   splitText(text: string): string[] {
     const node = fromMarkdown(text);
     const chunks = this.splitNode(node);
@@ -40,9 +49,12 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
       .filter((chunk) => chunk.length > 0);
   }
 
-  splitNode(node: Nodes): Nodes[] {
-    const root: Root =
-      node.type === 'root' ? node : { type: 'root', children: [node] };
+  splitNode(node: Root): Array<Nodes> {
+    /**
+     * Create a tree from the root node
+     * If the node is already a root node, it is returned as is.
+     */
+    const root = createTree(node);
 
     /**
      * Create a hierarchical AST from the root node
@@ -98,13 +110,15 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Splits a hierarchical section, deciding whether to keep it together or break it down intelligently
+   * Splits a hierarchical section, deciding whether to keep it together or break it down.
    * Uses hierarchical approach with merging optimization to maximize chunk utilization
    */
   private *splitHierarchicalSection(
     section: Section,
   ): Generator<HierarchicalNodes> {
-    // Separate immediate content from nested sections
+    /**
+     * Separate immediate content from nested sections
+     */
     const immediateContent: RootContent[] = [];
     const nestedSections: Section[] = [];
 
@@ -116,7 +130,9 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
       }
     }
 
-    // Create parent section with immediate content if it exists
+    /**
+     * Create parent section with immediate content if it exists
+     */
     const parentSection: Section | null =
       immediateContent.length > 0 || section.heading
         ? createSection({
@@ -126,7 +142,9 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
           })
         : null;
 
-    // If no nested sections, just process the parent
+    /**
+     * If no nested sections, just process the parent
+     */
     if (nestedSections.length === 0) {
       if (parentSection) {
         yield* this.splitSection(parentSection);
@@ -134,11 +152,15 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
       return;
     }
 
-    // Try to merge parent with as many child sections as possible
+    /**
+     * Try to merge parent with as many child sections as possible
+     */
     const parentSize = parentSection ? getSectionSize(parentSection) : 0;
 
     if (parentSection && parentSize <= this.maxAllowedSize) {
-      // Find consecutive child sections that can merge with parent
+      /**
+       * Find consecutive child sections that can merge with parent
+       */
       let accumulatedSize = parentSize;
       let mergeCount = 0;
 
@@ -152,7 +174,9 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
         }
       }
 
-      // If we can merge some children with parent, do it
+      /**
+       * If we can merge some children with parent, do it
+       */
       if (mergeCount > 0) {
         const mergedSection = createSection({
           ...parentSection,
@@ -164,7 +188,9 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
 
         yield mergedSection;
 
-        // Process remaining child sections
+        /**
+         * Process remaining child sections
+         */
         const remainingSections = nestedSections.slice(mergeCount);
         if (remainingSections.length > 0) {
           yield* this.mergeSiblingSections(remainingSections);
@@ -173,21 +199,27 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
       }
     }
 
-    // Parent couldn't be merged with children - process separately
+    /**
+     * Parent couldn't be merged with children - process separately
+     */
     if (parentSection) {
       yield* this.splitSection(parentSection);
     }
 
-    // Process all child sections through sibling merging
+    /**
+     * Process all child sections through sibling merging
+     */
     yield* this.mergeSiblingSections(nestedSections);
   }
 
   /**
-   * Generator that splits section content with intelligent grouping to maximize chunk utilization
+   * Splits section content with grouping to maximize chunk utilization
    * Works for both regular sections (with heading) and orphaned sections (without heading)
    */
   private *splitSection(section: Section): Generator<HierarchicalNodes> {
-    // Extract immediate content (non-section children)
+    /**
+     * Extract immediate content (non-section children)
+     */
     const contentItems: RootContent[] = [];
     for (const child of section.children) {
       if (!isSection(child)) {
@@ -195,57 +227,78 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
       }
     }
 
-    // Handle empty sections
+    /**
+     * Handle empty sections
+     */
     if (contentItems.length === 0) {
       if (section.heading) {
-        // Process only heading
+        /**
+         * Process only heading
+         */
         yield* this.splitSubNode(section.heading);
       }
       return;
     }
 
     let currentItems: Nodes[] = [];
+    let currentItemsSize = 0;
 
-    // Start with heading if it exists
+    /**
+     * Start with heading if it exists
+     */
     if (section.heading) {
       currentItems.push(section.heading);
+      currentItemsSize = getContentSize(section.heading);
     }
 
     for (const item of contentItems) {
-      // Calculate size if this item were added to current group
-      const testItemsSize = getContentSize(createTree([...currentItems, item]));
+      /**
+       * Calculate item size once
+       */
+      const itemSize = getContentSize(item);
+      const potentialSize = currentItemsSize + itemSize;
 
-      if (testItemsSize <= this.maxAllowedSize) {
-        // Item fits - add to current group to maximize utilization
+      if (potentialSize <= this.maxAllowedSize) {
+        /**
+         * Item fits - add to current group to maximize utilization
+         */
         currentItems.push(item);
+        currentItemsSize = potentialSize;
       } else {
-        // Item doesn't fit - yield current group and handle this item
+        /**
+         * Item doesn't fit - yield current group and handle this item
+         */
         if (currentItems.length > 0) {
           yield createTree(currentItems);
           currentItems = [];
+          currentItemsSize = 0;
         }
 
-        // Check if item alone fits within limits
-        const itemSize = getContentSize(item);
-
         if (itemSize <= this.maxAllowedSize) {
-          // Item fits alone - start new group with it
+          /**
+           * Item fits alone - start new group with it
+           */
           currentItems = [item];
+          currentItemsSize = itemSize;
         } else {
-          // Item too large even alone - needs further splitting
+          /**
+           * Item too large even alone - needs further splitting
+           */
           yield* this.splitSubNode(item);
         }
       }
     }
 
-    // Yield final group
+    /**
+     * Yield final group
+     */
     if (currentItems.length > 0) {
       yield createTree(currentItems);
     }
   }
 
   /**
-   * Generator that processes individual nodes, delegating to specialized splitters when needed
+   * Splits individual nodes, delegating to specialized splitters when needed
    */
   private *splitSubNode(node: Nodes): Generator<Nodes> {
     const contentSize = getContentSize(node);
@@ -253,62 +306,89 @@ export class MarkdownTreeSplitter extends AbstractNodeSplitter {
     if (contentSize <= this.maxAllowedSize) {
       yield node;
     } else {
+      /**
+       * Get the appropriate splitter for the node type
+       */
       const splitter = this.nodeSplitters.get(node.type);
+
+      /**
+       * If the splitter exists, split the node and yield the result.
+       * Otherwise, split the node using the text splitter.
+       */
       if (splitter) {
         yield* splitter.splitNode(node);
       } else {
-        // Not a container - fall back to text splitting
         yield* this.textSplitter.splitNode(node);
       }
     }
   }
 
   /**
-   * Generator that merges sibling sections by grouping consecutive sections that fit within allowed size
-   * Groups siblings at the same hierarchical level for better space utilization
+   * Merges sibling sections by grouping consecutive sections that fit within allowed size
+   * Groups siblings at the same hierarchical level to maximize chunk utilization
    */
   private *mergeSiblingSections(
     sections: Section[],
   ): Generator<HierarchicalNodes> {
     let siblings: Section[] = [];
     let siblingsSize = 0;
-    const siblingsDepth = Math.max(1, sections[0].depth) - 1; // -1 because we are merging sections at the same hierarchical level
+    /**
+     * Depth of the siblings' parent section.
+     * Use -1 because we are merging sections at the same hierarchical level.
+     */
+    const siblingsDepth = Math.max(1, sections[0].depth) - 1;
 
     for (const section of sections) {
       const sectionSize = getSectionSize(section);
 
-      // If section is too large by itself, yield current group and process section separately
+      /**
+       * If section is too large by itself, yield current group and process section separately
+       */
       if (sectionSize > this.maxAllowedSize) {
-        // Yield accumulated group if any
+        /**
+         * Yield accumulated group if any
+         */
         if (siblings.length > 0) {
           yield createSection({ depth: siblingsDepth, children: siblings });
         }
 
-        // Process oversized section
+        /**
+         * Process oversized section
+         */
         yield* this.splitHierarchicalSection(section);
 
-        // Reset group
+        /**
+         * Reset group
+         */
         siblings = [];
         siblingsSize = 0;
         continue;
       }
 
-      // If adding this section would exceed limit, yield current group first
+      /**
+       * If adding this section would exceed limit, yield current group first
+       */
       const combinedSize = siblingsSize + sectionSize;
       if (siblings.length > 0 && combinedSize > this.maxAllowedSize) {
         yield createSection({ depth: siblingsDepth, children: siblings });
 
-        // Reset group
+        /**
+         * Reset group
+         */
         siblings = [];
         siblingsSize = 0;
       }
 
-      // Add section to current group
+      /**
+       * Add section to current group
+       */
       siblings.push(section);
       siblingsSize += sectionSize;
     }
 
-    // Yield remaining group
+    /**
+     * Yield remaining group
+     */
     if (siblings.length > 0) {
       yield createSection({ depth: siblingsDepth, children: siblings });
     }

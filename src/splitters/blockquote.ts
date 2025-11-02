@@ -1,10 +1,22 @@
 import type { Blockquote, Root } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
+import type { ComplexSplitRule, SplitterOptions } from '../types';
 import { AbstractNodeSplitter } from './base';
-import { MarkdownTreeSplitter } from './tree';
+import { TreeSplitter } from './tree';
 
+/**
+ * Blockquote splitter
+ */
 export class BlockquoteSplitter extends AbstractNodeSplitter<Blockquote> {
+  private splitRule: ComplexSplitRule<Blockquote> | undefined;
+
+  constructor(options: SplitterOptions) {
+    super(options);
+
+    this.splitRule = this.splitRules.blockquote;
+  }
+
   splitText(text: string): Array<string> {
     const tree = fromMarkdown(text);
     const blockquote = tree.children[0];
@@ -26,6 +38,11 @@ export class BlockquoteSplitter extends AbstractNodeSplitter<Blockquote> {
   }
 
   private *splitBlockquote(blockquote: Blockquote): Generator<Blockquote> {
+    if (!this.canSplitNode(blockquote)) {
+      yield blockquote;
+      return;
+    }
+
     let subBlockquote: Blockquote = { ...blockquote, children: [] };
     let subBlockquoteSize = 0;
 
@@ -86,7 +103,7 @@ export class BlockquoteSplitter extends AbstractNodeSplitter<Blockquote> {
     /**
      * Split the block tree into chunks
      */
-    const treeSplitter = new MarkdownTreeSplitter(this.options);
+    const treeSplitter = new TreeSplitter(this.options);
     const blockChunks = treeSplitter.splitNode(blockTree);
 
     /**
