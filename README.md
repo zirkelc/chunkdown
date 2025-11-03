@@ -66,9 +66,10 @@ Preserving a complete semantic unit like a section, paragraph, sentence, etc., i
 
 ```bash
 npm install chunkdown
+#
 pnpm add chunkdown
+#
 bun add chunkdown
-yarn add chunkdown
 ```
 
 ## Usage
@@ -117,14 +118,14 @@ const chunks = splitter.splitText(text);
 
 #### Links and Images
 
-By default, links and images are never split to avoid breaking their semantic meaning. This keeps them together even if they exceed the chunk size.
+By default, links and images are never split to avoid breaking their semantic meaning. 
 
 ```typescript
 import { chunkdown } from 'chunkdown';
 
 const text = `Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.`;
 
-// Default: never split links and images
+// By default, never split links and images
 const splitter = chunkdown({
   chunkSize: 50,
 });
@@ -132,18 +133,30 @@ const splitter = chunkdown({
 const chunks = splitter.splitText(text);
 // chunks[0]: "Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core)"
 // chunks[1]: "for more details on each function."
+
+// Allow splitting links
+const splitte = chunkdown({
+  chunkSize: 50,
+  rules: {
+    formatting: { split: 'allow-split' }
+  }
+});
+
+const chunks = splitter.splitText(text);
+// chunks[0]: "Please check out the [AI SDK Core API"
+// chunks[1]: "Reference](/docs/reference/ai-sdk-core) for more details on each function."
 ```
 
 #### Formatting
 
-Formatting elements like **bold**, *italic*, and ~~strikethrough~~ can be configured to stay together or allow splitting. By default, they can be split.
+Unlike links and images, formatting elements like **bold**, *italic*, and ~~strikethrough~~ will be splitted if needed.
 
 ```typescript
 import { chunkdown } from 'chunkdown';
 
 const text = `This is **a very long bold text that contains many words and exceeds the chunk size** in the middle.`;
 
-// Default: allow splitting formatting
+// By default, allow splitting formatting
 const splitter = chunkdown({
   chunkSize: 30,
 });
@@ -162,15 +175,15 @@ const splitte = chunkdown({
   }
 });
 
-const chunksNeverSplit = splitter.splitText(text);
+const chunks = splitter.splitText(text);
 // chunks[0]: "This is"
 // chunks[1]: "**a very long bold text that contains many words and exceeds the chunk size**"
 // chunks[2]: "in the middle."
 ```
 
-#### Markdown Normalization
+#### Normalization
 
-Chunkdown normalizes markdown to consistent representations during parsing. This ensures uniform output regardless of input style variations.
+Certain markdown elements such as formatting and lists have multiple representations. Chunkdown normalizes these element to ensure a uniform output regardless of input style variations.
 
 ```typescript
 import { chunkdown } from 'chunkdown';
@@ -225,16 +238,16 @@ const text = `
 
 const chunks = splitter.splitText(text);
 // chunks[0]: 
-// | Name  | Age | Country |
-// | ----- | --- | ------- |
-// | Alice | 30  | USA     |
-// | Bob  | 25  | UK       |
+// | Name     | Age | Country |
+// |----------|-----|---------|
+// | Alice    | 30  | USA     |
+// | Bob      | 25  | UK      |
 
 // chunks[1]:
-// | Name | Age | Country    |
-// | ---- | --- | ---------- |
-// | Charlie | 35  | Canada  |
-// | David   | 40  | France  |
+// | Name     | Age | Country |
+// |----------|-----|---------|
+// | Charlie  | 35  | Canada  |
+// | David    | 40  | France  |
 ```
 
 ## API Reference
@@ -356,7 +369,6 @@ chunkdown({
   }
 });
 ```
-
 
 ##### `maxRawSize?: number` (optional)
 
