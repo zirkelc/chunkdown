@@ -61,19 +61,17 @@ Preserving a complete semantic unit like a section, paragraph, sentence, etc., i
 
 [Comparison of chunk size 200 with 1.5x overflow ratio: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunkdown.zirkelc.dev/?text=LSBbYGdlbmVyYXRlVGV4dGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctdGV4dCk6IEdlbmVyYXRlcyB0ZXh0IGFuZCBbdG9vbCBjYWxsc10oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KICBUaGlzIGZ1bmN0aW9uIGlzIGlkZWFsIGZvciBub24taW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgYXV0b21hdGlvbiB0YXNrcyB3aGVyZSB5b3UgbmVlZCB0byB3cml0ZSB0ZXh0IChlLmcuIGRyYWZ0aW5nIGVtYWlsIG9yIHN1bW1hcml6aW5nIHdlYiBwYWdlcykgYW5kIGZvciBhZ2VudHMgdGhhdCB1c2UgdG9vbHMuCi0gW2BzdHJlYW1UZXh0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy10ZXh0KTogU3RyZWFtIHRleHQgYW5kIHRvb2wgY2FsbHMuCiAgWW91IGNhbiB1c2UgdGhlIGBzdHJlYW1UZXh0YCBmdW5jdGlvbiBmb3IgaW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgW2NoYXQgYm90c10oL2RvY3MvYWktc2RrLXVpL2NoYXRib3QpIGFuZCBbY29udGVudCBzdHJlYW1pbmddKC9kb2NzL2FpLXNkay11aS9jb21wbGV0aW9uKS4KLSBbYGdlbmVyYXRlT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBHZW5lcmF0ZXMgYSB0eXBlZCwgc3RydWN0dXJlZCBvYmplY3QgdGhhdCBtYXRjaGVzIGEgW1pvZF0oaHR0cHM6Ly96b2QuZGV2Lykgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gZm9yY2UgdGhlIGxhbmd1YWdlIG1vZGVsIHRvIHJldHVybiBzdHJ1Y3R1cmVkIGRhdGEsIGUuZy4gZm9yIGluZm9ybWF0aW9uIGV4dHJhY3Rpb24sIHN5bnRoZXRpYyBkYXRhIGdlbmVyYXRpb24sIG9yIGNsYXNzaWZpY2F0aW9uIHRhc2tzLgotIFtgc3RyZWFtT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBTdHJlYW0gYSBzdHJ1Y3R1cmVkIG9iamVjdCB0aGF0IG1hdGNoZXMgYSBab2Qgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gW3N0cmVhbSBnZW5lcmF0ZWQgVUlzXSgvZG9jcy9haS1zZGstdWkvb2JqZWN0LWdlbmVyYXRpb24pLg%3D%3D&tab=aiSdk)
 
-## Usage
-
-> [!NOTE]
-> The markdown is parsed using [mdast-util-from-markdown](https://github.com/syntax-tree/mdast-util-from-markdown) and transformed back into a string using [mdast-util-to-markdown](https://github.com/syntax-tree/mdast-util-to-markdown). 
-> These steps perform a normalization of certain markdown constructs which have multiple representations, for example it converts `__bold__` to `**bold**` and `- list item` to `* list item`, but the semantic meaning remains unchanged.
 
 ### Installation
 
 ```bash
 npm install chunkdown
+pnpm add chunkdown
+bun add chunkdown
+yarn add chunkdown
 ```
 
-### Example
+## Usage
 
 ```typescript
 import { chunkdown } from 'chunkdown';
@@ -117,6 +115,128 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
 const chunks = splitter.splitText(text);
 ```
 
+#### Links and Images
+
+By default, links and images are never split to avoid breaking their semantic meaning. This keeps them together even if they exceed the chunk size.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.`;
+
+// Default: never split links and images
+const splitter = chunkdown({
+  chunkSize: 50,
+});
+
+const chunks = splitter.splitText(text);
+// chunks[0]: "Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core)"
+// chunks[1]: "for more details on each function."
+```
+
+#### Formatting
+
+Formatting elements like **bold**, *italic*, and ~~strikethrough~~ can be configured to stay together or allow splitting. By default, they can be split.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `This is **a very long bold text that contains many words and exceeds the chunk size** in the middle.`;
+
+// Default: allow splitting formatting
+const splitter = chunkdown({
+  chunkSize: 30,
+});
+
+const chunks = splitter.splitText(text);
+// chunks[0]: "This is **a very long"
+// chunks[1]: "bold text that contains many"
+// chunks[2]: "words and exceeds the"
+// chunks[3]: "chunk size** in the middle."
+
+// Never split formatting
+const splitte = chunkdown({
+  chunkSize: 30,
+  rules: {
+    formatting: { split: 'never-split' }
+  }
+});
+
+const chunksNeverSplit = splitter.splitText(text);
+// chunks[0]: "This is"
+// chunks[1]: "**a very long bold text that contains many words and exceeds the chunk size**"
+// chunks[2]: "in the middle."
+```
+
+#### Markdown Normalization
+
+Chunkdown normalizes markdown to consistent representations during parsing. This ensures uniform output regardless of input style variations.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `
+formatting:
+__bold__
+_italic_
+
+---
+
+lists:
+- list item 1
+- list item 2
+`;
+
+const splitter = chunkdown({
+  chunkSize: 100,
+});
+
+const chunks = splitter.splitText(text);
+// Markdown variations are normalized to:
+// - __bold__ → **bold**
+// - _italic_ → *italic*
+// - "---" → "***" (thematic break)
+// - list item 1 → * list item 1 (starting with "*")
+```
+
+#### Tables
+
+When a table is split into multiple chunks, Chunkdown automatically preserves context by including the header row in each chunk. This ensures that data rows don't lose their meaning when separated from the original header.
+
+> [!NOTE]
+> The header row size is not counted when calculating chunk sizes. Only data row content is measured against the `chunkSize` limit.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const splitter = chunkdown({
+  chunkSize: 20,
+  maxOverflowRatio: 1.0
+});
+
+const text = `
+| Name     | Age | Country |
+|----------|-----|---------|
+| Alice    | 30  | USA     |
+| Bob      | 25  | UK      |
+| Charlie  | 35  | Canada  |
+| David    | 40  | France  |
+`;
+
+const chunks = splitter.splitText(text);
+// chunks[0]: 
+// | Name  | Age | Country |
+// | ----- | --- | ------- |
+// | Alice | 30  | USA     |
+// | Bob  | 25  | UK       |
+
+// chunks[1]:
+// | Name | Age | Country    |
+// | ---- | --- | ---------- |
+// | Charlie | 35  | Canada  |
+// | David   | 40  | France  |
+```
+
 ## API Reference
 
 ### `chunkdown(options: ChunkdownOptions)`
@@ -140,57 +260,105 @@ The maximum overflow ratio for preserving semantic units:
 - `1.0`: strict chunk size, no overflow allowed
 - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
 
-##### `breakpoints?: Partial<Breakpoints>`: (optional)
+##### `rules?: Partial<NodeRules>` (optional)
 
-Configure when specific markdown elements can be split during chunking. The `maxSize` of each element type defines the maximum content size (in characters) until that element can be split across chunks. The value will be capped at the max allowed chunk size (`chunkSize * maxOverflowRatio`).
+Configure splitting behavior for specific markdown node types. Rules allow fine-grained control over when and how different markdown elements can be split during chunking.
+
+**Supported node types:**
+- `link`: Link elements `[text](url)`
+- `image`: Image elements `![alt](url)`
+- `table`: Table elements
+- `list`: List elements (ordered and unordered)
+- `blockquote`: Blockquote elements
+- `formatting`: Formatting elements (combines `strong`, `emphasis`, `delete`)
+- `strong`: Bold text `**bold**` (overrides `formatting` if specified)
+- `emphasis`: Italic text `*italic*` (overrides `formatting` if specified)
+- `delete`: Strikethrough text `~~deleted~~` (overrides `formatting` if specified)
+
+> [!NOTE]
+> The `formatting` rule applies to all formatting elements (`strong`, `emphasis`, `delete`) unless you override them individually. 
+
+**Split rules:**
+
+Each node type can have a `split` rule:
+
+- `'never-split' | { rule: 'never-split' }`: Never split this element, regardless of size
+- `'allow-split' | { rule: 'allow-split' }`: Allow splitting this element if it exceeds the chunk size
+- `{ rule: 'size-split', size: number }`: Only split this element if its content size exceeds the specified size
+
+**Examples:**
 
 ```typescript
-import { chunkdown, defaultBreakpoints } from 'chunkdown';
+import { chunkdown, defaultNodeRules } from 'chunkdown';
 
+// Never split links
 chunkdown({
   chunkSize: 500,
-  breakpoints: {
-    ...defaultBreakpoints,  // Include defaults for other elements
-    link: { maxSize: 100 }, // Allow splitting links over 100 chars
-    bold: { maxSize: 0 }    // Allow splitting bold text at any size
+  rules: {
+    link: { split: 'never-split' }
+  }
+});
+
+// Split lists only if they exceed 200 characters
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    list: { split: { rule: 'size-split', size: 200 } }
+  }
+});
+
+// Never split formatting by default, but allow splitting bold text
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    formatting: { split: 'never-split' },  // Applies to strong, emphasis, delete
+    strong: { split: 'allow-split' }       // Override: allow splitting bold text
+  }
+});
+
+// Extend default rules
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    ...defaultNodeRules,  // Include defaults for other elements
+    link: { split: 'never-split' },
+    table: { split: { rule: 'allow-split' } },
+    list: { split: { rule: 'size-split', size: 150 } },
+    blockquote: { split: { rule: 'size-split', size: 300 } }
   }
 });
 ```
 
-When you provide custom breakpoints, they completely replace the defaults. Use the spread operator `...defaultBreakpoints` to merge with defaults if you only want to override specific elements. By default, links and images will never split.
+**Default rules:**
 
-```ts
-const defaultBreakpoints: Breakpoints = {
-  link: { maxSize: Infinity },
-  image: { maxSize: Infinity },
+By default, links and images are set to never split to preserve semantic meaning:
+
+```typescript
+const defaultNodeRules: NodeRules = {
+  link: { split: 'never-split' },
+  image: { split: 'never-split' },
 };
 ```
 
-The value [`Infinity`](https://developer.mozilla.org/de/docs/Web/JavaScript/Reference/Global_Objects/Infinity) can be used to indicate that a particular markdown element should never be split, regardless of its size.
+When you provide custom rules, they override the defaults. Use the spread operator `...defaultNodeRules` to explicitly include defaults if you want to override only specific elements.
 
 ```typescript
+import { chunkdown, defaultNodeRules } from 'chunkdown';
+
 chunkdown({
   chunkSize: 500,
-  breakpoints: {
-    ...defaultBreakpoints,
-    heading: { maxSize: Infinity }, // Never split headings regardless of size
+  rules: {
+    ...defaultNodeRules,  // Include defaults for other elements
+    link: { split: 'never-split' },
+    table: { split: { rule: 'allow-split' } },
+    list: { split: { rule: 'size-split', size: 150 } },
+    blockquote: { split: { rule: 'size-split', size: 300 } }
   }
 });
 ```
 
-The value `0` can be used to indicate that a particular markdown element can always be split, regardless of its size.
 
-```typescript
-chunkdown({
-  chunkSize: 500,
-  breakpoints: {
-    ...defaultBreakpoints,
-    heading: { maxSize: 0 }, // Allow splitting headings at any size
-  }
-});
-```
-
-##### `maxRawSize?: number`: (optional)
+##### `maxRawSize?: number` (optional)
 
 The maximum raw size for each chunk, counting all characters including markdown formatting.
 
@@ -216,9 +384,6 @@ It is guaranteed that no chunk will exceed this limit, even if it means splittin
 The chunk visualizer hosted at [chunkdown.zirkelc.dev](https://chunkdown.zirkelc.dev/) provides an interactive way to see how text is split into chunks:
 
 <img width="1272" height="2167" alt="image" src="https://github.com/user-attachments/assets/84294851-0abe-4f23-acdd-9450af756b62" />
-
-
-Protection sizes are automatically capped at the maximum allowed chunk size to prevent infinite loops.
 
 ## Future Improvements
 
@@ -255,34 +420,6 @@ const chunks = splitter.splitText(text, {
 // Extend broken markdown:
 // - **This is a very long bold text that**
 // - **might be split into two chunks**
-```
-
-### Improve Table Chunks
-When splitting tables, ensure that each chunk retains its header and is properly formatted:
-
-```markdown
-| Header 1 | Header 2 |
-|----------|----------|
-| Row 1   | Row 1   |
-| Row 2   | Row 2   |
-```
-
-This table could be split into three chunks for the header and each data row..
-Since the data rows have no relationship to the header, they lose some of their meaning. 
-To improve the semantic meaning of each row, the header could be removed as standalone chunk and instead be added to each data row:
-
-```markdown
-Chunk 1:
-
-| Header 1 | Header 2 |
-|----------|----------|
-| Row 1   | Row 1   |
-
-Chunk 2:
-
-| Header 1 | Header 2 |
-|----------|----------|
-| Row 2   | Row 2   |
 ```
 
 ### Normalize Links and Images

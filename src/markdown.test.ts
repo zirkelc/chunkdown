@@ -12,9 +12,26 @@ import type {
   Text,
 } from 'mdast';
 import { describe, expect, it } from 'vitest';
-import { fromMarkdown, toMarkdown } from './markdown.js';
+import { fromMarkdown, toMarkdown, toString } from './markdown.js';
 
 describe('Markdown', () => {
+  describe('toString', () => {
+    it('extracts plain text from markdown', () => {
+      const ast = fromMarkdown('**Hello** world');
+      expect(toString(ast)).toBe('Hello world');
+    });
+
+    it('extracts text from complex markdown', () => {
+      const ast = fromMarkdown('# Title\n\n[Link](url) and `code`');
+      expect(toString(ast)).toBe('TitleLink and code');
+    });
+
+    it('handles empty markdown', () => {
+      const ast = fromMarkdown('');
+      expect(toString(ast)).toBe('');
+    });
+  });
+
   describe('GFM', () => {
     it('should handle strikethrough text', () => {
       const markdown = '~~strikethrough~~';
