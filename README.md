@@ -8,9 +8,9 @@
 
 </div>
 
-Chunkdown is a tree-based markdown text splitter that understands document structure to create semantically meaningful chunks for RAG applications. 
+Chunkdown is a tree-based markdown text splitter to create semantically meaningful chunks for RAG applications. 
 Unlike traditional splitters that use simple character or regex-based methods, this library leverages markdown's hierarchical structure for optimal chunking.
-Chunkdown is built around a few core ~~beliefs~~ ideas that guide its design:
+Chunkdown is built around a few core ideas that guide its design:
 
 #### Markdown as Hierarchical Tree
 
