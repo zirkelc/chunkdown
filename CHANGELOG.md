@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/zirkelc/chunkdown/compare/v1.4.1...v2.0.0) (2025-11-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* refactor chunkdown
+
+### Features
+
+* refactor chunkdown ([6b811b1](https://github.com/zirkelc/chunkdown/commit/6b811b1787c66b809bc1901ee32974191532659e))
+
 ## [1.4.1](https://github.com/zirkelc/chunkdown/compare/v1.4.0...v1.4.1) (2025-10-22)
 
 
