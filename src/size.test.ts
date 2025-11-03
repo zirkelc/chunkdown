@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createHierarchicalAST } from './ast';
+import { fromMarkdown } from './markdown';
 import {
   getContentSize,
   getRawSize,
   getSectionSize,
   splitByMaxRawSize,
 } from './size';
-import { fromMarkdown } from './markdown';
-import { createHierarchicalAST } from './ast';
 
 describe('getContentSize', () => {
   it('should measure plain text correctly', () => {
