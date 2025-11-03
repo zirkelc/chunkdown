@@ -5,7 +5,6 @@ import type {
   Image,
   Link,
   List,
-  Node,
   Nodes,
   Strong,
   Table,
@@ -24,23 +23,6 @@ type NodeRuleMap = {
   table: Table;
   blockquote: Blockquote;
 };
-
-/**
- * Node-specific splitting rules configuration
- */
-// export type NodeRules = {
-//   // // TODO: Implement strategies for link, image, and formatting nodes
-//   // link?: NodeRule<Link>;
-//   // image?: NodeRule<Image>;
-//   // strong?: NodeRule<Strong>;
-//   // emphasis?: NodeRule<Emphasis>;
-//   // delete?: NodeRule<Delete>;
-//   // formatting?: NodeRule<Formatting>;
-
-//   // // Supported in v1
-//   // list?: NodeRule<List>;
-//   // table?: NodeRule<Table>;
-// };
 
 export type SplitterOptions = {
   /**
@@ -65,9 +47,16 @@ export type SplitterOptions = {
    */
   maxRawSize?: number;
 
+  /**
+   * Optional rules for splitting nodes.
+   * Can be configured for specific node types.
+   */
   rules?: Partial<NodeRules>;
 };
 
+/**
+ * Node-specific rules for splitting
+ */
 export type NodeRules = {
   [K in keyof NodeRuleMap]?: NodeRule<
     NodeRuleMap[K] extends Nodes ? NodeRuleMap[K] : never
@@ -75,47 +64,47 @@ export type NodeRules = {
 };
 
 /**
- * Per-node splitting rule - generic for all node types
+ * Per-node rule for splitting
  */
 export type NodeRule<NODE extends Nodes> = {
   split?: SplitRule<NODE>;
 };
 
+/**
+ * Complex rules for splitting
+ */
 export type ComplexSplitRules = {
   [K in keyof NodeRuleMap]?: ComplexSplitRule<
     NodeRuleMap[K] extends Nodes ? NodeRuleMap[K] : never
   >;
 };
 
-// export type ComplexSplitRules = {
-//   [K in keyof NodeRules]?: NonNullable<NodeRules[K]> extends NodeRule<
-//     infer N extends Node
-//   >
-//     ? ComplexSplitRule<N>
-//     : never;
-// };
-
 /**
- * Splitting rule - can be simple string or complex object
+ * Rule for splitting.
+ * Can be a simple string or a complex object.
  */
 export type SplitRule<NODE extends Nodes> =
   | SimpleSplitRule
   | ComplexSplitRule<NODE>;
 
 /**
- * Simple splitting rules (shorthand)
+ * Simple rules for splitting.
+ * Shorthand for common cases.
  */
 export type SimpleSplitRule = 'never-split' | 'allow-split';
 
 /**
- * Complex splitting rules - conditional based on node type
- * Only Table and List nodes support strategies in v1
+ * Complex rules for splitting.
+ * Conditional based on node type.
  */
 export type ComplexSplitRule<NODE extends Nodes> =
   | NeverSplitRule<NODE>
   | AllowSplitRule<NODE>
   | SizeSplitRule<NODE>;
 
+/**
+ * Never split a node.
+ */
 type NeverSplitRule<NODE extends Nodes> = NODE extends Table | List
   ? {
       rule: 'never-split';
@@ -124,6 +113,9 @@ type NeverSplitRule<NODE extends Nodes> = NODE extends Table | List
       rule: 'never-split';
     };
 
+/**
+ * Allow splitting a node.
+ */
 type AllowSplitRule<NODE extends Nodes> = NODE extends Table | List
   ? {
       rule: 'allow-split';
@@ -133,6 +125,9 @@ type AllowSplitRule<NODE extends Nodes> = NODE extends Table | List
       rule: 'allow-split';
     };
 
+/**
+ * Split a node if its content size exceeds a certain limit.
+ */
 type SizeSplitRule<NODE extends Nodes> = NODE extends Table | List
   ? {
       rule: 'size-split';
@@ -144,6 +139,7 @@ type SizeSplitRule<NODE extends Nodes> = NODE extends Table | List
       size: number;
     };
 
+// TODO: Implement these rules and strategies in future versions
 // type CustomSplitRule<NODE extends Node> = {
 //   rule: 'custom';
 //   strategy: CustomSplitStrategyFn;
@@ -168,7 +164,6 @@ type SizeSplitRule<NODE extends Nodes> = NODE extends Table | List
  */
 // export type ListSplitStrategy = 'extend-list-metadata'; // Include list metadata (ordered, start)
 
-// TODO: Implement these strategies in future versions
 // /**
 //  * Strategies for formatting nodes (strong, emphasis, delete)
 //  */
@@ -207,23 +202,3 @@ type SizeSplitRule<NODE extends Nodes> = NODE extends Table | List
 //   index: number;
 //   total: number;
 // };
-
-/**
- * Default rules
- */
-export const defaultNodeRules: NodeRules = {
-  link: { split: 'never-split' },
-  image: { split: 'never-split' },
-  table: {
-    split: {
-      rule: 'allow-split',
-      // strategy: 'extend-table-header',
-    },
-  },
-  list: {
-    split: {
-      rule: 'allow-split',
-      // strategy: 'extend-list-metadata',
-    },
-  },
-};

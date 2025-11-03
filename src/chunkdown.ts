@@ -5,6 +5,10 @@ import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
 import type { NodeRules, SplitterOptions } from './types';
 
+/**
+ * Default rules for splitting nodes.
+ * Links and images are never split by default.
+ */
 export const defaultNodeRules: NodeRules = {
   link: { split: 'never-split' },
   image: { split: 'never-split' },
@@ -39,7 +43,8 @@ class Chunkdown implements NodeSplitter<Root> {
 }
 
 /**
- * Create a new Chunkdown instance with default node rules
+ * Create a new Chunkdown instance.
+ * Applies default node rules if no custom rules are provided.
  */
 export const chunkdown = (options: SplitterOptions) => {
   const rules = options.rules ?? defaultNodeRules;

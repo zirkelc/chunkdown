@@ -236,6 +236,138 @@ Third sentence.
     });
   });
 
+  describe('Block Content', () => {
+    it('should handle list content', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `This is a paragraph before the list.
+
+- First item
+- Second item
+- Third item
+
+This is a paragraph after the list.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks).toEqual([
+        'This is a paragraph before the list.',
+        '* First item\n* Second item\n* Third item',
+        'This is a paragraph after the list.',
+      ]);
+    });
+
+    it('should handle table content', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `This is a paragraph before the table.
+
+| Column 1 | Column 2 |
+| -------- | -------- |
+| Cell 1   | Cell 2   |
+
+This is a paragraph after the table.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks).toEqual([
+        'This is a paragraph before the table.',
+        '| Column 1 | Column 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |',
+        'This is a paragraph after the table.',
+      ]);
+    });
+
+    it('should handle blockquote content', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `This is a paragraph before the blockquote.
+
+> This is a blockquote
+> with multiple lines
+
+This is a paragraph after the blockquote.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks).toEqual([
+        'This is a paragraph before the blockquote.',
+        '> This is a blockquote\n> with multiple lines',
+        'This is a paragraph after the blockquote.',
+      ]);
+    });
+
+    it('should handle code block content', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `This is a paragraph before the code block.
+
+\`\`\`javascript
+function hello() {
+  console.log("Hello");
+}
+\`\`\`
+
+This is a paragraph after the code block.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks).toEqual([
+        'This is a paragraph before the code block.',
+        '```javascript\nfunction hello() {\n  console.log("Hello");\n}\n```',
+        'This is a paragraph after the code block.',
+      ]);
+    });
+
+    it('should handle horizontal rule content', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `This is a paragraph before the rule.
+
+---
+
+This is a paragraph after the rule.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks).toEqual([
+        'This is a paragraph before the rule.\n\n***',
+        'This is a paragraph after the rule.',
+      ]);
+    });
+
+    it('should handle HTML block content', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `This is a paragraph before the HTML.
+
+<div class="example">
+  <p>HTML content</p>
+</div>
+
+This is a paragraph after the HTML.`;
+
+      const chunks = splitter.splitText(text);
+
+      expect(chunks).toEqual([
+        'This is a paragraph before the HTML.',
+        '<div class="example">\n  <p>HTML content</p>\n</div>',
+        'This is a paragraph after the HTML.',
+      ]);
+    });
+  });
+
   describe('Examples', () => {
     describe('AI SDK Core Documentation', () => {
       const text = `# AI SDK Core
