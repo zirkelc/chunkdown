@@ -9,6 +9,16 @@ import { gfm } from 'micromark-extension-gfm';
 
 export { toString } from 'mdast-util-to-string';
 
+// TODO store content size calculations in the node data
+declare module 'mdast' {
+  interface Data {
+    /**
+     * Content size of the node
+     */
+    size?: number;
+  }
+}
+
 export const fromMarkdown = (value: Value) => {
   return mdastFromMarkdown(value, {
     extensions: [gfm()],
