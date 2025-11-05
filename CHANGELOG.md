@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/zirkelc/chunkdown/compare/v2.0.0...v2.1.0) (2025-11-05)
+
+
+### Features
+
+* normalize reference-style links ([28c3af8](https://github.com/zirkelc/chunkdown/commit/28c3af815bc61645572164ffbd56dbbf4821eaa5))
+
 ## [2.0.0](https://github.com/zirkelc/chunkdown/compare/v1.4.1...v2.0.0) (2025-11-03)
 
 
