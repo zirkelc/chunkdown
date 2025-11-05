@@ -147,6 +147,44 @@ const chunks = splitter.splitText(text);
 // chunks[1]: "Reference](/docs/reference/ai-sdk-core) for more details on each function."
 ```
 
+##### Reference-Style
+
+By default, Chunkdown normalizes reference-style links and images to inline style. This prevents issues when reference definitions end up in different chunks than their usage.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `
+Check out the [documentation][docs] and [API reference][api].
+
+[docs]: https://example.com/docs
+[api]: https://example.com/api
+`;
+
+// By default, normalize to inline style
+const splitter = chunkdown({
+  chunkSize: 100,
+});
+
+const chunks = splitter.splitText(text);
+// Result:
+// chunks[0]: "Check out the [documentation](https://example.com/docs) and [API reference](https://example.com/api)."
+
+// Preserve original style
+const splitter = chunkdown({
+  chunkSize: 100,
+  rules: {
+    link: { style: 'preserve' }
+  }
+});
+
+const chunks = splitter.splitText(text);
+// Result:
+// chunks[0]: "Check out the [documentation][docs] and [API reference][api]."
+// chunks[1]: "[docs]: https://example.com/docs"
+// chunks[2]: "[api]: https://example.com/api"
+```
+
 #### Formatting
 
 Unlike links and images, formatting elements like **bold**, *italic*, and ~~strikethrough~~ will be splitted if needed.
@@ -211,6 +249,7 @@ const chunks = splitter.splitText(text);
 // - "---" → "***" (thematic break)
 // - list item 1 → * list item 1 (starting with "*")
 ```
+
 
 #### Tables
 
@@ -299,6 +338,13 @@ Each node type can have a `split` rule:
 - `'allow-split' | { rule: 'allow-split' }`: Allow splitting this element if it exceeds the chunk size
 - `{ rule: 'size-split', size: number }`: Only split this element if its content size exceeds the specified size
 
+**Style rules:**
+
+Links and images support an additional `style` property to control reference-style normalization:
+
+- `'inline'`: Convert reference-style to inline style
+- `'preserve'`: Keep original reference style
+
 **Examples:**
 
 ```typescript
@@ -340,16 +386,31 @@ chunkdown({
     blockquote: { split: { rule: 'size-split', size: 300 } }
   }
 });
+
+// Normalize links to inline-style, preserve images in reference-style
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    link: { style: 'inline' },
+    image: { style: 'preserve' }
+  }
+});
 ```
 
 **Default rules:**
 
-By default, links and images are set to never split to preserve semantic meaning:
+By default, links and images are set to never split and normalize to inline style:
 
 ```typescript
 const defaultNodeRules: NodeRules = {
-  link: { split: 'never-split' },
-  image: { split: 'never-split' },
+  link: { 
+    split: 'never-split', 
+    style: 'inline' 
+  },
+  image: { 
+    split: 'never-split', 
+    style: 'inline'
+  },
 };
 ```
 
@@ -433,26 +494,6 @@ const chunks = splitter.splitText(text, {
 // - **This is a very long bold text that**
 // - **might be split into two chunks**
 ```
-
-### Normalize Links and Images
-
-Links and images can be inline or reference style:
-
-```markdown
-Inline style:
-![alt text](image.jpg)
-[link text](http://example.com)
-
-Reference style:
-![alt text][1]
-[link text][2]
-
-[1]: image.jpg
-[2]: http://example.com
-```
-
-When splitting, the reference definitions can end up in a different chunk than the link/image usage, breaking the reference.
-The splitter could normalize all links/images to inline style to preserve meaning.
 
 ### Return Chunk Start and End Positions
 

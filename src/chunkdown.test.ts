@@ -128,121 +128,148 @@ Third sentence.
   });
 
   describe('Default Rules', () => {
-    it('should not split links by default', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
-      });
-      const url = `https://example.com/${'x'.repeat(100)}`;
-      const text = `Check [documentation](${url}) for more details.`;
-      const chunks = splitter.splitText(text);
+    describe('Split', () => {
+      it('should not split links by default', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+        });
+        const url = `https://example.com/${'x'.repeat(100)}`;
+        const text = `Check [documentation](${url}) for more details.`;
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(1);
-      expect(chunks[0]).toBe(`Check [documentation](${url}) for more details.`);
+        expect(chunks.length).toBe(1);
+        expect(chunks[0]).toBe(
+          `Check [documentation](${url}) for more details.`,
+        );
+      });
+
+      it('should split links if they exceed raw size limit', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+          maxRawSize: 20,
+        });
+        const url = `https://example.com/${'x'.repeat(100)}`;
+        const text = `Check [documentation](${url}) for more details.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(9);
+        expect(chunks).toEqual([
+          'Check [documentation',
+          '](https://example.co',
+          'm/xxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xx) for more details',
+          '.',
+        ]);
+      });
+
+      it('should not split images by default', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+        });
+        const url = `./architecture-${'x'.repeat(100)}.png`;
+        const text = `Check ![architecture](${url}) for more details.`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(1);
+        expect(chunks[0]).toBe(
+          `Check ![architecture](${url}) for more details.`,
+        );
+      });
+
+      it('should split images if they exceed raw size limit', () => {
+        const splitter = chunkdown({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+          maxRawSize: 20,
+        });
+        const url = `./architecture-${'x'.repeat(100)}.png`;
+        const text = `Check ![architecture](${url}) for more details.`;
+
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(8);
+        expect(chunks).toEqual([
+          'Check ![architecture',
+          '](./architecture-xxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxxxxx',
+          'xxxxxxxxxxxxxxxxx.pn',
+          'g) for more details.',
+        ]);
+      });
+
+      it('should never split words by default', () => {
+        const splitter = chunkdown({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
+        const chunks = splitter.splitText(text);
+        expect(chunks.length).toBe(2);
+        expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
+        expect(chunks[1]).toBe('antidisestablishmentarianism');
+      });
+
+      it('should only split words if they exceed raw size limit', () => {
+        const splitter = chunkdown({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+          maxRawSize: 20, // Small limit to force splitting
+        });
+
+        const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
+        const chunks = splitter.splitText(text);
+
+        expect(chunks.length).toBe(4);
+        expect(chunks[0]).toBe('supercalifragilistic');
+        expect(chunks[1]).toBe('expialidocious');
+        expect(chunks[2]).toBe('antidisestablishment');
+        expect(chunks[3]).toBe('arianism');
+
+        chunks.forEach((chunk) => {
+          expect(chunk.length).toBeLessThanOrEqual(20);
+        });
+      });
     });
 
-    it('should split links if they exceed raw size limit', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
-        maxRawSize: 20,
-      });
-      const url = `https://example.com/${'x'.repeat(100)}`;
-      const text = `Check [documentation](${url}) for more details.`;
-      const chunks = splitter.splitText(text);
+    describe('Normalization', () => {
+      it('should normalize reference-style links to inline by default', () => {
+        const text = 'Check [this link][ref].\n\n[ref]: https://example.com';
+        const splitter = chunkdown({ chunkSize: 100, maxOverflowRatio: 2 });
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(9);
-      expect(chunks).toEqual([
-        'Check [documentation',
-        '](https://example.co',
-        'm/xxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xx) for more details',
-        '.',
-      ]);
-    });
-
-    it('should not split images by default', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
-      });
-      const url = `./architecture-${'x'.repeat(100)}.png`;
-      const text = `Check ![architecture](${url}) for more details.`;
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(1);
-      expect(chunks[0]).toBe(`Check ![architecture](${url}) for more details.`);
-    });
-
-    it('should split images if they exceed raw size limit', () => {
-      const splitter = chunkdown({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
-        maxRawSize: 20,
-      });
-      const url = `./architecture-${'x'.repeat(100)}.png`;
-      const text = `Check ![architecture](${url}) for more details.`;
-
-      const chunks = splitter.splitText(text);
-
-      expect(chunks.length).toBe(8);
-      expect(chunks).toEqual([
-        'Check ![architecture',
-        '](./architecture-xxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxxxxx',
-        'xxxxxxxxxxxxxxxxx.pn',
-        'g) for more details.',
-      ]);
-    });
-
-    it('should never split words by default', () => {
-      const splitter = chunkdown({
-        chunkSize: 20,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
-      const chunks = splitter.splitText(text);
-      expect(chunks.length).toBe(2);
-      expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
-      expect(chunks[1]).toBe('antidisestablishmentarianism');
-    });
-
-    it('should only split words if they exceed raw size limit', () => {
-      const splitter = chunkdown({
-        chunkSize: 20,
-        maxOverflowRatio: 1.0,
-        maxRawSize: 20, // Small limit to force splitting
+        expect(chunks[0]).toContain('[this link](https://example.com)');
+        expect(chunks[0]).not.toContain('[ref]:');
+        expect(chunks.join('\n\n')).not.toContain('[ref]:');
       });
 
-      const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
-      const chunks = splitter.splitText(text);
+      it('should normalize reference-style images to inline by default', () => {
+        const text = 'See ![image][img].\n\n[img]: /path/to/image.png';
+        const splitter = chunkdown({ chunkSize: 100, maxOverflowRatio: 1 });
+        const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(4);
-      expect(chunks[0]).toBe('supercalifragilistic');
-      expect(chunks[1]).toBe('expialidocious');
-      expect(chunks[2]).toBe('antidisestablishment');
-      expect(chunks[3]).toBe('arianism');
-
-      chunks.forEach((chunk) => {
-        expect(chunk.length).toBeLessThanOrEqual(20);
+        expect(chunks[0]).toContain('![image](/path/to/image.png)');
+        expect(chunks[0]).not.toContain('[img]:');
+        expect(chunks.join('\n\n')).not.toContain('[img]:');
       });
     });
-  });
 
-  describe('Block Content', () => {
-    it('should handle list content', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
-      });
-      const text = `This is a paragraph before the list.
+    describe('Block Content', () => {
+      it('should handle list content', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is a paragraph before the list.
 
 - First item
 - Second item
@@ -250,21 +277,21 @@ Third sentence.
 
 This is a paragraph after the list.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks).toEqual([
-        'This is a paragraph before the list.',
-        '* First item\n* Second item\n* Third item',
-        'This is a paragraph after the list.',
-      ]);
-    });
-
-    it('should handle table content', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        expect(chunks).toEqual([
+          'This is a paragraph before the list.',
+          '* First item\n* Second item\n* Third item',
+          'This is a paragraph after the list.',
+        ]);
       });
-      const text = `This is a paragraph before the table.
+
+      it('should handle table content', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is a paragraph before the table.
 
 | Column 1 | Column 2 |
 | -------- | -------- |
@@ -272,42 +299,42 @@ This is a paragraph after the list.`;
 
 This is a paragraph after the table.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks).toEqual([
-        'This is a paragraph before the table.',
-        '| Column 1 | Column 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |',
-        'This is a paragraph after the table.',
-      ]);
-    });
-
-    it('should handle blockquote content', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        expect(chunks).toEqual([
+          'This is a paragraph before the table.',
+          '| Column 1 | Column 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |',
+          'This is a paragraph after the table.',
+        ]);
       });
-      const text = `This is a paragraph before the blockquote.
+
+      it('should handle blockquote content', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is a paragraph before the blockquote.
 
 > This is a blockquote
 > with multiple lines
 
 This is a paragraph after the blockquote.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks).toEqual([
-        'This is a paragraph before the blockquote.',
-        '> This is a blockquote\n> with multiple lines',
-        'This is a paragraph after the blockquote.',
-      ]);
-    });
-
-    it('should handle code block content', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        expect(chunks).toEqual([
+          'This is a paragraph before the blockquote.',
+          '> This is a blockquote\n> with multiple lines',
+          'This is a paragraph after the blockquote.',
+        ]);
       });
-      const text = `This is a paragraph before the code block.
+
+      it('should handle code block content', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is a paragraph before the code block.
 
 \`\`\`javascript
 function hello() {
@@ -317,40 +344,40 @@ function hello() {
 
 This is a paragraph after the code block.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks).toEqual([
-        'This is a paragraph before the code block.',
-        '```javascript\nfunction hello() {\n  console.log("Hello");\n}\n```',
-        'This is a paragraph after the code block.',
-      ]);
-    });
-
-    it('should handle horizontal rule content', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        expect(chunks).toEqual([
+          'This is a paragraph before the code block.',
+          '```javascript\nfunction hello() {\n  console.log("Hello");\n}\n```',
+          'This is a paragraph after the code block.',
+        ]);
       });
-      const text = `This is a paragraph before the rule.
+
+      it('should handle horizontal rule content', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is a paragraph before the rule.
 
 ---
 
 This is a paragraph after the rule.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks).toEqual([
-        'This is a paragraph before the rule.\n\n***',
-        'This is a paragraph after the rule.',
-      ]);
-    });
-
-    it('should handle HTML block content', () => {
-      const splitter = chunkdown({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        expect(chunks).toEqual([
+          'This is a paragraph before the rule.\n\n***',
+          'This is a paragraph after the rule.',
+        ]);
       });
-      const text = `This is a paragraph before the HTML.
+
+      it('should handle HTML block content', () => {
+        const splitter = chunkdown({
+          chunkSize: 50,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `This is a paragraph before the HTML.
 
 <div class="example">
   <p>HTML content</p>
@@ -358,19 +385,19 @@ This is a paragraph after the rule.`;
 
 This is a paragraph after the HTML.`;
 
-      const chunks = splitter.splitText(text);
+        const chunks = splitter.splitText(text);
 
-      expect(chunks).toEqual([
-        'This is a paragraph before the HTML.',
-        '<div class="example">\n  <p>HTML content</p>\n</div>',
-        'This is a paragraph after the HTML.',
-      ]);
+        expect(chunks).toEqual([
+          'This is a paragraph before the HTML.',
+          '<div class="example">\n  <p>HTML content</p>\n</div>',
+          'This is a paragraph after the HTML.',
+        ]);
+      });
     });
-  });
 
-  describe('Examples', () => {
-    describe('AI SDK Core Documentation', () => {
-      const text = `# AI SDK Core
+    describe('Examples', () => {
+      describe('AI SDK Core Documentation', () => {
+        const text = `# AI SDK Core
 
 Large Language Models (LLMs) are advanced programs that can understand, create, and engage with human language on a large scale.
 They are trained on vast amounts of written material to recognize patterns in language and predict what might come next in a given piece of text.
@@ -399,14 +426,14 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
 
 Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.`;
 
-      it('should split with strict 200 chunk size', () => {
-        const splitter = chunkdown({
-          chunkSize: 200,
-          maxOverflowRatio: 1.0,
-        });
-        const chunks = splitter.splitText(text);
+        it('should split with strict 200 chunk size', () => {
+          const splitter = chunkdown({
+            chunkSize: 200,
+            maxOverflowRatio: 1.0,
+          });
+          const chunks = splitter.splitText(text);
 
-        expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks).toMatchInlineSnapshot(`
           [
             "# AI SDK Core",
             "Large Language Models (LLMs) are advanced programs that can understand, create, and engage with human language on a large scale.",
@@ -433,29 +460,29 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
           ]
         `);
 
-        // Verify overflow stays within bounds
-        chunks.forEach((chunk) => {
-          expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+          // Verify overflow stays within bounds
+          chunks.forEach((chunk) => {
+            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+          });
+
+          // Verify links and images are never broken
+          chunks.forEach((chunk) => {
+            const brackets = (chunk.match(/[[\]]/g) || []).length;
+            const backticks = (chunk.match(/`/g) || []).length;
+
+            if (brackets > 0) expect(brackets % 2).toBe(0);
+            if (backticks > 0) expect(backticks % 2).toBe(0);
+          });
         });
 
-        // Verify links and images are never broken
-        chunks.forEach((chunk) => {
-          const brackets = (chunk.match(/[[\]]/g) || []).length;
-          const backticks = (chunk.match(/`/g) || []).length;
+        it('should split with 1.5x overflow ratio', () => {
+          const splitter = chunkdown({
+            chunkSize: 200,
+            maxOverflowRatio: 1.5,
+          });
+          const chunks = splitter.splitText(text);
 
-          if (brackets > 0) expect(brackets % 2).toBe(0);
-          if (backticks > 0) expect(backticks % 2).toBe(0);
-        });
-      });
-
-      it('should split with 1.5x overflow ratio', () => {
-        const splitter = chunkdown({
-          chunkSize: 200,
-          maxOverflowRatio: 1.5,
-        });
-        const chunks = splitter.splitText(text);
-
-        expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks).toMatchInlineSnapshot(`
           [
             "# AI SDK Core
 
@@ -483,22 +510,22 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
           ]
         `);
 
-        // Verify overflow stays within bounds
-        chunks.forEach((chunk) => {
-          expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
-        });
+          // Verify overflow stays within bounds
+          chunks.forEach((chunk) => {
+            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+          });
 
-        // Verify links and images are never broken
-        chunks.forEach((chunk) => {
-          const brackets = (chunk.match(/[[\]]/g) || []).length;
+          // Verify links and images are never broken
+          chunks.forEach((chunk) => {
+            const brackets = (chunk.match(/[[\]]/g) || []).length;
 
-          if (brackets > 0) expect(brackets % 2).toBe(0);
+            if (brackets > 0) expect(brackets % 2).toBe(0);
+          });
         });
       });
-    });
 
-    describe('Markdown', () => {
-      const text = `# Markdown Showcase
+      describe('Markdown', () => {
+        const text = `# Markdown Showcase
 
 This document demonstrates all markdown elements and their various syntax flavors.
 
@@ -729,496 +756,488 @@ Here's a sentence with a footnote[^1].
 
 *This document showcases most markdown elements and syntax variations.*`;
 
-      it('should split with strict 200 chunk size', () => {
-        const splitter = chunkdown({
-          chunkSize: 200,
-          maxOverflowRatio: 1.0,
-        });
-        const chunks = splitter.splitText(text);
+        it('should split with strict 200 chunk size', () => {
+          const splitter = chunkdown({
+            chunkSize: 200,
+            maxOverflowRatio: 1.0,
+          });
+          const chunks = splitter.splitText(text);
 
-        expect(chunks).toMatchInlineSnapshot(`
-          [
-            "# Markdown Showcase
+          expect(chunks).toMatchInlineSnapshot(`
+            [
+              "# Markdown Showcase
 
-          This document demonstrates all markdown elements and their various syntax flavors.
+            This document demonstrates all markdown elements and their various syntax flavors.
 
-          ## Headings",
-            "# H1 Heading
+            ## Headings",
+              "# H1 Heading
 
-          ## H2 Heading
+            ## H2 Heading
 
-          ### H3 Heading
+            ### H3 Heading
 
-          #### H4 Heading
+            #### H4 Heading
 
-          ##### H5 Heading
+            ##### H5 Heading
 
-          ###### H6 Heading",
-            "# Alternative H1 (Setext)
+            ###### H6 Heading",
+              "# Alternative H1 (Setext)
 
-          ## Alternative H2 (Setext)",
-            "## Text Formatting
+            ## Alternative H2 (Setext)",
+              "## Text Formatting
 
-          **Bold text with asterisks** and **bold text with underscores**
+            **Bold text with asterisks** and **bold text with underscores**
 
-          *Italic text with asterisks* and *italic text with underscores*
+            *Italic text with asterisks* and *italic text with underscores*
 
-          ***Bold and italic*** and ***bold and italic***
+            ***Bold and italic*** and ***bold and italic***
 
-          ~~Strikethrough text~~",
-            "\`Inline code\` with backticks",
-            "## Lists",
-            "### Unordered Lists (3 variants)
+            ~~Strikethrough text~~",
+              "\`Inline code\` with backticks",
+              "## Lists",
+              "### Unordered Lists (3 variants)
 
-          * Item 1 with dash
-          * Item 2 with dash
-            * Nested item
-            * Another nested item
+            * Item 1 with dash
+            * Item 2 with dash
+              * Nested item
+              * Another nested item
 
-          - Item 1 with asterisk
-          - Item 2 with asterisk
-            * Nested item
-            * Another nested item",
-            "* Item 1 with plus
-          * Item 2 with plus
-            * Nested item
-            * Another nested item",
-            "### Ordered Lists
+            - Item 1 with asterisk
+            - Item 2 with asterisk
+              * Nested item
+              * Another nested item",
+              "* Item 1 with plus
+            * Item 2 with plus
+              * Nested item
+              * Another nested item",
+              "### Ordered Lists
 
-          1. First item
-          2. Second item
-             1. Nested ordered item
-             2. Another nested item
-          3. Third item
+            1. First item
+            2. Second item
+               1. Nested ordered item
+               2. Another nested item
+            3. Third item
 
-          ### Task Lists (GFM)
+            ### Task Lists (GFM)
 
-          * [x] Completed task
-          * [ ] Incomplete task
-          * [x] Another completed task",
-            "## Links and Images
+            * [x] Completed task
+            * [ ] Incomplete task
+            * [x] Another completed task",
+              "## Links and Images
 
-          [Regular link](https://example.com)
+            [Regular link](https://example.com)
 
-          [Link with title](https://example.com "This is a title")
+            [Link with title](https://example.com "This is a title")
 
-          <https://autolink.com>
+            <https://autolink.com>
 
-          ![Image alt text](https://via.placeholder.com/150 "Image title")
+            ![Image alt text](https://via.placeholder.com/150 "Image title")
 
-          ![Image without title](https://via.placeholder.com/100)
+            ![Image without title](https://via.placeholder.com/100)
 
-          Reference-style [link][1] and [another link][reference].
+            Reference-style [link](https://example.com) and [another link](https://example.com "Reference with title").",
+              "## Code Blocks
 
-          [1]: https://example.com
+            ### Fenced Code Blocks
 
-          [reference]: https://example.com "Reference with title"",
-            "## Code Blocks
+            \`\`\`javascript
+            function hello() {
+              console.log("Hello, world!");
+              return true;
+            }
+            \`\`\`
 
-          ### Fenced Code Blocks
+            \`\`\`python
+            def hello():
+                print("Hello, world!")
+                return True
+            \`\`\`
 
-          \`\`\`javascript
-          function hello() {
-            console.log("Hello, world!");
-            return true;
-          }
-          \`\`\`
-
-          \`\`\`python
-          def hello():
-              print("Hello, world!")
-              return True
-          \`\`\`
-
-          \`\`\`
-          Code block without language
-          \`\`\`",
-            "### Indented Code Blocks
-
-          \`\`\`
-          function indentedCode() {
-              return "This is indented code";
-          }
-          \`\`\`",
-            "## Tables (GFM)
-
-          | Left Aligned | Center Aligned | Right Aligned |
-          | :----------- | :------------: | ------------: |
-          | Cell 1       |     Cell 2     |        Cell 3 |
-          | Long cell    |      Short     |           123 |
-
-          | Command    | Description                  |
-          | ---------- | ---------------------------- |
-          | git status | Show working tree status     |
-          | git diff   | Show changes between commits |",
-            "## Blockquotes
-
-          > Simple blockquote
-          >
-          > Multiple lines in blockquote
-
-          > ### Blockquote with heading
-          >
-          > **Bold text** in blockquote
-          >
-          > 1. Ordered list in blockquote
-          > 2. Another item
-
-          > Nested blockquotes
-          >
-          > > This is nested
-          > >
-          > > > And this is deeply nested",
-            "## Horizontal Rules (3 variants)",
-            "***
-
-          ***
-
-          ***",
-            "## Line Breaks
-
-          Line with two spaces at end
-          Creates a line break
-
-          Line with backslash\\
-          Also creates a line break",
-            "## HTML Elements
-
-          <div>Raw HTML div</div>
-
-          <strong>HTML strong tag</strong>
-
-          <em>HTML emphasis tag</em>
-
-          <!-- HTML comment -->",
-            "## Escape Characters
-
-          \\* Not italic \\*
-
-          \\_ Not italic \\_
-
-          \\# Not a heading
-
-          \\[Not a link]\\(not-a-url)",
-            "## Special Characters and Entities
-
-          © & < > " '",
-            "## Mixed Complex Examples
-
-          This paragraph contains **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. It also has a [link](https://example.com) and an ![image](https://via.placeholder.com/16).",
-            "### Complex List Example",
-            "1. First item with **bold text**
-             * Nested unordered item with *italic*
-             * Another nested item with \`code\`
-             * [ ] Task item in nested list
-             * [x] Completed task
-          2. Second item with [link](https://example.com)
-             \`\`\`javascript
-             // Code block in list item
-             const example = true;
-             \`\`\`",
-            "3. Third item with blockquote:
-             > This is a blockquote inside a list item
-             > with multiple lines",
-            "### Table with Complex Content
-
-          | Element | Syntax Variants          | Example                        |
-          | ------- | ------------------------ | ------------------------------ |
-          | Bold    | \`**text**\` or \`__text__\` | **bold** and **bold**          |
-          | Italic  | \`*text*\` or \`_text_\`     | *italic* and *italic*          |
-          | Code    | \`\\\`text\\\`\\\`              | \`code\`                         |
-          | Link    | \`[text](url)\`            | [example](https://example.com) |",
-            "## Edge Cases
-
-          Empty lines:
-
-          Multiple spaces:     (5 spaces)
-
-          Trailing spaces:
-
-          Mixed formatting: ***Really*** important **and *nested* formatting**
-
-          Autolinks: <https://example.com> and <email@example.com>",
-            "Footnotes (if supported):
-          Here's a sentence with a footnote[^1].
-
-          [^1]: This is the footnote content.",
-            "***
-
-          *This document showcases most markdown elements and syntax variations.*",
-          ]
-        `);
-
-        // Verify overflow stays within bounds
-        chunks.forEach((chunk) => {
-          expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
-        });
-
-        // Verify links and images are never broken
-        chunks.forEach((chunk) => {
-          const brackets = (chunk.match(/[[\]]/g) || []).length;
-
-          if (brackets > 0) expect(brackets % 2).toBe(0);
-        });
-      });
-
-      it('should split with 1.5x overflow ratio', () => {
-        const splitter = chunkdown({
-          chunkSize: 200,
-          maxOverflowRatio: 1.5,
-        });
-        const chunks = splitter.splitText(text);
-
-        expect(chunks).toMatchInlineSnapshot(`
-          [
-            "# Markdown Showcase
-
-          This document demonstrates all markdown elements and their various syntax flavors.
-
-          ## Headings",
-            "# H1 Heading
-
-          ## H2 Heading
-
-          ### H3 Heading
-
-          #### H4 Heading
-
-          ##### H5 Heading
-
-          ###### H6 Heading",
-            "# Alternative H1 (Setext)
-
-          ## Alternative H2 (Setext)
-
-          ## Text Formatting
-
-          **Bold text with asterisks** and **bold text with underscores**
-
-          *Italic text with asterisks* and *italic text with underscores*
-
-          ***Bold and italic*** and ***bold and italic***
-
-          ~~Strikethrough text~~
-
-          \`Inline code\` with backticks",
-            "## Lists
-
-          ### Unordered Lists (3 variants)
-
-          * Item 1 with dash
-          * Item 2 with dash
-            * Nested item
-            * Another nested item
-
-          - Item 1 with asterisk
-          - Item 2 with asterisk
-            * Nested item
-            * Another nested item
-
-          * Item 1 with plus
-          * Item 2 with plus
-            * Nested item
-            * Another nested item",
-            "### Ordered Lists
-
-          1. First item
-          2. Second item
-             1. Nested ordered item
-             2. Another nested item
-          3. Third item
-
-          ### Task Lists (GFM)
-
-          * [x] Completed task
-          * [ ] Incomplete task
-          * [x] Another completed task",
-            "## Links and Images
-
-          [Regular link](https://example.com)
-
-          [Link with title](https://example.com "This is a title")
-
-          <https://autolink.com>
-
-          ![Image alt text](https://via.placeholder.com/150 "Image title")
-
-          ![Image without title](https://via.placeholder.com/100)
-
-          Reference-style [link][1] and [another link][reference].
-
-          [1]: https://example.com
-
-          [reference]: https://example.com "Reference with title"",
-            "## Code Blocks
-
-          ### Fenced Code Blocks
-
-          \`\`\`javascript
-          function hello() {
-            console.log("Hello, world!");
-            return true;
-          }
-          \`\`\`
-
-          \`\`\`python
-          def hello():
-              print("Hello, world!")
-              return True
-          \`\`\`
-
-          \`\`\`
-          Code block without language
-          \`\`\`
-
-          ### Indented Code Blocks
-
-          \`\`\`
-          function indentedCode() {
-              return "This is indented code";
-          }
-          \`\`\`",
-            "## Tables (GFM)
-
-          | Left Aligned | Center Aligned | Right Aligned |
-          | :----------- | :------------: | ------------: |
-          | Cell 1       |     Cell 2     |        Cell 3 |
-          | Long cell    |      Short     |           123 |
-
-          | Command    | Description                  |
-          | ---------- | ---------------------------- |
-          | git status | Show working tree status     |
-          | git diff   | Show changes between commits |",
-            "## Blockquotes
-
-          > Simple blockquote
-          >
-          > Multiple lines in blockquote
-
-          > ### Blockquote with heading
-          >
-          > **Bold text** in blockquote
-          >
-          > 1. Ordered list in blockquote
-          > 2. Another item
-
-          > Nested blockquotes
-          >
-          > > This is nested
-          > >
-          > > > And this is deeply nested
-
-          ## Horizontal Rules (3 variants)",
-            "***
-
-          ***
-
-          ***",
-            "## Line Breaks
-
-          Line with two spaces at end
-          Creates a line break
-
-          Line with backslash\\
-          Also creates a line break",
-            "## HTML Elements
-
-          <div>Raw HTML div</div>
-
-          <strong>HTML strong tag</strong>
-
-          <em>HTML emphasis tag</em>
-
-          <!-- HTML comment -->",
-            "## Escape Characters
-
-          \\* Not italic \\*
-
-          \\_ Not italic \\_
-
-          \\# Not a heading
-
-          \\[Not a link]\\(not-a-url)",
-            "## Special Characters and Entities
-
-          © & < > " '",
-            "## Mixed Complex Examples
-
-          This paragraph contains **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. It also has a [link](https://example.com) and an ![image](https://via.placeholder.com/16).",
-            "### Complex List Example
-
-          1. First item with **bold text**
-             * Nested unordered item with *italic*
-             * Another nested item with \`code\`
-             * [ ] Task item in nested list
-             * [x] Completed task
-          2. Second item with [link](https://example.com)
-             \`\`\`javascript
-             // Code block in list item
-             const example = true;
-             \`\`\`
-          3. Third item with blockquote:
-             > This is a blockquote inside a list item
-             > with multiple lines",
-            "### Table with Complex Content
-
-          | Element | Syntax Variants          | Example                        |
-          | ------- | ------------------------ | ------------------------------ |
-          | Bold    | \`**text**\` or \`__text__\` | **bold** and **bold**          |
-          | Italic  | \`*text*\` or \`_text_\`     | *italic* and *italic*          |
-          | Code    | \`\\\`text\\\`\\\`              | \`code\`                         |
-          | Link    | \`[text](url)\`            | [example](https://example.com) |",
-            "## Edge Cases
-
-          Empty lines:
-
-          Multiple spaces:     (5 spaces)
-
-          Trailing spaces:
-
-          Mixed formatting: ***Really*** important **and *nested* formatting**
-
-          Autolinks: <https://example.com> and <email@example.com>
-
-          Footnotes (if supported):
-          Here's a sentence with a footnote[^1].
-
-          [^1]: This is the footnote content.",
-            "***
-
-          *This document showcases most markdown elements and syntax variations.*",
-          ]
-        `);
-
-        // Verify overflow stays within bounds
-        chunks.forEach((chunk) => {
-          expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+            \`\`\`
+            Code block without language
+            \`\`\`",
+              "### Indented Code Blocks
+
+            \`\`\`
+            function indentedCode() {
+                return "This is indented code";
+            }
+            \`\`\`",
+              "## Tables (GFM)
+
+            | Left Aligned | Center Aligned | Right Aligned |
+            | :----------- | :------------: | ------------: |
+            | Cell 1       |     Cell 2     |        Cell 3 |
+            | Long cell    |      Short     |           123 |
+
+            | Command    | Description                  |
+            | ---------- | ---------------------------- |
+            | git status | Show working tree status     |
+            | git diff   | Show changes between commits |",
+              "## Blockquotes
+
+            > Simple blockquote
+            >
+            > Multiple lines in blockquote
+
+            > ### Blockquote with heading
+            >
+            > **Bold text** in blockquote
+            >
+            > 1. Ordered list in blockquote
+            > 2. Another item
+
+            > Nested blockquotes
+            >
+            > > This is nested
+            > >
+            > > > And this is deeply nested",
+              "## Horizontal Rules (3 variants)",
+              "***
+
+            ***
+
+            ***",
+              "## Line Breaks
+
+            Line with two spaces at end
+            Creates a line break
+
+            Line with backslash\\
+            Also creates a line break",
+              "## HTML Elements
+
+            <div>Raw HTML div</div>
+
+            <strong>HTML strong tag</strong>
+
+            <em>HTML emphasis tag</em>
+
+            <!-- HTML comment -->",
+              "## Escape Characters
+
+            \\* Not italic \\*
+
+            \\_ Not italic \\_
+
+            \\# Not a heading
+
+            \\[Not a link]\\(not-a-url)",
+              "## Special Characters and Entities
+
+            © & < > " '",
+              "## Mixed Complex Examples
+
+            This paragraph contains **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. It also has a [link](https://example.com) and an ![image](https://via.placeholder.com/16).",
+              "### Complex List Example",
+              "1. First item with **bold text**
+               * Nested unordered item with *italic*
+               * Another nested item with \`code\`
+               * [ ] Task item in nested list
+               * [x] Completed task
+            2. Second item with [link](https://example.com)
+               \`\`\`javascript
+               // Code block in list item
+               const example = true;
+               \`\`\`",
+              "3. Third item with blockquote:
+               > This is a blockquote inside a list item
+               > with multiple lines",
+              "### Table with Complex Content
+
+            | Element | Syntax Variants          | Example                        |
+            | ------- | ------------------------ | ------------------------------ |
+            | Bold    | \`**text**\` or \`__text__\` | **bold** and **bold**          |
+            | Italic  | \`*text*\` or \`_text_\`     | *italic* and *italic*          |
+            | Code    | \`\\\`text\\\`\\\`              | \`code\`                         |
+            | Link    | \`[text](url)\`            | [example](https://example.com) |",
+              "## Edge Cases
+
+            Empty lines:
+
+            Multiple spaces:     (5 spaces)
+
+            Trailing spaces:
+
+            Mixed formatting: ***Really*** important **and *nested* formatting**
+
+            Autolinks: <https://example.com> and <email@example.com>",
+              "Footnotes (if supported):
+            Here's a sentence with a footnote[^1].
+
+            [^1]: This is the footnote content.",
+              "***
+
+            *This document showcases most markdown elements and syntax variations.*",
+            ]
+          `);
+
+          // Verify overflow stays within bounds
+          chunks.forEach((chunk) => {
+            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+          });
+
+          // Verify links and images are never broken
+          chunks.forEach((chunk) => {
+            const brackets = (chunk.match(/[[\]]/g) || []).length;
+
+            if (brackets > 0) expect(brackets % 2).toBe(0);
+          });
         });
 
-        // Verify links and images are never broken
-        chunks.forEach((chunk) => {
-          const brackets = (chunk.match(/[[\]]/g) || []).length;
+        it('should split with 1.5x overflow ratio', () => {
+          const splitter = chunkdown({
+            chunkSize: 200,
+            maxOverflowRatio: 1.5,
+          });
+          const chunks = splitter.splitText(text);
 
-          if (brackets > 0) expect(brackets % 2).toBe(0);
+          expect(chunks).toMatchInlineSnapshot(`
+            [
+              "# Markdown Showcase
+
+            This document demonstrates all markdown elements and their various syntax flavors.
+
+            ## Headings",
+              "# H1 Heading
+
+            ## H2 Heading
+
+            ### H3 Heading
+
+            #### H4 Heading
+
+            ##### H5 Heading
+
+            ###### H6 Heading",
+              "# Alternative H1 (Setext)
+
+            ## Alternative H2 (Setext)
+
+            ## Text Formatting
+
+            **Bold text with asterisks** and **bold text with underscores**
+
+            *Italic text with asterisks* and *italic text with underscores*
+
+            ***Bold and italic*** and ***bold and italic***
+
+            ~~Strikethrough text~~
+
+            \`Inline code\` with backticks",
+              "## Lists
+
+            ### Unordered Lists (3 variants)
+
+            * Item 1 with dash
+            * Item 2 with dash
+              * Nested item
+              * Another nested item
+
+            - Item 1 with asterisk
+            - Item 2 with asterisk
+              * Nested item
+              * Another nested item
+
+            * Item 1 with plus
+            * Item 2 with plus
+              * Nested item
+              * Another nested item",
+              "### Ordered Lists
+
+            1. First item
+            2. Second item
+               1. Nested ordered item
+               2. Another nested item
+            3. Third item
+
+            ### Task Lists (GFM)
+
+            * [x] Completed task
+            * [ ] Incomplete task
+            * [x] Another completed task",
+              "## Links and Images
+
+            [Regular link](https://example.com)
+
+            [Link with title](https://example.com "This is a title")
+
+            <https://autolink.com>
+
+            ![Image alt text](https://via.placeholder.com/150 "Image title")
+
+            ![Image without title](https://via.placeholder.com/100)
+
+            Reference-style [link](https://example.com) and [another link](https://example.com "Reference with title").",
+              "## Code Blocks
+
+            ### Fenced Code Blocks
+
+            \`\`\`javascript
+            function hello() {
+              console.log("Hello, world!");
+              return true;
+            }
+            \`\`\`
+
+            \`\`\`python
+            def hello():
+                print("Hello, world!")
+                return True
+            \`\`\`
+
+            \`\`\`
+            Code block without language
+            \`\`\`
+
+            ### Indented Code Blocks
+
+            \`\`\`
+            function indentedCode() {
+                return "This is indented code";
+            }
+            \`\`\`",
+              "## Tables (GFM)
+
+            | Left Aligned | Center Aligned | Right Aligned |
+            | :----------- | :------------: | ------------: |
+            | Cell 1       |     Cell 2     |        Cell 3 |
+            | Long cell    |      Short     |           123 |
+
+            | Command    | Description                  |
+            | ---------- | ---------------------------- |
+            | git status | Show working tree status     |
+            | git diff   | Show changes between commits |",
+              "## Blockquotes
+
+            > Simple blockquote
+            >
+            > Multiple lines in blockquote
+
+            > ### Blockquote with heading
+            >
+            > **Bold text** in blockquote
+            >
+            > 1. Ordered list in blockquote
+            > 2. Another item
+
+            > Nested blockquotes
+            >
+            > > This is nested
+            > >
+            > > > And this is deeply nested
+
+            ## Horizontal Rules (3 variants)",
+              "***
+
+            ***
+
+            ***",
+              "## Line Breaks
+
+            Line with two spaces at end
+            Creates a line break
+
+            Line with backslash\\
+            Also creates a line break",
+              "## HTML Elements
+
+            <div>Raw HTML div</div>
+
+            <strong>HTML strong tag</strong>
+
+            <em>HTML emphasis tag</em>
+
+            <!-- HTML comment -->",
+              "## Escape Characters
+
+            \\* Not italic \\*
+
+            \\_ Not italic \\_
+
+            \\# Not a heading
+
+            \\[Not a link]\\(not-a-url)",
+              "## Special Characters and Entities
+
+            © & < > " '",
+              "## Mixed Complex Examples
+
+            This paragraph contains **bold**, *italic*, ~~strikethrough~~, and \`inline code\`. It also has a [link](https://example.com) and an ![image](https://via.placeholder.com/16).",
+              "### Complex List Example
+
+            1. First item with **bold text**
+               * Nested unordered item with *italic*
+               * Another nested item with \`code\`
+               * [ ] Task item in nested list
+               * [x] Completed task
+            2. Second item with [link](https://example.com)
+               \`\`\`javascript
+               // Code block in list item
+               const example = true;
+               \`\`\`
+            3. Third item with blockquote:
+               > This is a blockquote inside a list item
+               > with multiple lines",
+              "### Table with Complex Content
+
+            | Element | Syntax Variants          | Example                        |
+            | ------- | ------------------------ | ------------------------------ |
+            | Bold    | \`**text**\` or \`__text__\` | **bold** and **bold**          |
+            | Italic  | \`*text*\` or \`_text_\`     | *italic* and *italic*          |
+            | Code    | \`\\\`text\\\`\\\`              | \`code\`                         |
+            | Link    | \`[text](url)\`            | [example](https://example.com) |",
+              "## Edge Cases
+
+            Empty lines:
+
+            Multiple spaces:     (5 spaces)
+
+            Trailing spaces:
+
+            Mixed formatting: ***Really*** important **and *nested* formatting**
+
+            Autolinks: <https://example.com> and <email@example.com>
+
+            Footnotes (if supported):
+            Here's a sentence with a footnote[^1].
+
+            [^1]: This is the footnote content.",
+              "***
+
+            *This document showcases most markdown elements and syntax variations.*",
+            ]
+          `);
+
+          // Verify overflow stays within bounds
+          chunks.forEach((chunk) => {
+            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+          });
+
+          // Verify links and images are never broken
+          chunks.forEach((chunk) => {
+            const brackets = (chunk.match(/[[\]]/g) || []).length;
+
+            if (brackets > 0) expect(brackets % 2).toBe(0);
+          });
         });
       });
-    });
 
-    describe('Llama Wikipedia', () => {
-      const text = `The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [[ˈʎama]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [[ˈʝama]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (_**Lama glama**_) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").
+      describe('Llama Wikipedia', () => {
+        const text = `The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [[ˈʎama]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [[ˈʝama]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (_**Lama glama**_) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").
 
 Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[[2]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions. When using a pack, they can carry about 25 to 30% of their body weight for 8 to 13 [km](https://en.wikipedia.org/wiki/Kilometre "Kilometre") (5–8 [miles](https://en.wikipedia.org/wiki/Mile "Mile")).[[3]](https://en.wikipedia.org/wiki/Llama#cite_note-OK_State-3) The name _llama_ (also historically spelled "lama" or "glama") was adopted by [European settlers](https://en.wikipedia.org/wiki/European_colonization_of_the_Americas "European colonization of the Americas") from [native Peruvians](https://en.wikipedia.org/wiki/Indigenous_people_in_Peru "Indigenous people in Peru").[[4]](https://en.wikipedia.org/wiki/Llama#cite_note-4)`;
 
-      it('should split with strict 200 chunk size', () => {
-        const chunkSize = 200;
-        const maxOverflowRatio = 1.0;
-        const splitter = chunkdown({
-          chunkSize,
-          maxOverflowRatio,
-        });
-        const chunks = splitter.splitText(text);
+        it('should split with strict 200 chunk size', () => {
+          const chunkSize = 200;
+          const maxOverflowRatio = 1.0;
+          const splitter = chunkdown({
+            chunkSize,
+            maxOverflowRatio,
+          });
+          const chunks = splitter.splitText(text);
 
-        expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks).toMatchInlineSnapshot(`
           [
             "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation:",
             "[\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
@@ -1228,31 +1247,31 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
           ]
         `);
 
-        // Verify overflow stays within bounds
-        chunks.forEach((chunk) => {
-          expect(getContentSize(chunk)).toBeLessThanOrEqual(
-            chunkSize * maxOverflowRatio,
-          );
+          // Verify overflow stays within bounds
+          chunks.forEach((chunk) => {
+            expect(getContentSize(chunk)).toBeLessThanOrEqual(
+              chunkSize * maxOverflowRatio,
+            );
+          });
+
+          // Verify links and images are never broken
+          chunks.forEach((chunk) => {
+            const brackets = (chunk.match(/[[\]]/g) || []).length;
+
+            if (brackets > 0) expect(brackets % 2).toBe(0);
+          });
         });
 
-        // Verify links and images are never broken
-        chunks.forEach((chunk) => {
-          const brackets = (chunk.match(/[[\]]/g) || []).length;
+        it('should split with 1.5x overflow ratio', () => {
+          const chunkSize = 200;
+          const maxOverflowRatio = 1.5;
+          const splitter = chunkdown({
+            chunkSize,
+            maxOverflowRatio,
+          });
+          const chunks = splitter.splitText(text);
 
-          if (brackets > 0) expect(brackets % 2).toBe(0);
-        });
-      });
-
-      it('should split with 1.5x overflow ratio', () => {
-        const chunkSize = 200;
-        const maxOverflowRatio = 1.5;
-        const splitter = chunkdown({
-          chunkSize,
-          maxOverflowRatio,
-        });
-        const chunks = splitter.splitText(text);
-
-        expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks).toMatchInlineSnapshot(`
           [
             "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
             "Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[\\[2\\]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions.",
@@ -1260,18 +1279,19 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
           ]
         `);
 
-        // Verify overflow stays within bounds
-        chunks.forEach((chunk) => {
-          expect(getContentSize(chunk)).toBeLessThanOrEqual(
-            chunkSize * maxOverflowRatio,
-          );
-        });
+          // Verify overflow stays within bounds
+          chunks.forEach((chunk) => {
+            expect(getContentSize(chunk)).toBeLessThanOrEqual(
+              chunkSize * maxOverflowRatio,
+            );
+          });
 
-        // Verify links and images are never broken
-        chunks.forEach((chunk) => {
-          const brackets = (chunk.match(/[[\]]/g) || []).length;
+          // Verify links and images are never broken
+          chunks.forEach((chunk) => {
+            const brackets = (chunk.match(/[[\]]/g) || []).length;
 
-          if (brackets > 0) expect(brackets % 2).toBe(0);
+            if (brackets > 0) expect(brackets % 2).toBe(0);
+          });
         });
       });
     });

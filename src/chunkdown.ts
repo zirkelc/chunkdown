@@ -1,17 +1,28 @@
 import type { Nodes, Root } from 'mdast';
-import { fromMarkdown, toMarkdown } from './markdown';
+import { fromMarkdown, normalizeMarkdown, toMarkdown } from './markdown';
 import { splitByMaxRawSize } from './size';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
 import type { NodeRules, SplitterOptions } from './types';
 
 /**
- * Default rules for splitting nodes.
- * Links and images are never split by default.
+ * Default node rules:
+ * - Links
+ *   - Never split
+ *   - Normalize to inline style
+ * - Images
+ *   - Never split
+ *   - Normalize to inline style
  */
 export const defaultNodeRules: NodeRules = {
-  link: { split: 'never-split' },
-  image: { split: 'never-split' },
+  link: {
+    split: 'never-split',
+    style: 'inline',
+  },
+  image: {
+    split: 'never-split',
+    style: 'inline',
+  },
 };
 
 class Chunkdown implements NodeSplitter<Root> {
@@ -24,9 +35,9 @@ class Chunkdown implements NodeSplitter<Root> {
   }
 
   splitText(text: string): string[] {
-    const ast = fromMarkdown(text);
-    const chunks = this.splitter
-      .splitNode(ast)
+    const root = fromMarkdown(text);
+
+    const chunks = this.splitNode(root)
       .map((node) => toMarkdown(node).trim())
       .filter((chunk) => chunk.length > 0);
 
@@ -37,8 +48,9 @@ class Chunkdown implements NodeSplitter<Root> {
     return chunks;
   }
 
-  splitNode(node: Root): Array<Nodes> {
-    return this.splitter.splitNode(node);
+  splitNode(root: Root): Array<Nodes> {
+    const normalizedRoot = normalizeMarkdown(root, this.options);
+    return this.splitter.splitNode(normalizedRoot);
   }
 }
 

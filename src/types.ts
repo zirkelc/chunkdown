@@ -12,6 +12,20 @@ import type {
 
 type Formatting = Strong | Emphasis | Delete;
 
+/**
+ * Link style options
+ * - 'inline': Convert reference-style links to inline links
+ * - 'preserve': Keep original style
+ */
+export type LinkStyle = 'inline' | 'preserve';
+
+/**
+ * Image style options
+ * - 'inline': Convert reference-style images to inline images
+ * - 'preserve': Keep original style
+ */
+export type ImageStyle = 'inline' | 'preserve';
+
 type NodeRuleMap = {
   link: Link;
   image: Image;
@@ -55,7 +69,7 @@ export type SplitterOptions = {
 };
 
 /**
- * Node-specific rules for splitting
+ * Node-specific rules
  */
 export type NodeRules = {
   [K in keyof NodeRuleMap]?: NodeRule<
@@ -64,14 +78,54 @@ export type NodeRules = {
 };
 
 /**
- * Per-node rule for splitting
+ * Node-specific rule
  */
-export type NodeRule<NODE extends Nodes> = {
-  split?: SplitRule<NODE>;
-};
+export type NodeRule<NODE extends Nodes> = NODE extends Link
+  ? {
+      /**
+       * Split rule
+       * - 'never-split': Never split the node
+       * - 'allow-split': Allow splitting the node
+       * - 'size-split': Split the node if its content size exceeds a certain limit
+       */
+      split?: SplitRule<NODE>;
+      /**
+       * Normalize links
+       * - 'inline': Convert reference-style links to inline links
+       * - 'preserve': Keep original style
+       * - undefined: Keep original style
+       */
+      style?: LinkStyle;
+    }
+  : NODE extends Image
+    ? {
+        /**
+         * Split rule
+         * - 'never-split': Never split the node
+         * - 'allow-split': Allow splitting the node
+         * - 'size-split': Split the node if its content size exceeds a certain limit
+         */
+        split?: SplitRule<NODE>;
+        /**
+         * Normalize images
+         * - 'inline': Convert reference-style images to inline images
+         * - 'preserve': Keep original style
+         * - undefined: Keep original style
+         */
+        style?: ImageStyle;
+      }
+    : {
+        /**
+         * Split rule
+         * - 'never-split': Never split the node
+         * - 'allow-split': Allow splitting the node
+         * - 'size-split': Split the node if its content size exceeds a certain limit
+         */
+        split?: SplitRule<NODE>;
+      };
 
 /**
- * Complex rules for splitting
+ * Complex splitting rules
  */
 export type ComplexSplitRules = {
   [K in keyof NodeRuleMap]?: ComplexSplitRule<
@@ -88,14 +142,12 @@ export type SplitRule<NODE extends Nodes> =
   | ComplexSplitRule<NODE>;
 
 /**
- * Simple rules for splitting.
- * Shorthand for common cases.
+ * Simple splitting rule.
  */
 export type SimpleSplitRule = 'never-split' | 'allow-split';
 
 /**
- * Complex rules for splitting.
- * Conditional based on node type.
+ * Complex splitting rule.
  */
 export type ComplexSplitRule<NODE extends Nodes> =
   | NeverSplitRule<NODE>

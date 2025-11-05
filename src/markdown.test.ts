@@ -12,7 +12,19 @@ import type {
   Text,
 } from 'mdast';
 import { describe, expect, it } from 'vitest';
-import { fromMarkdown, toMarkdown, toString } from './markdown.js';
+import {
+  fromMarkdown,
+  normalizeMarkdown,
+  toMarkdown,
+  toString,
+} from './markdown';
+import type { SplitterOptions } from './types';
+
+function normalize(text: string, options: SplitterOptions): string {
+  const ast = fromMarkdown(text);
+  const normalized = normalizeMarkdown(ast, options);
+  return toMarkdown(normalized).trim();
+}
 
 describe('Markdown', () => {
   describe('toString', () => {
@@ -122,8 +134,10 @@ console.log('hello');
       expect(result).toContain("console.log('hello');");
     });
   });
+});
 
-  describe('Normalization', () => {
+describe('Normalization', () => {
+  describe('List Markers', () => {
     it('should normalize list markers', () => {
       const dashList = '- Item 1\n- Item 2';
       const asteriskList = '* Item 1\n* Item 2';
@@ -148,7 +162,9 @@ console.log('hello');
       expect(dashResult).toContain('* Item 1');
       expect(dashResult).toContain('* Item 2');
     });
+  });
 
+  describe('Formatting', () => {
     it('should normalize strong/bold formatting', () => {
       const doubleAsterisk = '**bold text**';
       const doubleUnderscore = '__bold text__';
@@ -202,7 +218,9 @@ console.log('hello');
       expect(asteriskResult).toBe(underscoreResult);
       expect(asteriskResult.trim()).toBe('*italic text*');
     });
+  });
 
+  describe('Headings', () => {
     it('should normalize heading formats', () => {
       const hashHeading = '# Heading 1';
       const underlineHeading = 'Heading 1\n=========';
@@ -226,7 +244,9 @@ console.log('hello');
       expect(hashResult).toBe(underlineResult);
       expect(hashResult.trim()).toBe('# Heading 1');
     });
+  });
 
+  describe('Code Blocks', () => {
     it('should normalize code block formatting', () => {
       const fencedCode = '```\ncode\n```';
       const indentedCode = '    code';
@@ -250,7 +270,9 @@ console.log('hello');
       expect(fencedResult).toBe(indentedResult);
       expect(fencedResult.trim()).toBe('```\ncode\n```');
     });
+  });
 
+  describe('Horizontal Rules', () => {
     it('should normalize horizontal rule formats', () => {
       const dashes = '---';
       const asterisks = '***';
@@ -273,6 +295,294 @@ console.log('hello');
       expect(dashResult).toBe(asteriskResult);
       expect(asteriskResult).toBe(underscoreResult);
       expect(dashResult.trim()).toBe('***');
+    });
+  });
+
+  describe('Reference Style', () => {
+    it('normalizes reference-style links when style is "inline"', () => {
+      const text = 'Check [this link][ref].\n\n[ref]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[this link](https://example.com)');
+      expect(result).not.toContain('[ref]:');
+    });
+
+    it('normalizes reference-style images when style is "inline"', () => {
+      const text = 'See ![image][img].\n\n[img]: /path/to/image.png';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { image: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('![image](/path/to/image.png)');
+      expect(result).not.toContain('[img]:');
+    });
+
+    it('preserves reference-style links when style is "preserve"', () => {
+      const text = 'Check [this link][ref].\n\n[ref]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'preserve' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[this link][ref]');
+      expect(result).toContain('[ref]: https://example.com');
+    });
+
+    it('preserves reference-style images when style is "preserve"', () => {
+      const text = 'See ![image][img].\n\n[img]: /path/to/image.png';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { image: { style: 'preserve' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('![image][img]');
+      expect(result).toContain('[img]: /path/to/image.png');
+    });
+
+    it('preserves reference-style links when style is undefined', () => {
+      const text = 'Check [this link][ref].\n\n[ref]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: undefined } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[this link][ref]');
+      expect(result).toContain('[ref]: https://example.com');
+    });
+
+    it('preserves reference-style images when style is undefined', () => {
+      const text = 'See ![image][img].\n\n[img]: /path/to/image.png';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { image: { style: undefined } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('![image][img]');
+      expect(result).toContain('[img]: /path/to/image.png');
+    });
+
+    it('preserves references when no rules specified', () => {
+      const text = 'Check [link][ref].\n\n[ref]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+      };
+      const result = normalize(text, options);
+
+      // Without rules, no normalization should happen
+      expect(result).toContain('[link][ref]');
+      expect(result).toContain('[ref]: https://example.com');
+    });
+
+    it('normalizes only links when configured (using preserve)', () => {
+      const text = `[Link][1] and ![Image][2]
+
+[1]: /link.html
+[2]: /image.png`;
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: {
+          link: { style: 'inline' },
+          image: { style: 'preserve' },
+        },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[Link](/link.html)');
+      expect(result).toContain('![Image][2]');
+      expect(result).toContain('[2]: /image.png');
+      expect(result).not.toContain('[1]:');
+    });
+
+    it('normalizes only images when configured (using preserve)', () => {
+      const text = `[Link][1] and ![Image][2]
+
+[1]: /link.html
+[2]: /image.png`;
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: {
+          link: { style: 'preserve' },
+          image: { style: 'inline' },
+        },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[Link][1]');
+      expect(result).toContain('![Image](/image.png)');
+      expect(result).toContain('[1]: /link.html');
+      expect(result).not.toContain('[2]:');
+    });
+
+    it('normalizes only links when configured (using undefined)', () => {
+      const text = `[Link][1] and ![Image][2]
+
+[1]: /link.html
+[2]: /image.png`;
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: {
+          link: { style: 'inline' },
+          image: { style: undefined },
+        },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[Link](/link.html)');
+      expect(result).toContain('![Image][2]');
+      expect(result).toContain('[2]: /image.png');
+      expect(result).not.toContain('[1]:');
+    });
+
+    it('normalizes only images when configured (using undefined)', () => {
+      const text = `[Link][1] and ![Image][2]
+
+[1]: /link.html
+[2]: /image.png`;
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: {
+          link: { style: undefined },
+          image: { style: 'inline' },
+        },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[Link][1]');
+      expect(result).toContain('![Image](/image.png)');
+      expect(result).toContain('[1]: /link.html');
+      expect(result).not.toContain('[2]:');
+    });
+
+    it('handles titles in reference definitions', () => {
+      const text =
+        'Check [link][ref].\n\n[ref]: https://example.com "Example Title"';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[link](https://example.com "Example Title")');
+    });
+
+    it('handles shortcut references', () => {
+      const text = 'Check [example].\n\n[example]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[example](https://example.com)');
+    });
+
+    it('handles collapsed references', () => {
+      const text = 'Check [example][].\n\n[example]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[example](https://example.com)');
+    });
+
+    it('handles case-insensitive reference identifiers', () => {
+      const text = 'Check [Link][REF].\n\n[ref]: https://example.com';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[Link](https://example.com)');
+    });
+
+    it('handles unused definitions when normalizing', () => {
+      const text = `Check [used][1].
+
+[1]: https://example.com
+[2]: https://unused.com`;
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[used](https://example.com)');
+      expect(result).not.toContain('[1]:');
+      // Unused definitions are preserved in the output
+      expect(result).toContain('[2]: https://unused.com');
+    });
+
+    it('handles reference without matching definition', () => {
+      const text = 'Check [link][missing].';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      // When definition is missing, markdown preserves the reference
+      // as-is since there's nothing to normalize
+      expect(result).toContain('Check');
+      expect(result).toContain('link');
+      expect(result).toContain('missing');
+    });
+
+    it('handles mixed inline and reference-style links', () => {
+      const text = `Check [inline](https://inline.com) and [reference][ref].
+
+[ref]: https://reference.com`;
+      const options: SplitterOptions = {
+        chunkSize: 200,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = normalize(text, options);
+
+      expect(result).toContain('[inline](https://inline.com)');
+      expect(result).toContain('[reference](https://reference.com)');
+      expect(result).not.toContain('[ref]:');
+    });
+
+    it('returns tree as-is when no normalization is needed', () => {
+      const text = 'Regular [inline link](https://example.com).';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+      };
+      const result = normalize(text, options);
+
+      // Tree should be unchanged
+      expect(result).toBe('Regular [inline link](https://example.com).');
     });
   });
 });
