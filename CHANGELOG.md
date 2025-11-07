@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/zirkelc/chunkdown/compare/v2.1.0...v2.2.0) (2025-11-07)
+
+
+### Features
+
+* apply node transformations ([b3c6500](https://github.com/zirkelc/chunkdown/commit/b3c6500b170bafa9d554c96bd596014286da60cb))
+
+
+### Bug Fixes
+
+* release please always update ([fa42aef](https://github.com/zirkelc/chunkdown/commit/fa42aef24b8b7d649956ad48653527948cbd4a50))
+
 ## [2.1.0](https://github.com/zirkelc/chunkdown/compare/v2.0.0...v2.1.0) (2025-11-05)
 
 
