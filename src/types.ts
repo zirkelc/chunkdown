@@ -6,6 +6,8 @@ import type {
   Link,
   List,
   Nodes,
+  Parent,
+  Root,
   Strong,
   Table,
 } from 'mdast';
@@ -69,6 +71,36 @@ export type SplitterOptions = {
 };
 
 /**
+ * Context provided to transform functions
+ */
+export type TransformContext = {
+  /**
+   * Parent node containing this node
+   */
+  parent?: Parent;
+  /**
+   * Index of this node in parent's children
+   */
+  index?: number;
+  /**
+   * Root node of the entire tree
+   */
+  root: Root;
+};
+
+/**
+ * Transform function for a specific node type.
+ * Returns:
+ * - Modified node to replace the original
+ * - null to remove the node
+ * - undefined to keep the node unchanged
+ */
+export type NodeTransform<NODE extends Nodes> = (
+  node: NODE,
+  context: TransformContext,
+) => NODE | null | undefined;
+
+/**
  * Node-specific rules
  */
 export type NodeRules = {
@@ -96,6 +128,10 @@ export type NodeRule<NODE extends Nodes> = NODE extends Link
        * - undefined: Keep original style
        */
       style?: LinkStyle;
+      /**
+       * Transform function to modify or filter link nodes
+       */
+      transform?: NodeTransform<NODE>;
     }
   : NODE extends Image
     ? {
@@ -113,6 +149,10 @@ export type NodeRule<NODE extends Nodes> = NODE extends Link
          * - undefined: Keep original style
          */
         style?: ImageStyle;
+        /**
+         * Transform function to modify or filter image nodes
+         */
+        transform?: NodeTransform<NODE>;
       }
     : {
         /**
@@ -122,6 +162,10 @@ export type NodeRule<NODE extends Nodes> = NODE extends Link
          * - 'size-split': Split the node if its content size exceeds a certain limit
          */
         split?: SplitRule<NODE>;
+        /**
+         * Transform function to modify or filter nodes
+         */
+        transform?: NodeTransform<NODE>;
       };
 
 /**

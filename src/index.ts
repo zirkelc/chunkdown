@@ -1,2 +1,8 @@
 export { chunkdown } from './chunkdown';
-export type { SplitterOptions } from './types';
+export type {
+  SplitterOptions,
+  NodeTransform,
+  TransformContext,
+  NodeRules,
+  NodeRule,
+} from './types';

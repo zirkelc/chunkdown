@@ -1,5 +1,5 @@
 import type { Nodes, Root } from 'mdast';
-import { fromMarkdown, normalizeMarkdown, toMarkdown } from './markdown';
+import { fromMarkdown, preprocessMarkdown, toMarkdown } from './markdown';
 import { splitByMaxRawSize } from './size';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
@@ -49,8 +49,8 @@ class Chunkdown implements NodeSplitter<Root> {
   }
 
   splitNode(root: Root): Array<Nodes> {
-    const normalizedRoot = normalizeMarkdown(root, this.options);
-    return this.splitter.splitNode(normalizedRoot);
+    const preparedRoot = preprocessMarkdown(root, this.options);
+    return this.splitter.splitNode(preparedRoot);
   }
 }
 

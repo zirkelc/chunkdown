@@ -14,15 +14,15 @@ import type {
 import { describe, expect, it } from 'vitest';
 import {
   fromMarkdown,
-  normalizeMarkdown,
+  preprocessMarkdown,
   toMarkdown,
   toString,
 } from './markdown';
 import type { SplitterOptions } from './types';
 
-function normalize(text: string, options: SplitterOptions): string {
+function markdown(text: string, options: SplitterOptions): string {
   const ast = fromMarkdown(text);
-  const normalized = normalizeMarkdown(ast, options);
+  const normalized = preprocessMarkdown(ast, options);
   return toMarkdown(normalized).trim();
 }
 
@@ -306,7 +306,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[this link](https://example.com)');
       expect(result).not.toContain('[ref]:');
@@ -319,7 +319,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { image: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('![image](/path/to/image.png)');
       expect(result).not.toContain('[img]:');
@@ -332,7 +332,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'preserve' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[this link][ref]');
       expect(result).toContain('[ref]: https://example.com');
@@ -345,7 +345,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { image: { style: 'preserve' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('![image][img]');
       expect(result).toContain('[img]: /path/to/image.png');
@@ -358,7 +358,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: undefined } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[this link][ref]');
       expect(result).toContain('[ref]: https://example.com');
@@ -371,7 +371,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { image: { style: undefined } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('![image][img]');
       expect(result).toContain('[img]: /path/to/image.png');
@@ -383,7 +383,7 @@ describe('Normalization', () => {
         chunkSize: 100,
         maxOverflowRatio: 2,
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       // Without rules, no normalization should happen
       expect(result).toContain('[link][ref]');
@@ -403,7 +403,7 @@ describe('Normalization', () => {
           image: { style: 'preserve' },
         },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[Link](/link.html)');
       expect(result).toContain('![Image][2]');
@@ -424,7 +424,7 @@ describe('Normalization', () => {
           image: { style: 'inline' },
         },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[Link][1]');
       expect(result).toContain('![Image](/image.png)');
@@ -445,7 +445,7 @@ describe('Normalization', () => {
           image: { style: undefined },
         },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[Link](/link.html)');
       expect(result).toContain('![Image][2]');
@@ -466,7 +466,7 @@ describe('Normalization', () => {
           image: { style: 'inline' },
         },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[Link][1]');
       expect(result).toContain('![Image](/image.png)');
@@ -482,7 +482,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[link](https://example.com "Example Title")');
     });
@@ -494,7 +494,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[example](https://example.com)');
     });
@@ -506,7 +506,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[example](https://example.com)');
     });
@@ -518,7 +518,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[Link](https://example.com)');
     });
@@ -533,7 +533,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[used](https://example.com)');
       expect(result).not.toContain('[1]:');
@@ -548,7 +548,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       // When definition is missing, markdown preserves the reference
       // as-is since there's nothing to normalize
@@ -566,7 +566,7 @@ describe('Normalization', () => {
         maxOverflowRatio: 2,
         rules: { link: { style: 'inline' } },
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       expect(result).toContain('[inline](https://inline.com)');
       expect(result).toContain('[reference](https://reference.com)');
@@ -579,10 +579,137 @@ describe('Normalization', () => {
         chunkSize: 100,
         maxOverflowRatio: 2,
       };
-      const result = normalize(text, options);
+      const result = markdown(text, options);
 
       // Tree should be unchanged
       expect(result).toBe('Regular [inline link](https://example.com).');
     });
+  });
+});
+
+describe('Transform', () => {
+  it('transforms nodes when transform returns modified node', () => {
+    const text =
+      'Visit [our site](https://example.com/very/long/path/to/page).';
+    const options: SplitterOptions = {
+      chunkSize: 100,
+      maxOverflowRatio: 2,
+      rules: {
+        link: {
+          transform: (node) => {
+            if (node.url.length > 30) {
+              return {
+                ...node,
+                url: 'https://example.com',
+              };
+            }
+            return undefined;
+          },
+        },
+      },
+    };
+    const result = markdown(text, options);
+
+    expect(result).toContain('[our site](https://example.com)');
+    expect(result).not.toContain('/very/long/path/to/page');
+  });
+
+  it('removes nodes when transform returns null', () => {
+    const text = `Check [docs](https://example.com) and [tracking](https://tracking.com/pixel).`;
+    const options: SplitterOptions = {
+      chunkSize: 100,
+      maxOverflowRatio: 2,
+      rules: {
+        link: {
+          transform: (node) => {
+            if (node.url.includes('tracking')) {
+              return null; // Remove tracking links
+            }
+            return undefined;
+          },
+        },
+      },
+    };
+    const result = markdown(text, options);
+
+    expect(result).toContain('[docs](https://example.com)');
+    expect(result).not.toContain('[tracking](https://tracking.com/pixel)');
+  });
+
+  it('leaves nodes unchanged when transform returns undefined', () => {
+    const text = 'Visit [our site](https://example.com).';
+    const options: SplitterOptions = {
+      chunkSize: 100,
+      maxOverflowRatio: 2,
+      rules: {
+        link: {
+          transform: (node) => {
+            return undefined;
+          },
+        },
+      },
+    };
+    const result = markdown(text, options);
+
+    expect(result).toContain('[our site](https://example.com)');
+  });
+
+  it('applies transforms after style normalization', () => {
+    const text =
+      'Check [reference][ref].\n\n[ref]: https://example.com/very/long/url';
+    const options: SplitterOptions = {
+      chunkSize: 100,
+      maxOverflowRatio: 2,
+      rules: {
+        link: {
+          style: 'inline', // First normalize to inline
+          transform: (node) => {
+            // Then truncate long URLs
+            if (node.url.length > 25) {
+              return {
+                ...node,
+                url: 'https://example.com/',
+              };
+            }
+            return undefined;
+          },
+        },
+      },
+    };
+    const result = markdown(text, options);
+
+    // Should be inline and truncated
+    expect(result).toContain('[reference](https://example.com/)');
+    expect(result).not.toContain('[ref]:');
+  });
+
+  it('handles multiple node type transforms', () => {
+    const text = `Visit [site](https://tracking.com) and see ![](https://cdn.com/img.jpg).`;
+    const options: SplitterOptions = {
+      chunkSize: 100,
+      maxOverflowRatio: 2,
+      rules: {
+        link: {
+          transform: (node) => {
+            if (node.url.includes('tracking')) {
+              return null; // Remove tracking links
+            }
+            return undefined;
+          },
+        },
+        image: {
+          transform: (node) => {
+            return {
+              ...node,
+              alt: 'alt text', // Add default alt text
+            };
+          },
+        },
+      },
+    };
+    const result = markdown(text, options);
+
+    expect(result).not.toContain('[site](https://tracking.com)');
+    expect(result).toContain('![alt text](https://cdn.com/img.jpg)');
   });
 });

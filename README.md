@@ -219,38 +219,6 @@ const chunks = splitter.splitText(text);
 // chunks[2]: "in the middle."
 ```
 
-#### Normalization
-
-Certain markdown elements such as formatting and lists have multiple representations. Chunkdown normalizes these element to ensure a uniform output regardless of input style variations.
-
-```typescript
-import { chunkdown } from 'chunkdown';
-
-const text = `
-formatting:
-__bold__
-_italic_
-
----
-
-lists:
-- list item 1
-- list item 2
-`;
-
-const splitter = chunkdown({
-  chunkSize: 100,
-});
-
-const chunks = splitter.splitText(text);
-// Markdown variations are normalized to:
-// - __bold__ → **bold**
-// - _italic_ → *italic*
-// - "---" → "***" (thematic break)
-// - list item 1 → * list item 1 (starting with "*")
-```
-
-
 #### Tables
 
 When a table is split into multiple chunks, Chunkdown automatically preserves context by including the header row in each chunk. This ensures that data rows don't lose their meaning when separated from the original header.
@@ -287,6 +255,117 @@ const chunks = splitter.splitText(text);
 // |----------|-----|---------|
 // | Charlie  | 35  | Canada  |
 // | David    | 40  | France  |
+```
+
+#### Normalization
+
+Certain markdown elements such as formatting and lists have multiple representations. Chunkdown normalizes these element to ensure a uniform output regardless of input style variations.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `
+formatting:
+__bold__
+_italic_
+
+---
+
+lists:
+- list item 1
+- list item 2
+`;
+
+const splitter = chunkdown({
+  chunkSize: 100,
+});
+
+const chunks = splitter.splitText(text);
+// Markdown variations are normalized to:
+// - __bold__ → **bold**
+// - _italic_ → *italic*
+// - "---" → "***" (thematic break)
+// - list item 1 → * list item 1 (starting with "*")
+```
+
+
+
+#### Transformation
+
+Transform functions allow you to modify or filter nodes during preprocessing. This is useful for cleaning up content before chunking, such as truncating long URLs or removing unwanted elements.
+
+##### Truncating Long URLs
+
+Prevent chunk bloat from excessively long URLs:
+
+```typescript
+const splitter = chunkdown({
+  chunkSize: 100,
+  rules: {
+    link: {
+      transform: (node) => {
+        // Truncate URLs longer than 100 characters
+        if (node.url.length > 50) {
+          return {
+            ...node,
+            url: node.url.substring(0, 47) + '...'
+          };
+        }
+        return undefined;
+      }
+    }
+  }
+});
+
+const text = `Check out our [website](https://example.com/with/a/very/long/url/that/increases/the/chunk/size/significantly).`;
+const chunks = splitter.splitText(text);
+// chunks[0]: "Check out our [website](https://example.com/with/a/very/long/url/that/incr...)."
+```
+
+##### Removing Data URLs
+
+[Data URLs](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data) in images (i.e. base64-encoded images) can be extremely long and create noise in chunks without meaningful content:
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `
+# Article
+
+![Screenshot](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAYAAAD0...)
+
+Check our [website](https://example.com) for more info.
+
+![Logo](https://cdn.example.com/logo.png)
+`;
+
+const splitter = chunkdown({
+  chunkSize: 500,
+  rules: {
+    image: {
+      transform: (node) => {
+        // Remove images with data URLs
+        if (node.url.startsWith('data:')) {
+          return null;  // Remove the entire image node
+        }
+        return undefined; // Keep regular images
+      }
+    }
+  }
+});
+
+const text = `
+# Article
+
+![Screenshot](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAYAAAD0...)
+
+Check our [website](https://example.com) for more info.
+`;
+const chunks = splitter.splitText(text);
+// chunks[0]: 
+// # Article
+//
+// Check our [website](https://example.com) for more info.
 ```
 
 ## API Reference
@@ -330,7 +409,7 @@ Configure splitting behavior for specific markdown node types. Rules allow fine-
 > [!NOTE]
 > The `formatting` rule applies to all formatting elements (`strong`, `emphasis`, `delete`) unless you override them individually. 
 
-**Split rules:**
+##### Split 
 
 Each node type can have a `split` rule:
 
@@ -338,14 +417,28 @@ Each node type can have a `split` rule:
 - `'allow-split' | { rule: 'allow-split' }`: Allow splitting this element if it exceeds the chunk size
 - `{ rule: 'size-split', size: number }`: Only split this element if its content size exceeds the specified size
 
-**Style rules:**
+##### Style
 
 Links and images support an additional `style` property to control reference-style normalization:
 
 - `'inline'`: Convert reference-style to inline style
 - `'preserve'`: Keep original reference style
 
-**Examples:**
+##### Transform
+
+Each node type can have a `transform` function to modify or filter nodes:
+
+```typescript
+type NodeTransform<T extends Nodes> = (node: T, context: TransformContext) => T | null | undefined;
+```
+
+- Return modified node: Replace the original with transformed version
+- Return `null`: Remove the node from the tree
+- Return `undefined`: Keep the node unchanged
+
+The transform receives a context with parent, index, and root information. Transforms are applied during preprocessing, after reference-style normalization but before chunking.
+
+##### Examples
 
 ```typescript
 import { chunkdown, defaultNodeRules } from 'chunkdown';
@@ -393,6 +486,31 @@ chunkdown({
   rules: {
     link: { style: 'inline' },
     image: { style: 'preserve' }
+  }
+});
+
+// Remove data URLs and truncate long links
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    image: {
+      transform: (node) => {
+        // Remove images with data URLs
+        if (node.url.startsWith('data:')) {
+          return null;
+        }
+        return undefined;
+      }
+    },
+    link: {
+      transform: (node) => {
+        // Truncate long URLs
+        if (node.url.length > 100) {
+          return { ...node, url: node.url.substring(0, 100) + '...' };
+        }
+        return undefined;
+      }
+    }
   }
 });
 ```
@@ -526,13 +644,4 @@ await db
   })));
 ```
 
-### Remove Extra Long URLs
 
-If a link's or image's URL is very long (e.g. > 2048 chars), it usually means it contains some kind of state. For example, an image could be have [data URL](https://developer.mozilla.org/en-US/docs/Web/URI/Reference/Schemes/data) of a base64 encoded image:
-
-```markdown 
-![alt text](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAoAAAAHgCAYAAAD0...)
-```
-
-This will create many useless chunks without any meaningful content.
-The splitter could detect such URLs and remove them from the chunk, keeping only the alt text or link text.

@@ -16,7 +16,12 @@ import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
 import { toMarkdown as mdastToMarkdown } from 'mdast-util-to-markdown';
 import { gfm } from 'micromark-extension-gfm';
 import { visit } from 'unist-util-visit';
-import type { SplitterOptions } from './types';
+import type {
+  NodeRules,
+  NodeTransform,
+  SplitterOptions,
+  TransformContext,
+} from './types';
 
 export { toString } from 'mdast-util-to-string';
 
@@ -44,114 +49,165 @@ export const toMarkdown = (tree: Nodes): string => {
 };
 
 /**
- * Normalize a markdown tree based on the provided splitter options.
+ * Apply transform functions to nodes in the tree based on configured rules.
+ * Transforms are applied in a single pass through the tree.
  */
-export function normalizeMarkdown(tree: Root, options: SplitterOptions): Root {
-  // Check if reference normalization is needed
-  const linkRule = options.rules?.link;
-  const imageRule = options.rules?.image;
+function applyTransformations(tree: Root, rules: NodeRules): Root {
+  // Collect transforms that are defined (filter out undefined transforms)
+  const transformerMap = new Map<string, NodeTransform<any>>();
 
-  const shouldNormalizeLinks = linkRule?.style === 'inline';
-  const shouldNormalizeImages = imageRule?.style === 'inline';
+  for (const [type, rule] of Object.entries(rules)) {
+    if (rule?.transform) {
+      transformerMap.set(type, rule.transform);
+    }
+  }
 
-  // If no normalizations are needed, return tree as-is
-  if (!shouldNormalizeLinks && !shouldNormalizeImages) {
+  // If no transforms are defined, return the tree as-is
+  if (transformerMap.size === 0) {
     return tree;
   }
 
-  // Apply reference normalization
-  return normalizeReferences(tree, {
-    links: shouldNormalizeLinks ?? false,
-    images: shouldNormalizeImages ?? false,
+  // If formatting transform is defined, add it to strong, emphasis, and delete
+  if (transformerMap.has('formatting')) {
+    const formatting = transformerMap.get('formatting')!;
+    transformerMap.set('strong', transformerMap.get('strong') ?? formatting);
+    transformerMap.set(
+      'emphasis',
+      transformerMap.get('emphasis') ?? formatting,
+    );
+    transformerMap.set('delete', transformerMap.get('delete') ?? formatting);
+    transformerMap.delete('formatting');
+  }
+
+  const nodes = Array.from(transformerMap.keys());
+
+  // Apply transforms using visit
+  visit(tree, nodes, (node, index, parent) => {
+    // Check if we have a transform for this node type
+    const transform = transformerMap.get(node.type);
+
+    if (transform && parent && typeof index === 'number') {
+      // Create context
+      const context: TransformContext = {
+        parent,
+        index,
+        root: tree,
+      };
+
+      // Apply transform
+      const result = transform(node as any, context);
+
+      if (result) {
+        // Replace the node with the transformed version
+        parent.children[index] = result;
+      }
+
+      if (result === null) {
+        // Remove the node directly
+        parent.children.splice(index, 1);
+        // Return index to re-visit this position since we removed a node
+        return index;
+      }
+
+      // undefined means keep the node unchanged
+    }
   });
+
+  return tree;
 }
 
 /**
- * Options for normalizing reference-style links and images
+ * Preprocess a markdown tree based on the provided splitter options.
  */
-interface NormalizeReferencesOptions {
-  /**
-   * Whether to normalize reference-style links to inline links
-   */
-  links: boolean;
-  /**
-   * Whether to normalize reference-style images to inline images
-   */
-  images: boolean;
+export function preprocessMarkdown(tree: Root, options: SplitterOptions): Root {
+  // Make a mutable copy of the tree for transformations
+  let normalizedTree = tree;
+
+  if (options.rules) {
+    // Apply reference normalization first
+    normalizedTree = normalizeReferences(normalizedTree, options.rules);
+
+    // Apply transforms after style normalization
+    normalizedTree = applyTransformations(normalizedTree, options.rules);
+  }
+
+  return normalizedTree;
 }
 
 /**
  * Normalize reference-style links and images to inline style.
- *
- * This function:
- * 1. Collects all definition nodes (link/image reference definitions)
- * 2. Transforms linkReference nodes into link nodes
- * 3. Transforms imageReference nodes into image nodes
- * 4. Removes definition nodes from the tree
- *
- * @param tree - The mdast tree to normalize
- * @param options - Options to control which references to normalize
- * @returns The normalized tree
  */
-function normalizeReferences(
-  tree: Root,
-  options: NormalizeReferencesOptions,
-): Root {
-  // Step 1: Collect all definitions into a map
+function normalizeReferences(tree: Root, rules: NodeRules): Root {
+  // Build array of node types to visit based on options
+  const nodeTypes: string[] = [];
+  if (rules.link?.style === 'inline') nodeTypes.push('linkReference');
+  if (rules.image?.style === 'inline') nodeTypes.push('imageReference');
+
+  if (nodeTypes.length === 0) {
+    // If nothing to normalize, return early
+    return tree;
+  }
+
+  // Collect all definitions into a map
   const definitions = new Map<string, Definition>();
 
-  visit(tree, 'definition', (node: Definition) => {
+  visit(tree, 'definition', (node) => {
     // Identifiers are case-insensitive per CommonMark spec
     const id = node.identifier.toLowerCase();
     definitions.set(id, node);
   });
 
+  if (definitions.size === 0) {
+    // If no definitions found, nothing to normalize
+    return tree;
+  }
+
   // Track which definitions are used for normalization
   const usedDefinitions = new Set<string>();
 
-  // Step 2: Transform linkReference -> link
-  if (options.links) {
-    visit(tree, 'linkReference', (node: LinkReference, index, parent) => {
-      const id = node.identifier.toLowerCase();
+  // Single visit for all reference transformations
+  visit(tree, nodeTypes, (node, index, parent) => {
+    if (!parent || typeof index !== 'number') return;
+
+    // Type guard to ensure we have a reference node
+    if (node.type === 'linkReference') {
+      const linkRef = node as LinkReference;
+      const id = linkRef.identifier.toLowerCase();
       const def = definitions.get(id);
 
-      if (def && parent && typeof index === 'number') {
+      if (def && rules.link?.style === 'inline') {
         const link: Link = {
           type: 'link',
           url: def.url,
           title: def.title,
-          children: node.children,
-          position: node.position,
+          children: linkRef.children,
+          position: linkRef.position,
         };
-        (parent as Parent).children[index] = link;
+        parent.children[index] = link;
         usedDefinitions.add(id);
       }
-    });
-  }
-
-  // Step 3: Transform imageReference -> image
-  if (options.images) {
-    visit(tree, 'imageReference', (node: ImageReference, index, parent) => {
-      const id = node.identifier.toLowerCase();
+    } else if (node.type === 'imageReference') {
+      const imageRef = node as ImageReference;
+      const id = imageRef.identifier.toLowerCase();
       const def = definitions.get(id);
 
-      if (def && parent && typeof index === 'number') {
+      if (def && rules.image?.style === 'inline') {
         const image: Image = {
           type: 'image',
           url: def.url,
           title: def.title,
-          alt: node.alt,
-          position: node.position,
+          alt: imageRef.alt,
+          position: imageRef.position,
         };
-        (parent as Parent).children[index] = image;
+        parent.children[index] = image;
         usedDefinitions.add(id);
       }
-    });
-  }
+    }
+  });
 
-  // Step 4: Remove definition nodes that were used for normalization
-  // Only remove definitions that we actually normalized
   if (usedDefinitions.size > 0) {
+    // Remove definition nodes that were used for normalization
+    // Only remove definitions that we actually normalized
     tree.children = tree.children.filter((node) => {
       if (node.type !== 'definition') return true;
       const id = node.identifier.toLowerCase();
