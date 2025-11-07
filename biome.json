@@ -22,7 +22,8 @@
         "noShadowRestrictedNames": "off"
       },
       "correctness": {
-        "useUniqueElementIds": "warn"
+        "useUniqueElementIds": "warn",
+        "noUnusedVariables": "off"
       },
       "a11y": {
         "noStaticElementInteractions": "off"
