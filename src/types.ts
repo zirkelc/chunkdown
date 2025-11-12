@@ -15,6 +15,21 @@ import type {
 type Formatting = Strong | Emphasis | Delete;
 
 /**
+ * Mapping of node type names to their corresponding mdast node types.
+ */
+type NodeTypes = {
+  link: Link;
+  image: Image;
+  strong: Strong;
+  emphasis: Emphasis;
+  delete: Delete;
+  formatting: Formatting;
+  list: List;
+  table: Table;
+  blockquote: Blockquote;
+};
+
+/**
  * Link style options
  * - 'inline': Convert reference-style links to inline links
  * - 'preserve': Keep original style
@@ -27,18 +42,6 @@ export type LinkStyle = 'inline' | 'preserve';
  * - 'preserve': Keep original style
  */
 export type ImageStyle = 'inline' | 'preserve';
-
-type NodeRuleMap = {
-  link: Link;
-  image: Image;
-  strong: Strong;
-  emphasis: Emphasis;
-  delete: Delete;
-  formatting: Formatting;
-  list: List;
-  table: Table;
-  blockquote: Blockquote;
-};
 
 export type SplitterOptions = {
   /**
@@ -62,9 +65,8 @@ export type SplitterOptions = {
    * If undefined, defaults to chunkSize * maxOverflowRatio * 4 for reasonable safety.
    */
   maxRawSize?: number;
-
   /**
-   * Optional rules for splitting nodes.
+   * Optional rules for nodes.
    * Can be configured for specific node types.
    */
   rules?: Partial<NodeRules>;
@@ -104,8 +106,8 @@ export type NodeTransform<NODE extends Nodes> = (
  * Node-specific rules
  */
 export type NodeRules = {
-  [K in keyof NodeRuleMap]?: NodeRule<
-    NodeRuleMap[K] extends Nodes ? NodeRuleMap[K] : never
+  [K in keyof NodeTypes]?: NodeRule<
+    NodeTypes[K] extends Nodes ? NodeTypes[K] : never
   >;
 };
 
@@ -172,8 +174,8 @@ export type NodeRule<NODE extends Nodes> = NODE extends Link
  * Complex splitting rules
  */
 export type ComplexSplitRules = {
-  [K in keyof NodeRuleMap]?: ComplexSplitRule<
-    NodeRuleMap[K] extends Nodes ? NodeRuleMap[K] : never
+  [K in keyof NodeTypes]?: ComplexSplitRule<
+    NodeTypes[K] extends Nodes ? NodeTypes[K] : never
   >;
 };
 
