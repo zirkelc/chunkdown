@@ -74,7 +74,7 @@ describe('Markdown', () => {
 
       const result = toMarkdown(ast);
       expect(result).toContain('| Header 1 | Header 2 |');
-      expect(result).toContain('| Cell 1   | Cell 2   |');
+      expect(result).toContain('| Cell 1 | Cell 2 |');
     });
 
     it('should handle task lists', () => {

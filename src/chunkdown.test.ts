@@ -303,7 +303,7 @@ This is a paragraph after the table.`;
 
         expect(chunks).toEqual([
           'This is a paragraph before the table.',
-          '| Column 1 | Column 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |',
+          '| Column 1 | Column 2 |\n| - | - |\n| Cell 1 | Cell 2 |',
           'This is a paragraph after the table.',
         ]);
       });
@@ -866,14 +866,14 @@ Here's a sentence with a footnote[^1].
               "## Tables (GFM)
 
             | Left Aligned | Center Aligned | Right Aligned |
-            | :----------- | :------------: | ------------: |
-            | Cell 1       |     Cell 2     |        Cell 3 |
-            | Long cell    |      Short     |           123 |
+            | :- | :-: | -: |
+            | Cell 1 | Cell 2 | Cell 3 |
+            | Long cell | Short | 123 |
 
-            | Command    | Description                  |
-            | ---------- | ---------------------------- |
-            | git status | Show working tree status     |
-            | git diff   | Show changes between commits |",
+            | Command | Description |
+            | - | - |
+            | git status | Show working tree status |
+            | git diff | Show changes between commits |",
               "## Blockquotes
 
             > Simple blockquote
@@ -945,12 +945,12 @@ Here's a sentence with a footnote[^1].
                > with multiple lines",
               "### Table with Complex Content
 
-            | Element | Syntax Variants          | Example                        |
-            | ------- | ------------------------ | ------------------------------ |
-            | Bold    | \`**text**\` or \`__text__\` | **bold** and **bold**          |
-            | Italic  | \`*text*\` or \`_text_\`     | *italic* and *italic*          |
-            | Code    | \`\\\`text\\\`\\\`              | \`code\`                         |
-            | Link    | \`[text](url)\`            | [example](https://example.com) |",
+            | Element | Syntax Variants | Example |
+            | - | - | - |
+            | Bold | \`**text**\` or \`__text__\` | **bold** and **bold** |
+            | Italic | \`*text*\` or \`_text_\` | *italic* and *italic* |
+            | Code | \`\\\`text\\\`\\\` | \`code\` |
+            | Link | \`[text](url)\` | [example](https://example.com) |",
               "## Edge Cases
 
             Empty lines:
@@ -1100,14 +1100,14 @@ Here's a sentence with a footnote[^1].
               "## Tables (GFM)
 
             | Left Aligned | Center Aligned | Right Aligned |
-            | :----------- | :------------: | ------------: |
-            | Cell 1       |     Cell 2     |        Cell 3 |
-            | Long cell    |      Short     |           123 |
+            | :- | :-: | -: |
+            | Cell 1 | Cell 2 | Cell 3 |
+            | Long cell | Short | 123 |
 
-            | Command    | Description                  |
-            | ---------- | ---------------------------- |
-            | git status | Show working tree status     |
-            | git diff   | Show changes between commits |",
+            | Command | Description |
+            | - | - |
+            | git status | Show working tree status |
+            | git diff | Show changes between commits |",
               "## Blockquotes
 
             > Simple blockquote
@@ -1181,12 +1181,12 @@ Here's a sentence with a footnote[^1].
                > with multiple lines",
               "### Table with Complex Content
 
-            | Element | Syntax Variants          | Example                        |
-            | ------- | ------------------------ | ------------------------------ |
-            | Bold    | \`**text**\` or \`__text__\` | **bold** and **bold**          |
-            | Italic  | \`*text*\` or \`_text_\`     | *italic* and *italic*          |
-            | Code    | \`\\\`text\\\`\\\`              | \`code\`                         |
-            | Link    | \`[text](url)\`            | [example](https://example.com) |",
+            | Element | Syntax Variants | Example |
+            | - | - | - |
+            | Bold | \`**text**\` or \`__text__\` | **bold** and **bold** |
+            | Italic | \`*text*\` or \`_text_\` | *italic* and *italic* |
+            | Code | \`\\\`text\\\`\\\` | \`code\` |
+            | Link | \`[text](url)\` | [example](https://example.com) |",
               "## Edge Cases
 
             Empty lines:
