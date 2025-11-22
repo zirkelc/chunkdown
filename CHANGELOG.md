@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/zirkelc/chunkdown/compare/v2.2.0...v2.3.0) (2025-11-22)
+
+
+### Features
+
+* add getters for chunk size, max overflow ratio, and max raw size ([c183735](https://github.com/zirkelc/chunkdown/commit/c18373562a48d1636eac0ecc82ab5ab1b46af7d7))
+
 ## [2.2.0](https://github.com/zirkelc/chunkdown/compare/v2.1.0...v2.2.0) (2025-11-07)
 
 
