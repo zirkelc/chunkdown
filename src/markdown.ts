@@ -38,14 +38,20 @@ declare module 'mdast' {
 export const fromMarkdown = (value: Value): Root => {
   return mdastFromMarkdown(value, {
     extensions: [gfm()],
-    mdastExtensions: [gfmFromMarkdown()],
+
+    mdastExtensions: [
+      // https://github.com/syntax-tree/mdast-util-gfm-table
+      gfmFromMarkdown(),
+    ],
   });
 };
 
 export const toMarkdown = (tree: Nodes): string => {
   return mdastToMarkdown(tree, {
     extensions: [
+      // https://github.com/syntax-tree/mdast-util-gfm-table
       gfmToMarkdown({
+        // Disable delimiter alignment in tables to save useless characters
         tablePipeAlign: false,
       }),
     ],

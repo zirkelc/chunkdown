@@ -244,18 +244,20 @@ const text = `
 `;
 
 const chunks = splitter.splitText(text);
-// chunks[0]: 
-// | Name     | Age | Country |
-// |----------|-----|---------|
-// | Alice    | 30  | USA     |
-// | Bob      | 25  | UK      |
+// chunks[0]:
+// | Name | Age | Country |
+// | - | - | - |
+// | Alice | 30 | USA |
+// | Bob | 25 | UK |
 
 // chunks[1]:
-// | Name     | Age | Country |
-// |----------|-----|---------|
-// | Charlie  | 35  | Canada  |
-// | David    | 40  | France  |
+// | Name | Age | Country |
+// | - | - | - |
+// | Charlie | 35 | Canada |
+// | David | 40 | France |
 ```
+
+Tables are serialized into markdown using the [GFM table extension](https://github.com/syntax-tree/mdast-util-gfm-table) with the `tablePipeAlign` option set to `false`. That means table cells will not be filled with `-`and whitespaces to align the columns vertically, saving many useless characters when embedding the chunks.
 
 #### Normalization
 
