@@ -44,7 +44,11 @@ export const fromMarkdown = (value: Value): Root => {
 
 export const toMarkdown = (tree: Nodes): string => {
   return mdastToMarkdown(tree, {
-    extensions: [gfmToMarkdown()],
+    extensions: [
+      gfmToMarkdown({
+        tablePipeAlign: false,
+      }),
+    ],
   });
 };
 
