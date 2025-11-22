@@ -376,8 +376,16 @@ Creates a new markdown splitter instance.
 
 #### Returns
 
-An object with the following method:
+An object with the following methods and properties:
+
+**Methods:**
 - `splitText(text: string): string[]`: Splits the input markdown text into chunks
+- `splitNode(root: Root): Array<Nodes>`: Splits a markdown AST root node into an array of AST nodes
+
+**Properties (readonly):**
+- `chunkSize: number`: The configured target chunk size
+- `maxOverflowRatio: number`: The configured maximum overflow ratio
+- `maxRawSize: number | undefined`: The configured maximum raw size (if set)
 
 #### Options
 
