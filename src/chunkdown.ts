@@ -34,6 +34,18 @@ class Chunkdown implements NodeSplitter<Root> {
     this.splitter = new TreeSplitter(this.options);
   }
 
+  get chunkSize(): number {
+    return this.options.chunkSize;
+  }
+
+  get maxOverflowRatio(): number {
+    return this.options.maxOverflowRatio;
+  }
+
+  get maxRawSize(): number | undefined {
+    return this.options.maxRawSize;
+  }
+
   splitText(text: string): string[] {
     const root = fromMarkdown(text);
 
