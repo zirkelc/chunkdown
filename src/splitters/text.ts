@@ -130,7 +130,10 @@ export class TextSplitter extends AbstractNodeSplitter {
 
   splitNode(node: Nodes): Nodes[] {
     const text = toMarkdown(node);
-    const protectedRanges = this.extractProtectedRangesFromAST(node);
+    // Parse the markdown text to get correct position offsets for this text
+    // the original node has offsets relative to its source document, not to this text
+    const ast = fromMarkdown(text);
+    const protectedRanges = this.extractProtectedRangesFromAST(ast);
     const boundaries = this.extractSemanticBoundaries(text, protectedRanges);
 
     const nodes: Nodes[] = [];

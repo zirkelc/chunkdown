@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { fromMarkdown, toMarkdown } from '../markdown';
 import { TextSplitter } from './text';
 
 describe('TextSplitter', () => {
@@ -565,6 +566,78 @@ describe('TextSplitter', () => {
           chunk.includes('![architecture](./architecture.png)'),
         );
         expect(imageChunk).toBeDefined();
+      });
+    });
+
+    describe('Regression: Offset Mismatch Bug', () => {
+      it('should not split links when processing nodes from hierarchical AST', () => {
+        // This test reproduces the bug where links were split because
+        // protected ranges were extracted from the original AST (with document-relative offsets)
+        // but used with the converted markdown text (with string-relative offsets starting at 0)
+        //
+        // The bug only manifests when splitting a NODE (not text), because:
+        // 1. The node comes from a parsed document with position offsets relative to the full document
+        // 2. toMarkdown(node) creates a new string starting at offset 0
+        // 3. extractProtectedRangesFromAST(node) returns ranges with the ORIGINAL offsets
+        // 4. These mismatched offsets cause the protection mechanism to fail
+        const text = `## AI SDK Core Functions
+
+AI SDK Core has various functions designed for [text generation](./generating-text), [structured data generation](./generating-structured-data), and [tool usage](./tools-and-tool-calling).
+These functions take a standardized approach to setting up [prompts](./prompts) and [settings](./settings), making it easier to work with different models.`;
+
+        const splitter = new TextSplitter({
+          chunkSize: 100,
+          maxOverflowRatio: 1.0,
+          rules: {
+            link: { split: 'never-split', style: 'inline' },
+            image: { split: 'never-split', style: 'inline' },
+          },
+        });
+
+        // Parse the text to get an AST
+        const ast = fromMarkdown(text);
+
+        // Get the paragraph node (this simulates what TreeSplitter does)
+        // The paragraph has position offsets relative to the full document
+        const paragraph = ast.children[1];
+        expect(paragraph.type).toBe('paragraph');
+
+        // Split the paragraph node (not text!)
+        const chunks = splitter.splitNode(paragraph);
+
+        // Convert chunks back to markdown strings
+        const chunkStrings = chunks.map((chunk) => toMarkdown(chunk).trim());
+
+        // Verify that no chunk contains escaped brackets (indicating a split link)
+        for (const chunk of chunkStrings) {
+          expect(chunk).not.toMatch(/\\\[/); // Should not have escaped opening bracket
+          expect(chunk).not.toMatch(/\]\\\(/); // Should not have escaped opening paren
+        }
+
+        // Verify that all complete links are preserved
+        const allLinks = [
+          '[text generation](./generating-text)',
+          '[structured data generation](./generating-structured-data)',
+          '[tool usage](./tools-and-tool-calling)',
+          '[prompts](./prompts)',
+          '[settings](./settings)',
+        ];
+
+        for (const link of allLinks) {
+          const foundInChunk = chunkStrings.some((chunk) =>
+            chunk.includes(link),
+          );
+          expect(foundInChunk).toBe(true);
+        }
+
+        // Verify we don't have malformed short chunks like "(." or "\[prompts]"
+        for (const chunk of chunkStrings) {
+          const trimmed = chunk.trim();
+          // No chunk should be just punctuation or very short malformed fragments
+          if (trimmed.length < 5 && trimmed.length > 0) {
+            expect(trimmed).not.toMatch(/^[(.\\[\]]+$/);
+          }
+        }
       });
     });
   });
