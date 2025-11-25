@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.1](https://github.com/zirkelc/chunkdown/compare/v2.4.0...v2.4.1) (2025-11-25)
+
+
+### Bug Fixes
+
+* protected ranges ([1d5f81f](https://github.com/zirkelc/chunkdown/commit/1d5f81f2350cf9f860fedb1f2e9341fb2835d691))
+
 ## [2.4.0](https://github.com/zirkelc/chunkdown/compare/v2.3.0...v2.4.0) (2025-11-22)
 
 
