@@ -24,10 +24,10 @@ First sentence. Second sentence.`;
 
       const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(3);
+      expect(chunks.length).toBe(2);
       expect(chunks[0].startsWith('# Section 1')).toBe(true);
-      expect(chunks[1]).toBe(THEMATIC_BREAK);
-      expect(chunks[2].startsWith('# Section 2')).toBe(true);
+      expect(chunks[0].endsWith(THEMATIC_BREAK)).toBe(true);
+      expect(chunks[1].startsWith('# Section 2')).toBe(true);
     });
 
     it('should split by sections', () => {

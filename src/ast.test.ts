@@ -135,38 +135,40 @@ describe('createHierarchicalAST', () => {
     expect(result.children.length).toBe(2);
 
     const section = getSection(result, [0]);
-    expect(section.children.length).toBe(1); // only content before break
+    expect(section.children.length).toBe(2); // content before break + thematic break
+    expect(section.children[0].type).toBe('paragraph');
+    expect(section.children[1].type).toBe('thematicBreak');
 
-    // Thematic break and content after it are wrapped in an orphaned section
+    // Content after thematic break is wrapped in an orphaned section
     const orphanedSection = result.children[1] as Section;
     expect(isSection(orphanedSection)).toBe(true);
     expect(orphanedSection.depth).toBe(0);
     expect(orphanedSection.heading).toBeUndefined();
-    expect(orphanedSection.children.length).toBe(2); // thematicBreak + paragraph
-    expect(orphanedSection.children[0].type).toBe('thematicBreak');
-    expect(orphanedSection.children[1].type).toBe('paragraph');
+    expect(orphanedSection.children.length).toBe(1); // paragraph after break
+    expect(orphanedSection.children[0].type).toBe('paragraph');
   });
 
   it('handles multiple thematic breaks', () => {
     const result = createAST(
       '# Title\n\nContent.\n\n---\n\nMiddle.\n\n---\n\nEnd.',
     );
-    expect(result.children.length).toBe(2); // section + orphaned section with breaks
+    expect(result.children.length).toBe(2); // section + orphaned section
 
-    // First section with content before first break
+    // First section with content before first break + the first thematic break
     const section = getSection(result, [0]);
-    expect(section.children.length).toBe(1); // just the content paragraph
+    expect(section.children.length).toBe(2); // paragraph + thematic break
+    expect(section.children[0].type).toBe('paragraph');
+    expect(section.children[1].type).toBe('thematicBreak');
 
-    // All content after first break (including breaks and paragraphs) wrapped in orphaned section
+    // Content after first break wrapped in orphaned section
     const orphanedSection = result.children[1] as Section;
     expect(isSection(orphanedSection)).toBe(true);
     expect(orphanedSection.depth).toBe(0);
     expect(orphanedSection.heading).toBeUndefined();
-    expect(orphanedSection.children.length).toBe(4); // break, paragraph, break, paragraph
-    expect(orphanedSection.children[0].type).toBe('thematicBreak');
-    expect(orphanedSection.children[1].type).toBe('paragraph');
-    expect(orphanedSection.children[2].type).toBe('thematicBreak');
-    expect(orphanedSection.children[3].type).toBe('paragraph');
+    expect(orphanedSection.children.length).toBe(3); // paragraph, thematic break, paragraph
+    expect(orphanedSection.children[0].type).toBe('paragraph');
+    expect(orphanedSection.children[1].type).toBe('thematicBreak');
+    expect(orphanedSection.children[2].type).toBe('paragraph');
   });
 
   it('handles empty sections', () => {

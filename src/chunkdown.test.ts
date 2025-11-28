@@ -892,10 +892,10 @@ Here's a sentence with a footnote[^1].
             > > This is nested
             > >
             > > > And this is deeply nested",
-              "## Horizontal Rules (3 variants)",
-              "***
+              "## Horizontal Rules (3 variants)
 
-            ***
+            ***",
+              "***
 
             ***",
               "## Line Breaks
@@ -965,10 +965,10 @@ Here's a sentence with a footnote[^1].
               "Footnotes (if supported):
             Here's a sentence with a footnote[^1].
 
-            [^1]: This is the footnote content.",
-              "***
+            [^1]: This is the footnote content.
 
-            *This document showcases most markdown elements and syntax variations.*",
+            ***",
+              "*This document showcases most markdown elements and syntax variations.*",
             ]
           `);
 
@@ -1127,10 +1127,10 @@ Here's a sentence with a footnote[^1].
             > >
             > > > And this is deeply nested
 
-            ## Horizontal Rules (3 variants)",
-              "***
+            ## Horizontal Rules (3 variants)
 
-            ***
+            ***",
+              "***
 
             ***",
               "## Line Breaks
@@ -1202,10 +1202,10 @@ Here's a sentence with a footnote[^1].
             Footnotes (if supported):
             Here's a sentence with a footnote[^1].
 
-            [^1]: This is the footnote content.",
-              "***
+            [^1]: This is the footnote content.
 
-            *This document showcases most markdown elements and syntax variations.*",
+            ***",
+              "*This document showcases most markdown elements and syntax variations.*",
             ]
           `);
 

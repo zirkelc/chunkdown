@@ -73,9 +73,11 @@ export const createHierarchicalAST = (root: Root): HierarchicalRoot => {
 
           if (nextNode.type === 'thematicBreak') {
             /**
-             * Found a thematic break - stop collecting content for this section
-             * Thematic break will be handled as standalone content
+             * Found a thematic break - include it at the end of this section
+             * The thematic break logically closes the section
              */
+            section.children.push(nextNode);
+            i++;
             break;
           }
 
@@ -96,15 +98,9 @@ export const createHierarchicalAST = (root: Root): HierarchicalRoot => {
         section.children = transform(contentNodes);
 
         result.push(section);
-      } else if (node.type === 'thematicBreak') {
-        /**
-         * Thematic breaks are standalone content that act as section boundaries
-         */
-        result.push(node);
-        i++;
       } else {
         /**
-         * Regular non-heading content
+         * Regular non-heading content (including orphaned thematic breaks)
          */
         result.push(node);
         i++;
