@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.2](https://github.com/zirkelc/chunkdown/compare/v2.4.1...v2.4.2) (2025-11-28)
+
+
+### Bug Fixes
+
+* append thematic breaks to section as closing node ([e03cbdd](https://github.com/zirkelc/chunkdown/commit/e03cbdd76a0cf766df5aa241af2dd74308222c71))
+
 ## [2.4.1](https://github.com/zirkelc/chunkdown/compare/v2.4.0...v2.4.1) (2025-11-25)
 
 
