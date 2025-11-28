@@ -16,9 +16,9 @@ Chunkdown is built around a few core ideas that guide its design:
 
 A properly structured markdown document forms a hierarchical tree where headings define sections containing various nodes (paragraphs, lists, tables, etc.). We parse markdown into an Abstract Syntax Tree (AST) and transform it into a hierarchical structure where sections contain their related content. This enables intelligent chunking that keeps semantically related information together.
 
-<img width="1266" height="542" alt="image" src="https://github.com/user-attachments/assets/0a49589c-fae2-4955-b042-5bee770f0344" />
+<img width="1426" height="672" alt="image" src="https://github.com/user-attachments/assets/8cb5a8fd-9898-467a-b826-b164471b4efa" />
 
-[Hierarchical Markdown Abstract Syntax Tree](https://chunkdown.zirkelc.dev/?text=IyBBSSBTREsgQ29yZQoKTGFyZ2UgTGFuZ3VhZ2UgTW9kZWxzIChMTE1zKSBhcmUgYWR2YW5jZWQgcHJvZ3JhbXMgdGhhdCBjYW4gdW5kZXJzdGFuZCwgY3JlYXRlLCBhbmQgZW5nYWdlIHdpdGggaHVtYW4gbGFuZ3VhZ2Ugb24gYSBsYXJnZSBzY2FsZS4KVGhleSBhcmUgdHJhaW5lZCBvbiB2YXN0IGFtb3VudHMgb2Ygd3JpdHRlbiBtYXRlcmlhbCB0byByZWNvZ25pemUgcGF0dGVybnMgaW4gbGFuZ3VhZ2UgYW5kIHByZWRpY3Qgd2hhdCBtaWdodCBjb21lIG5leHQgaW4gYSBnaXZlbiBwaWVjZSBvZiB0ZXh0LgoKQUkgU0RLIENvcmUgKipzaW1wbGlmaWVzIHdvcmtpbmcgd2l0aCBMTE1zIGJ5IG9mZmVyaW5nIGEgc3RhbmRhcmRpemVkIHdheSBvZiBpbnRlZ3JhdGluZyB0aGVtIGludG8geW91ciBhcHAqKiAtIHNvIHlvdSBjYW4gZm9jdXMgb24gYnVpbGRpbmcgZ3JlYXQgQUkgYXBwbGljYXRpb25zIGZvciB5b3VyIHVzZXJzLCBub3Qgd2FzdGUgdGltZSBvbiBhaVNkayBkZXRhaWxzLgoKRm9yIGV4YW1wbGUsIGhlcmXigJlzIGhvdyB5b3UgY2FuIGdlbmVyYXRlIHRleHQgd2l0aCB2YXJpb3VzIG1vZGVscyB1c2luZyB0aGUgQUkgU0RLOgoKPFByZXZpZXdTd2l0Y2hQcm92aWRlcnMgLz4KCiMjIEFJIFNESyBDb3JlIEZ1bmN0aW9ucwoKQUkgU0RLIENvcmUgaGFzIHZhcmlvdXMgZnVuY3Rpb25zIGRlc2lnbmVkIGZvciBbdGV4dCBnZW5lcmF0aW9uXSguL2dlbmVyYXRpbmctdGV4dCksIFtzdHJ1Y3R1cmVkIGRhdGEgZ2VuZXJhdGlvbl0oLi9nZW5lcmF0aW5nLXN0cnVjdHVyZWQtZGF0YSksIGFuZCBbdG9vbCB1c2FnZV0oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KVGhlc2UgZnVuY3Rpb25zIHRha2UgYSBzdGFuZGFyZGl6ZWQgYXBwcm9hY2ggdG8gc2V0dGluZyB1cCBbcHJvbXB0c10oLi9wcm9tcHRzKSBhbmQgW3NldHRpbmdzXSguL3NldHRpbmdzKSwgbWFraW5nIGl0IGVhc2llciB0byB3b3JrIHdpdGggZGlmZmVyZW50IG1vZGVscy4KCi0gW2BnZW5lcmF0ZVRleHRgXSgvZG9jcy9haS1zZGstY29yZS9nZW5lcmF0aW5nLXRleHQpOiBHZW5lcmF0ZXMgdGV4dCBhbmQgW3Rvb2wgY2FsbHNdKC4vdG9vbHMtYW5kLXRvb2wtY2FsbGluZykuCiAgVGhpcyBmdW5jdGlvbiBpcyBpZGVhbCBmb3Igbm9uLWludGVyYWN0aXZlIHVzZSBjYXNlcyBzdWNoIGFzIGF1dG9tYXRpb24gdGFza3Mgd2hlcmUgeW91IG5lZWQgdG8gd3JpdGUgdGV4dCAoZS5nLiBkcmFmdGluZyBlbWFpbCBvciBzdW1tYXJpemluZyB3ZWIgcGFnZXMpIGFuZCBmb3IgYWdlbnRzIHRoYXQgdXNlIHRvb2xzLgotIFtgc3RyZWFtVGV4dGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctdGV4dCk6IFN0cmVhbSB0ZXh0IGFuZCB0b29sIGNhbGxzLgogIFlvdSBjYW4gdXNlIHRoZSBgc3RyZWFtVGV4dGAgZnVuY3Rpb24gZm9yIGludGVyYWN0aXZlIHVzZSBjYXNlcyBzdWNoIGFzIFtjaGF0IGJvdHNdKC9kb2NzL2FpLXNkay11aS9jaGF0Ym90KSBhbmQgW2NvbnRlbnQgc3RyZWFtaW5nXSgvZG9jcy9haS1zZGstdWkvY29tcGxldGlvbikuCi0gW2BnZW5lcmF0ZU9iamVjdGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctc3RydWN0dXJlZC1kYXRhKTogR2VuZXJhdGVzIGEgdHlwZWQsIHN0cnVjdHVyZWQgb2JqZWN0IHRoYXQgbWF0Y2hlcyBhIFtab2RdKGh0dHBzOi8vem9kLmRldi8pIHNjaGVtYS4KICBZb3UgY2FuIHVzZSB0aGlzIGZ1bmN0aW9uIHRvIGZvcmNlIHRoZSBsYW5ndWFnZSBtb2RlbCB0byByZXR1cm4gc3RydWN0dXJlZCBkYXRhLCBlLmcuIGZvciBpbmZvcm1hdGlvbiBleHRyYWN0aW9uLCBzeW50aGV0aWMgZGF0YSBnZW5lcmF0aW9uLCBvciBjbGFzc2lmaWNhdGlvbiB0YXNrcy4KLSBbYHN0cmVhbU9iamVjdGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctc3RydWN0dXJlZC1kYXRhKTogU3RyZWFtIGEgc3RydWN0dXJlZCBvYmplY3QgdGhhdCBtYXRjaGVzIGEgWm9kIHNjaGVtYS4KICBZb3UgY2FuIHVzZSB0aGlzIGZ1bmN0aW9uIHRvIFtzdHJlYW0gZ2VuZXJhdGVkIFVJc10oL2RvY3MvYWktc2RrLXVpL29iamVjdC1nZW5lcmF0aW9uKS4KCiMjIEFQSSBSZWZlcmVuY2UKClBsZWFzZSBjaGVjayBvdXQgdGhlIFtBSSBTREsgQ29yZSBBUEkgUmVmZXJlbmNlXSgvZG9jcy9yZWZlcmVuY2UvYWktc2RrLWNvcmUpIGZvciBtb3JlIGRldGFpbHMgb24gZWFjaCBmdW5jdGlvbi4%3D&tab=aiSdk)
+[Hierarchical Markdown Abstract Syntax Tree](https://chunks.zirkelc.dev/?text=IyBBSSBTREsgQ29yZQoKTGFyZ2UgTGFuZ3VhZ2UgTW9kZWxzIChMTE1zKSBhcmUgYWR2YW5jZWQgcHJvZ3JhbXMgdGhhdCBjYW4gdW5kZXJzdGFuZCwgY3JlYXRlLCBhbmQgZW5nYWdlIHdpdGggaHVtYW4gbGFuZ3VhZ2Ugb24gYSBsYXJnZSBzY2FsZS4KVGhleSBhcmUgdHJhaW5lZCBvbiB2YXN0IGFtb3VudHMgb2Ygd3JpdHRlbiBtYXRlcmlhbCB0byByZWNvZ25pemUgcGF0dGVybnMgaW4gbGFuZ3VhZ2UgYW5kIHByZWRpY3Qgd2hhdCBtaWdodCBjb21lIG5leHQgaW4gYSBnaXZlbiBwaWVjZSBvZiB0ZXh0LgoKQUkgU0RLIENvcmUgKipzaW1wbGlmaWVzIHdvcmtpbmcgd2l0aCBMTE1zIGJ5IG9mZmVyaW5nIGEgc3RhbmRhcmRpemVkIHdheSBvZiBpbnRlZ3JhdGluZyB0aGVtIGludG8geW91ciBhcHAqKiAtIHNvIHlvdSBjYW4gZm9jdXMgb24gYnVpbGRpbmcgZ3JlYXQgQUkgYXBwbGljYXRpb25zIGZvciB5b3VyIHVzZXJzLCBub3Qgd2FzdGUgdGltZSBvbiB0ZWNobmljYWwgZGV0YWlscy4KCkZvciBleGFtcGxlLCBoZXJlJ3MgaG93IHlvdSBjYW4gZ2VuZXJhdGUgdGV4dCB3aXRoIHZhcmlvdXMgbW9kZWxzIHVzaW5nIHRoZSBBSSBTREs6Cgo8UHJldmlld1N3aXRjaFByb3ZpZGVycyAvPgoKIyMgQUkgU0RLIENvcmUgRnVuY3Rpb25zCgpBSSBTREsgQ29yZSBoYXMgdmFyaW91cyBmdW5jdGlvbnMgZGVzaWduZWQgZm9yIFt0ZXh0IGdlbmVyYXRpb25dKC4vZ2VuZXJhdGluZy10ZXh0KSwgW3N0cnVjdHVyZWQgZGF0YSBnZW5lcmF0aW9uXSguL2dlbmVyYXRpbmctc3RydWN0dXJlZC1kYXRhKSwgYW5kIFt0b29sIHVzYWdlXSguL3Rvb2xzLWFuZC10b29sLWNhbGxpbmcpLgpUaGVzZSBmdW5jdGlvbnMgdGFrZSBhIHN0YW5kYXJkaXplZCBhcHByb2FjaCB0byBzZXR0aW5nIHVwIFtwcm9tcHRzXSguL3Byb21wdHMpIGFuZCBbc2V0dGluZ3NdKC4vc2V0dGluZ3MpLCBtYWtpbmcgaXQgZWFzaWVyIHRvIHdvcmsgd2l0aCBkaWZmZXJlbnQgbW9kZWxzLgoKLSBbYGdlbmVyYXRlVGV4dGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctdGV4dCk6IEdlbmVyYXRlcyB0ZXh0IGFuZCBbdG9vbCBjYWxsc10oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KICBUaGlzIGZ1bmN0aW9uIGlzIGlkZWFsIGZvciBub24taW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgYXV0b21hdGlvbiB0YXNrcyB3aGVyZSB5b3UgbmVlZCB0byB3cml0ZSB0ZXh0IChlLmcuIGRyYWZ0aW5nIGVtYWlsIG9yIHN1bW1hcml6aW5nIHdlYiBwYWdlcykgYW5kIGZvciBhZ2VudHMgdGhhdCB1c2UgdG9vbHMuCi0gW2BzdHJlYW1UZXh0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy10ZXh0KTogU3RyZWFtIHRleHQgYW5kIHRvb2wgY2FsbHMuCiAgWW91IGNhbiB1c2UgdGhlIGBzdHJlYW1UZXh0YCBmdW5jdGlvbiBmb3IgaW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgW2NoYXQgYm90c10oL2RvY3MvYWktc2RrLXVpL2NoYXRib3QpIGFuZCBbY29udGVudCBzdHJlYW1pbmddKC9kb2NzL2FpLXNkay11aS9jb21wbGV0aW9uKS4KLSBbYGdlbmVyYXRlT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBHZW5lcmF0ZXMgYSB0eXBlZCwgc3RydWN0dXJlZCBvYmplY3QgdGhhdCBtYXRjaGVzIGEgW1pvZF0oaHR0cHM6Ly96b2QuZGV2Lykgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gZm9yY2UgdGhlIGxhbmd1YWdlIG1vZGVsIHRvIHJldHVybiBzdHJ1Y3R1cmVkIGRhdGEsIGUuZy4gZm9yIGluZm9ybWF0aW9uIGV4dHJhY3Rpb24sIHN5bnRoZXRpYyBkYXRhIGdlbmVyYXRpb24sIG9yIGNsYXNzaWZpY2F0aW9uIHRhc2tzLgotIFtgc3RyZWFtT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBTdHJlYW0gYSBzdHJ1Y3R1cmVkIG9iamVjdCB0aGF0IG1hdGNoZXMgYSBab2Qgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gW3N0cmVhbSBnZW5lcmF0ZWQgVUlzXSgvZG9jcy9haS1zZGstdWkvb2JqZWN0LWdlbmVyYXRpb24pLgoKIyMgQVBJIFJlZmVyZW5jZQoKUGxlYXNlIGNoZWNrIG91dCB0aGUgW0FJIFNESyBDb3JlIEFQSSBSZWZlcmVuY2VdKC9kb2NzL3JlZmVyZW5jZS9haS1zZGstY29yZSkgZm9yIG1vcmUgZGV0YWlscyBvbiBlYWNoIGZ1bmN0aW9uLg%3D%3D)
 
 #### Content Length vs. Markdown Length
 
@@ -33,33 +33,33 @@ For example, the following text from [Wikipedia](https://en.wikipedia.org/wiki/L
 The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [\[ˈʎama\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\[ˈʝama\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").
 </pre>
 
-<img width="1259" height="408" alt="image" src="https://github.com/user-attachments/assets/a9cad8b2-88da-4907-aaa3-ea999046f5a6" />
+<img width="1425" height="672" alt="image" src="https://github.com/user-attachments/assets/17fb1c18-a1f5-4c14-b49d-898f93dfc21d" />
 
-[Comparison of chunk size 100: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunkdown.zirkelc.dev/?text=VGhlICoqbGxhbWEqKiAoWy%2FLiGzJkcuQbcmZL10oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSGVscDpJUEEvRW5nbGlzaCAiSGVscDpJUEEvRW5nbGlzaCIpOyBTcGFuaXNoIHByb251bmNpYXRpb246IFtcW8uIyo5hbWFcXV0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSGVscDpJUEEvU3BhbmlzaCAiSGVscDpJUEEvU3BhbmlzaCIpIG9yIFtcW8uIyp1hbWFcXV0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSGVscDpJUEEvU3BhbmlzaCAiSGVscDpJUEEvU3BhbmlzaCIpKSAoKioqTGFtYSBnbGFtYSoqKikgaXMgYSBkb21lc3RpY2F0ZWQgW1NvdXRoIEFtZXJpY2FuXShodHRwczovL2VuLndpa2lwZWRpYS5vcmcvd2lraS9Tb3V0aF9BbWVyaWNhICJTb3V0aCBBbWVyaWNhIikgW2NhbWVsaWRdKGh0dHBzOi8vZW4ud2lraXBlZGlhLm9yZy93aWtpL0NhbWVsaWQgIkNhbWVsaWQiKSwgd2lkZWx5IHVzZWQgYXMgYSBbbWVhdF0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvTGlzdF9vZl9tZWF0X2FuaW1hbHMgIkxpc3Qgb2YgbWVhdCBhbmltYWxzIikgYW5kIFtwYWNrIGFuaW1hbF0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvUGFja19hbmltYWwgIlBhY2sgYW5pbWFsIikgYnkgW0FuZGVhbiBjdWx0dXJlc10oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSW5jYV9lbXBpcmUgIkluY2EgZW1waXJlIikgc2luY2UgdGhlIFtwcmUtQ29sdW1iaWFuIGVyYV0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvUHJlLUNvbHVtYmlhbl9lcmEgIlByZS1Db2x1bWJpYW4gZXJhIiku&tab=lama&customSize=100&langchainSize=100&maxOverflow=1)
+[Comparison of chunk size 100: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=VGhlICoqbGxhbWEqKiAoWy%2FLiGzJkcuQbcmZL10oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSGVscDpJUEEvRW5nbGlzaCAiSGVscDpJUEEvRW5nbGlzaCIpOyBTcGFuaXNoIHByb251bmNpYXRpb246IFtcW8uIyo5hbWFcXV0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSGVscDpJUEEvU3BhbmlzaCAiSGVscDpJUEEvU3BhbmlzaCIpIG9yIFtcW8uIyp1hbWFcXV0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSGVscDpJUEEvU3BhbmlzaCAiSGVscDpJUEEvU3BhbmlzaCIpKSAoKioqTGFtYSBnbGFtYSoqKikgaXMgYSBkb21lc3RpY2F0ZWQgW1NvdXRoIEFtZXJpY2FuXShodHRwczovL2VuLndpa2lwZWRpYS5vcmcvd2lraS9Tb3V0aF9BbWVyaWNhICJTb3V0aCBBbWVyaWNhIikgW2NhbWVsaWRdKGh0dHBzOi8vZW4ud2lraXBlZGlhLm9yZy93aWtpL0NhbWVsaWQgIkNhbWVsaWQiKSwgd2lkZWx5IHVzZWQgYXMgYSBbbWVhdF0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvTGlzdF9vZl9tZWF0X2FuaW1hbHMgIkxpc3Qgb2YgbWVhdCBhbmltYWxzIikgYW5kIFtwYWNrIGFuaW1hbF0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvUGFja19hbmltYWwgIlBhY2sgYW5pbWFsIikgYnkgW0FuZGVhbiBjdWx0dXJlc10oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvSW5jYV9lbXBpcmUgIkluY2EgZW1waXJlIikgc2luY2UgdGhlIFtwcmUtQ29sdW1iaWFuIGVyYV0oaHR0cHM6Ly9lbi53aWtpcGVkaWEub3JnL3dpa2kvUHJlLUNvbHVtYmlhbl9lcmEgIlByZS1Db2x1bWJpYW4gZXJhIiku&chunkSize=100&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&maxOverflow=1&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A100%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
 
 #### Words as Atomic Unit
 
 Words are the smallest meaningful unit of information for embedding purposes. While tokenizers may split words further, for practical RAG applications, breaking words mid-way creates meaningless chunks. Therefore, words are treated as indivisible atoms that cannot be split.
 
-<img width="1263" height="274" alt="image" src="https://github.com/user-attachments/assets/b6099a7b-3120-461e-b014-2af5056f36cc" />
+<img width="1424" height="673" alt="image" src="https://github.com/user-attachments/assets/97ef70e8-4fa0-4d0a-961d-ed9dea80388c" />
 
-[Comparison of chunk size 1: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunkdown.zirkelc.dev/?text=TGFyZ2UgTGFuZ3VhZ2UgTW9kZWxzIChMTE1zKSBhcmUgYWR2YW5jZWQgcHJvZ3JhbXMgdGhhdCBjYW4gdW5kZXJzdGFuZCwgY3JlYXRlLCBhbmQgZW5nYWdlIHdpdGggaHVtYW4gbGFuZ3VhZ2Ugb24gYSBsYXJnZSBzY2FsZS4KVGhleSBhcmUgdHJhaW5lZCBvbiB2YXN0IGFtb3VudHMgb2Ygd3JpdHRlbiBtYXRlcmlhbCB0byByZWNvZ25pemUgcGF0dGVybnMgaW4gbGFuZ3VhZ2UgYW5kIHByZWRpY3Qgd2hhdCBtaWdodCBjb21lIG5leHQgaW4gYSBnaXZlbiBwaWVjZSBvZiB0ZXh0Lg%3D%3D&tab=aiSdk&customSize=1&langchainSize=1&maxOverflow=1)
+[Comparison of chunk size 1: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=TGFyZ2UgTGFuZ3VhZ2UgTW9kZWxzIChMTE1zKSBhcmUgYWR2YW5jZWQgcHJvZ3JhbXMgdGhhdCBjYW4gdW5kZXJzdGFuZCwgY3JlYXRlLCBhbmQgZW5nYWdlIHdpdGggaHVtYW4gbGFuZ3VhZ2Ugb24gYSBsYXJnZSBzY2FsZS4KVGhleSBhcmUgdHJhaW5lZCBvbiB2YXN0IGFtb3VudHMgb2Ygd3JpdHRlbiBtYXRlcmlhbCB0byByZWNvZ25pemUgcGF0dGVybnMgaW4gbGFuZ3VhZ2UgYW5kIHByZWRpY3Qgd2hhdCBtaWdodCBjb21lIG5leHQgaW4gYSBnaXZlbiBwaWVjZSBvZiB0ZXh0Lg%3D%3D&chunkSize=1&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&maxOverflow=1&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A1%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
 
 #### Never Break Semantics
 
 Semantic elements like links, images, inline code, and certain formatting elements should ideally always remain intact. Breaking a long link like `[structured data generation](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)` into `[structured` and `data generation](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data` destroys meaning. The splitter preserves these constructs and splits around them.
 
-<img width="1261" height="214" alt="image" src="https://github.com/user-attachments/assets/c940d483-18b1-4cdf-9bfe-f758daf22456" />
+<img width="1427" height="283" alt="image" src="https://github.com/user-attachments/assets/6b2399f2-a8b8-48dd-a870-3caa902500a6" />
 
-[Comparison of chunk size 100: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunkdown.zirkelc.dev/?text=QUkgU0RLIENvcmUgaGFzIHZhcmlvdXMgZnVuY3Rpb25zIGRlc2lnbmVkIGZvciBbdGV4dCBnZW5lcmF0aW9uXSguL2dlbmVyYXRpbmctdGV4dCksIFtzdHJ1Y3R1cmVkIGRhdGEgZ2VuZXJhdGlvbl0oLi9nZW5lcmF0aW5nLXN0cnVjdHVyZWQtZGF0YSksIGFuZCBbdG9vbCB1c2FnZV0oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KVGhlc2UgZnVuY3Rpb25zIHRha2UgYSBzdGFuZGFyZGl6ZWQgYXBwcm9hY2ggdG8gc2V0dGluZyB1cCBbcHJvbXB0c10oLi9wcm9tcHRzKSBhbmQgW3NldHRpbmdzXSguL3NldHRpbmdzKSwgbWFraW5nIGl0IGVhc2llciB0byB3b3JrIHdpdGggZGlmZmVyZW50IG1vZGVscy4%3D&tab=aiSdk&customSize=100&langchainSize=100&maxOverflow=1)
+[Comparison of chunk size 100: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=QUkgU0RLIENvcmUgaGFzIHZhcmlvdXMgZnVuY3Rpb25zIGRlc2lnbmVkIGZvciBbdGV4dCBnZW5lcmF0aW9uXSguL2dlbmVyYXRpbmctdGV4dCksIFtzdHJ1Y3R1cmVkIGRhdGEgZ2VuZXJhdGlvbl0oLi9nZW5lcmF0aW5nLXN0cnVjdHVyZWQtZGF0YSksIGFuZCBbdG9vbCB1c2FnZV0oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KVGhlc2UgZnVuY3Rpb25zIHRha2UgYSBzdGFuZGFyZGl6ZWQgYXBwcm9hY2ggdG8gc2V0dGluZyB1cCBbcHJvbXB0c10oLi9wcm9tcHRzKSBhbmQgW3NldHRpbmdzXSguL3NldHRpbmdzKSwgbWFraW5nIGl0IGVhc2llciB0byB3b3JrIHdpdGggZGlmZmVyZW50IG1vZGVscy4%3D&chunkSize=100&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&maxOverflow=1&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A100%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
 
 #### Allow Controlled Overflow
 
 Preserving a complete semantic unit like a section, paragraph, sentence, etc., is often more important than adhering to a strict chunk size. The splitter allows a controlled overflow (via `maxOverflowRatio`) of the chunk size if it avoids splitting a complete unit, e.g. a list item.
 
-<img width="1263" height="482" alt="image" src="https://github.com/user-attachments/assets/e16d23db-7bd8-443a-99a2-30839f216058" />
+<img width="1425" height="673" alt="image" src="https://github.com/user-attachments/assets/61ddadaa-9d05-427f-8650-17dea5af7e10" />
 
-[Comparison of chunk size 200 with 1.5x overflow ratio: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunkdown.zirkelc.dev/?text=LSBbYGdlbmVyYXRlVGV4dGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctdGV4dCk6IEdlbmVyYXRlcyB0ZXh0IGFuZCBbdG9vbCBjYWxsc10oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KICBUaGlzIGZ1bmN0aW9uIGlzIGlkZWFsIGZvciBub24taW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgYXV0b21hdGlvbiB0YXNrcyB3aGVyZSB5b3UgbmVlZCB0byB3cml0ZSB0ZXh0IChlLmcuIGRyYWZ0aW5nIGVtYWlsIG9yIHN1bW1hcml6aW5nIHdlYiBwYWdlcykgYW5kIGZvciBhZ2VudHMgdGhhdCB1c2UgdG9vbHMuCi0gW2BzdHJlYW1UZXh0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy10ZXh0KTogU3RyZWFtIHRleHQgYW5kIHRvb2wgY2FsbHMuCiAgWW91IGNhbiB1c2UgdGhlIGBzdHJlYW1UZXh0YCBmdW5jdGlvbiBmb3IgaW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgW2NoYXQgYm90c10oL2RvY3MvYWktc2RrLXVpL2NoYXRib3QpIGFuZCBbY29udGVudCBzdHJlYW1pbmddKC9kb2NzL2FpLXNkay11aS9jb21wbGV0aW9uKS4KLSBbYGdlbmVyYXRlT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBHZW5lcmF0ZXMgYSB0eXBlZCwgc3RydWN0dXJlZCBvYmplY3QgdGhhdCBtYXRjaGVzIGEgW1pvZF0oaHR0cHM6Ly96b2QuZGV2Lykgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gZm9yY2UgdGhlIGxhbmd1YWdlIG1vZGVsIHRvIHJldHVybiBzdHJ1Y3R1cmVkIGRhdGEsIGUuZy4gZm9yIGluZm9ybWF0aW9uIGV4dHJhY3Rpb24sIHN5bnRoZXRpYyBkYXRhIGdlbmVyYXRpb24sIG9yIGNsYXNzaWZpY2F0aW9uIHRhc2tzLgotIFtgc3RyZWFtT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBTdHJlYW0gYSBzdHJ1Y3R1cmVkIG9iamVjdCB0aGF0IG1hdGNoZXMgYSBab2Qgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gW3N0cmVhbSBnZW5lcmF0ZWQgVUlzXSgvZG9jcy9haS1zZGstdWkvb2JqZWN0LWdlbmVyYXRpb24pLg%3D%3D&tab=aiSdk)
+[Comparison of chunk size 200 with 1.5x overflow ratio: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=LSBbYGdlbmVyYXRlVGV4dGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctdGV4dCk6IEdlbmVyYXRlcyB0ZXh0IGFuZCBbdG9vbCBjYWxsc10oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KICBUaGlzIGZ1bmN0aW9uIGlzIGlkZWFsIGZvciBub24taW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgYXV0b21hdGlvbiB0YXNrcyB3aGVyZSB5b3UgbmVlZCB0byB3cml0ZSB0ZXh0IChlLmcuIGRyYWZ0aW5nIGVtYWlsIG9yIHN1bW1hcml6aW5nIHdlYiBwYWdlcykgYW5kIGZvciBhZ2VudHMgdGhhdCB1c2UgdG9vbHMuCi0gW2BzdHJlYW1UZXh0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy10ZXh0KTogU3RyZWFtIHRleHQgYW5kIHRvb2wgY2FsbHMuCiAgWW91IGNhbiB1c2UgdGhlIGBzdHJlYW1UZXh0YCBmdW5jdGlvbiBmb3IgaW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgW2NoYXQgYm90c10oL2RvY3MvYWktc2RrLXVpL2NoYXRib3QpIGFuZCBbY29udGVudCBzdHJlYW1pbmddKC9kb2NzL2FpLXNkay11aS9jb21wbGV0aW9uKS4KLSBbYGdlbmVyYXRlT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBHZW5lcmF0ZXMgYSB0eXBlZCwgc3RydWN0dXJlZCBvYmplY3QgdGhhdCBtYXRjaGVzIGEgW1pvZF0oaHR0cHM6Ly96b2QuZGV2Lykgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gZm9yY2UgdGhlIGxhbmd1YWdlIG1vZGVsIHRvIHJldHVybiBzdHJ1Y3R1cmVkIGRhdGEsIGUuZy4gZm9yIGluZm9ybWF0aW9uIGV4dHJhY3Rpb24sIHN5bnRoZXRpYyBkYXRhIGdlbmVyYXRpb24sIG9yIGNsYXNzaWZpY2F0aW9uIHRhc2tzLgotIFtgc3RyZWFtT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBTdHJlYW0gYSBzdHJ1Y3R1cmVkIG9iamVjdCB0aGF0IG1hdGNoZXMgYSBab2Qgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gW3N0cmVhbSBnZW5lcmF0ZWQgVUlzXSgvZG9jcy9haS1zZGstdWkvb2JqZWN0LWdlbmVyYXRpb24pLg%3D%3D&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A200%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
 
 
 ### Installation
@@ -230,34 +230,34 @@ When a table is split into multiple chunks, Chunkdown automatically preserves co
 import { chunkdown } from 'chunkdown';
 
 const splitter = chunkdown({
-  chunkSize: 20,
+  chunkSize: 100,
   maxOverflowRatio: 1.0
 });
 
 const text = `
-| Name     | Age | Country |
-|----------|-----|---------|
-| Alice    | 30  | USA     |
-| Bob      | 25  | UK      |
-| Charlie  | 35  | Canada  |
-| David    | 40  | France  |
+| Name     | Age | Country | Occupation        | Email                  |
+|----------|-----|---------|-------------------|------------------------|
+| Alice    | 30  | USA     | Software Engineer | alice@example.com      |
+| Bob      | 25  | UK      | Designer          | bob@example.com        |
+| Charlie  | 35  | Canada  | Product Manager   | charlie@example.com    |
+| David    | 40  | France  | Data Scientist    | david@example.com      |
 `;
 
 const chunks = splitter.splitText(text);
 // chunks[0]:
-// | Name | Age | Country |
-// | - | - | - |
-// | Alice | 30 | USA |
-// | Bob | 25 | UK |
+// | Name | Age | Country | Occupation | Email |
+// | - | - | - | - | - |
+// | Alice | 30 | USA | Software Engineer | <alice@example.com> |
+// | Bob | 25 | UK | Designer | <bob@example.com> |
 
 // chunks[1]:
-// | Name | Age | Country |
-// | - | - | - |
-// | Charlie | 35 | Canada |
-// | David | 40 | France |
+// | Name | Age | Country | Occupation | Email |
+// | - | - | - | - | - |
+// | Charlie | 35 | Canada | Product Manager | <charlie@example.com> |
+// | David | 40 | France | Data Scientist | <david@example.com> |
 ```
 
-Tables are serialized into markdown using the [GFM table extension](https://github.com/syntax-tree/mdast-util-gfm-table) with the `tablePipeAlign` option set to `false`. That means table cells will not be filled with `-`and whitespaces to align the columns vertically, saving many useless characters when embedding the chunks.
+Tables are serialized into markdown using the [GFM table extension](https://github.com/syntax-tree/mdast-util-gfm-table) with the `tablePipeAlign` option set to `false`. That means the table delimeter row between header row and data rows will not be filled with additional dashes and whitespaces to align the columns vertically, saving many useless characters when embedding the chunks.
 
 #### Normalization
 
@@ -582,9 +582,9 @@ It is guaranteed that no chunk will exceed this limit, even if it means splittin
 
 ## Visualization
 
-The chunk visualizer hosted at [chunkdown.zirkelc.dev](https://chunkdown.zirkelc.dev/) provides an interactive way to see how text is split into chunks:
+The chunk visualizer hosted at [chunks.zirkelc.dev](https://chunks.zirkelc.dev/) provides an interactive way to see how text is split into chunks:
 
-<img width="1272" height="2167" alt="image" src="https://github.com/user-attachments/assets/84294851-0abe-4f23-acdd-9450af756b62" />
+<img width="1512" height="823" alt="image" src="https://github.com/user-attachments/assets/3ab0f439-bab8-47a4-8abf-54b7a005d131" />
 
 ## Future Improvements
 
