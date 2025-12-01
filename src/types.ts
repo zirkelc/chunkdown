@@ -56,8 +56,9 @@ export type SplitterOptions = {
    * - >1.0 = allow overflow to preserve semantic coherence
    * For example, 1.5 means allow chunks up to 50% larger than chunkSize
    * to keep semantic units (sections, lists, code blocks) together.
+   * If undefined or less than 1.0, defaults to 1.0.
    */
-  maxOverflowRatio: number;
+  maxOverflowRatio?: number;
   /**
    * Optional maximum raw markdown length (characters) for embedding model compatibility.
    * If set, chunks will be further split when their raw markdown exceeds this limit.

@@ -398,7 +398,7 @@ The target content size for each chunk, counting only content characters, not ra
 ##### `maxOverflowRatio?: number` (optional)
 
 The maximum overflow ratio for preserving semantic units:
-- `1.0`: strict chunk size, no overflow allowed
+- `1.0`: strict chunk size, no overflow allowed (default)
 - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
 
 ##### `rules?: Partial<NodeRules>` (optional)

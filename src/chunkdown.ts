@@ -30,7 +30,10 @@ class Chunkdown implements NodeSplitter<Root> {
   private splitter: TreeSplitter;
 
   constructor(options: SplitterOptions) {
-    this.options = options;
+    this.options = {
+      ...options,
+      maxOverflowRatio: Math.max(1.0, options.maxOverflowRatio ?? 1.0),
+    };
     this.splitter = new TreeSplitter(this.options);
   }
 
@@ -39,7 +42,7 @@ class Chunkdown implements NodeSplitter<Root> {
   }
 
   get maxOverflowRatio(): number {
-    return this.options.maxOverflowRatio;
+    return this.options.maxOverflowRatio ?? 1.0;
   }
 
   get maxRawSize(): number | undefined {
@@ -72,11 +75,9 @@ class Chunkdown implements NodeSplitter<Root> {
  */
 export const chunkdown = (options: SplitterOptions) => {
   const rules = options.rules ?? defaultNodeRules;
-  const maxOverflowRatio = Math.max(1.0, options.maxOverflowRatio);
   const splitter = new Chunkdown({
     ...options,
     rules,
-    maxOverflowRatio,
   });
 
   return splitter;

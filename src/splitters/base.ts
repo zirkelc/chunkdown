@@ -11,6 +11,7 @@ export abstract class AbstractNodeSplitter<NODE extends Nodes = Nodes>
 {
   protected options: SplitterOptions;
   protected chunkSize: number;
+  protected maxOverflowRatio: number;
   protected maxAllowedSize: number;
   protected maxRawSize: number | undefined;
   protected splitRules: ComplexSplitRules;
@@ -19,7 +20,8 @@ export abstract class AbstractNodeSplitter<NODE extends Nodes = Nodes>
     this.options = options;
 
     this.chunkSize = options.chunkSize;
-    this.maxAllowedSize = options.chunkSize * options.maxOverflowRatio;
+    this.maxOverflowRatio = Math.max(1.0, options.maxOverflowRatio ?? 1.0);
+    this.maxAllowedSize = this.chunkSize * this.maxOverflowRatio;
     this.maxRawSize = options.maxRawSize;
 
     /**
