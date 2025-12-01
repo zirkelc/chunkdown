@@ -98,6 +98,24 @@ Third sentence.
   });
 
   describe('Overflow Control', () => {
+    it('should set overflow ratio to 1.0 if less than 1.0', () => {
+      const splitter = chunkdown({
+        chunkSize: 100,
+        maxOverflowRatio: 0.5,
+      });
+
+      expect(splitter.maxOverflowRatio).toBe(1.0);
+    });
+
+    it('should keep the overflow ratio if greater than 1.0', () => {
+      const splitter = chunkdown({
+        chunkSize: 100,
+        maxOverflowRatio: 1.5,
+      });
+
+      expect(splitter.maxOverflowRatio).toBe(1.5);
+    });
+
     it('should allow overflow within allowed ratio to preserve meaning', () => {
       const splitter = chunkdown({
         chunkSize: 20,

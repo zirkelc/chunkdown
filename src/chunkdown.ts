@@ -72,9 +72,11 @@ class Chunkdown implements NodeSplitter<Root> {
  */
 export const chunkdown = (options: SplitterOptions) => {
   const rules = options.rules ?? defaultNodeRules;
+  const maxOverflowRatio = Math.max(1.0, options.maxOverflowRatio);
   const splitter = new Chunkdown({
     ...options,
     rules,
+    maxOverflowRatio,
   });
 
   return splitter;
