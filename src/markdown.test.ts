@@ -114,7 +114,10 @@ describe('Markdown', () => {
       expect(linkNode.url).toBe('https://github.com');
 
       const result = toMarkdown(ast);
-      expect(result.trim()).toBe('Visit <https://github.com> for more info');
+      // resourceLink: true converts autolinks to [url](url) format
+      expect(result.trim()).toBe(
+        'Visit [https://github.com](https://github.com) for more info',
+      );
     });
 
     it('should handle code blocks with language', () => {

@@ -847,7 +847,7 @@ Here's a sentence with a footnote[^1].
 
             [Link with title](https://example.com "This is a title")
 
-            <https://autolink.com>
+            [https://autolink.com](https://autolink.com)
 
             ![Image alt text](https://via.placeholder.com/150 "Image title")
 
@@ -979,7 +979,7 @@ Here's a sentence with a footnote[^1].
 
             Mixed formatting: ***Really*** important **and *nested* formatting**
 
-            Autolinks: <https://example.com> and <email@example.com>",
+            Autolinks: [https://example.com](https://example.com) and [email@example.com](mailto:email@example.com)",
               "Footnotes (if supported):
             Here's a sentence with a footnote[^1].
 
@@ -1080,7 +1080,7 @@ Here's a sentence with a footnote[^1].
 
             [Link with title](https://example.com "This is a title")
 
-            <https://autolink.com>
+            [https://autolink.com](https://autolink.com)
 
             ![Image alt text](https://via.placeholder.com/150 "Image title")
 
@@ -1215,7 +1215,7 @@ Here's a sentence with a footnote[^1].
 
             Mixed formatting: ***Really*** important **and *nested* formatting**
 
-            Autolinks: <https://example.com> and <email@example.com>
+            Autolinks: [https://example.com](https://example.com) and [email@example.com](mailto:email@example.com)
 
             Footnotes (if supported):
             Here's a sentence with a footnote[^1].

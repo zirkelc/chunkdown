@@ -48,6 +48,8 @@ export const fromMarkdown = (value: Value): Root => {
 
 export const toMarkdown = (tree: Nodes): string => {
   return mdastToMarkdown(tree, {
+    // Always use resource links [text](url) instead of autolinks <url>
+    resourceLink: true,
     extensions: [
       // https://github.com/syntax-tree/mdast-util-gfm-table
       gfmToMarkdown({
