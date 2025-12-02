@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.4.3](https://github.com/zirkelc/chunkdown/compare/v2.4.2...v2.4.3) (2025-12-02)
+
+
+### Bug Fixes
+
+* always use resource links ([bbcb23d](https://github.com/zirkelc/chunkdown/commit/bbcb23d097a73cd5d60ff6e3ff1c34805b987f3a))
+* overflow ratio less than 1.0 ([9501729](https://github.com/zirkelc/chunkdown/commit/950172918b24aae763249243220b0c127d580822))
+* set maxOverflowRatio optional ([caaaa17](https://github.com/zirkelc/chunkdown/commit/caaaa170b013f5cdb708d77e9a6d859b632c771b))
+* text splitter escapes splitted markdown ([57ed94b](https://github.com/zirkelc/chunkdown/commit/57ed94b840531bc142b6fa13a1622b710ec3ca7a))
+
 ## [2.4.2](https://github.com/zirkelc/chunkdown/compare/v2.4.1...v2.4.2) (2025-11-28)
 
 
