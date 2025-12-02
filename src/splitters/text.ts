@@ -1,4 +1,4 @@
-import type { Nodes } from 'mdast';
+import type { Nodes, Root } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
 import type { SplitterOptions } from '../types';
@@ -143,7 +143,25 @@ export class TextSplitter extends AbstractNodeSplitter {
       boundaries,
       protectedRanges,
     )) {
-      nodes.push(fromMarkdown(textChunk));
+      // HACK: We use 'html' node type to preserve the markdown text as-is.
+      // The chunks are already valid markdown (from toMarkdown above), so we need
+      // a node type that passes through unchanged during serialization. The 'html'
+      // type does exactly this - it outputs its value verbatim without escaping.
+      //
+      // Why not 'text' node? A 'text' node would escape markdown characters again
+      // (e.g., '\[' becomes '\\['), causing double-escaping issues.
+      //
+      // TODO: Refactor to avoid the toMarkdown/fromMarkdown roundtrip entirely.
+      // Instead of converting to markdown text, splitting, and converting back,
+      // we should work with raw text content directly (e.g., using mdast-util-to-string)
+      // and return proper 'text' nodes. This would require rethinking how protected
+      // ranges and boundaries are calculated to work with plain text offsets rather
+      // than markdown text offsets.
+      const root: Root = {
+        type: 'root',
+        children: [{ type: 'html', value: textChunk }],
+      };
+      nodes.push(root);
     }
 
     return nodes;

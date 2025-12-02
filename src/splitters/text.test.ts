@@ -86,6 +86,7 @@ describe('TextSplitter', () => {
 
       expect(chunks.length).toBe(4);
       expect(chunks[0]).toBe('Hello (world)');
+      // Square brackets in plain text get escaped in markdown to prevent interpretation as links
       expect(chunks[1]).toBe('there \\[friend]');
       expect(chunks[2]).toBe('now {buddy}');
       expect(chunks[3]).toBe('end.');
@@ -192,6 +193,7 @@ describe('TextSplitter', () => {
       expect(chunks[0]).toBe('Wait...');
       expect(chunks[1]).toBe('what happened.');
       expect(chunks[2]).toBe('..');
+      // The period before ellipsis gets escaped to prevent interpretation as list item
       expect(chunks[3]).toBe("I don't know\\..");
       expect(chunks[4]).toBe('..');
     });
@@ -566,6 +568,70 @@ describe('TextSplitter', () => {
           chunk.includes('![architecture](./architecture.png)'),
         );
         expect(imageChunk).toBeDefined();
+      });
+    });
+
+    describe('Regression: Split links should not produce escaped markdown', () => {
+      it('should not escape markdown syntax when splitting links with allow-split', () => {
+        // When a link is split (allow-split), the fragments should be yielded as raw text
+        // without being parsed through fromMarkdown, which would escape [ ] ( ) characters
+        const text =
+          'Please check out the [AI SDK Core API Reference](https://ai-sdk.dev/docs/reference/ai-sdk-core) for more details.';
+
+        const splitter = new TextSplitter({
+          chunkSize: 35,
+          maxOverflowRatio: 1.0,
+          rules: {
+            link: { split: 'allow-split' },
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        // No chunk should have escaped brackets or parentheses
+        for (const chunk of chunks) {
+          expect(chunk).not.toContain('\\[');
+          expect(chunk).not.toContain('\\]');
+          expect(chunk).not.toContain('\\(');
+          expect(chunk).not.toContain('\\)');
+        }
+
+        // Verify chunks don't have incorrectly parsed links like [https://ai-sdk](https://ai-sdk)
+        for (const chunk of chunks) {
+          expect(chunk).not.toMatch(/\[[^\]]+\]\([^)]+\)/); // No markdown link syntax
+        }
+
+        // Verify the raw link text and URL are preserved (chunks are trimmed so spaces may be lost)
+        const joined = chunks.join(' ');
+        expect(joined).toContain('SDK Core API Reference');
+        // URL may be split at boundaries, but parts should be present
+        expect(joined).toContain('ai-sdk');
+        expect(joined).toContain('for more details');
+      });
+
+      it('should preserve link fragments as plain text when URL is split', () => {
+        const text =
+          'Visit [docs](https://example.com/very/long/path/to/docs) now.';
+
+        const splitter = new TextSplitter({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+          rules: {
+            link: { split: 'allow-split' },
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        // Ensure the URL parts are not re-interpreted as markdown links
+        for (const chunk of chunks) {
+          // Should not contain escaped markdown characters
+          expect(chunk).not.toContain('\\[');
+          // Should not contain auto-linked URLs like [https://...](https://...)
+          expect(chunk).not.toMatch(
+            /\[https?:\/\/[^\]]+\]\(https?:\/\/[^)]+\)/,
+          );
+        }
       });
     });
 
