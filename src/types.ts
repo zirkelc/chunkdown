@@ -301,3 +301,41 @@ type SizeSplitRule<NODE extends Nodes> = NODE extends Table | List
 //   index: number;
 //   total: number;
 // };
+
+/**
+ * A breadcrumb representing an ancestor heading.
+ */
+export interface Breadcrumb {
+  /**
+   * The plain text content of the heading (without # markers)
+   */
+  text: string;
+  /**
+   * The depth of the heading (1-6)
+   */
+  depth: number;
+}
+
+/**
+ * A chunk of text with its breadcrumbs.
+ */
+export interface Chunk {
+  /**
+   * The text content of the chunk
+   */
+  text: string;
+  /**
+   * Ancestor headings for hierarchical context
+   */
+  breadcrumbs: Breadcrumb[];
+}
+
+/**
+ * Result of splitting markdown text.
+ */
+export interface SplitterResult {
+  /**
+   * The chunks of text
+   */
+  chunks: Chunk[];
+}

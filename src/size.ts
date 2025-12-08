@@ -67,9 +67,58 @@ export const getSectionSize = (section: Section): number => {
 };
 
 /**
+ * Split a single text by maxRawSize limit as a hard constraint on raw markdown length
+ * Splits text that exceeds the limit, preferring whitespace boundaries
+ *
+ * @param text - The text to split
+ * @param maxRawSize - Maximum raw character length per chunk
+ * @returns Generator yielding chunks with no chunk exceeding maxRawSize
+ */
+export function* splitTextByMaxRawSize(
+  text: string,
+  maxRawSize: number,
+): Generator<string> {
+  let remaining = text;
+
+  while (remaining.length > maxRawSize) {
+    let splitPos = maxRawSize;
+    let foundWhitespace = false;
+
+    // Search backwards from maxRawSize for any whitespace
+    // Only search in the last 20% to avoid creating very small chunks
+    for (let i = maxRawSize - 1; i >= Math.floor(maxRawSize * 0.8); i--) {
+      if (/\s/.test(remaining[i])) {
+        splitPos = i;
+        foundWhitespace = true;
+        break;
+      }
+    }
+
+    // Extract chunk - don't trim yet to preserve original position
+    const splitChunk = remaining.substring(0, splitPos);
+
+    // Move to remaining text, skipping whitespace if we split at whitespace
+    remaining = foundWhitespace
+      ? remaining.substring(splitPos).trim()
+      : remaining.substring(splitPos);
+
+    // Trim and yield the chunk if not empty
+    const trimmedChunk = splitChunk.trim();
+    if (trimmedChunk.length > 0) {
+      yield trimmedChunk;
+    }
+  }
+
+  if (remaining.length > 0) {
+    yield remaining;
+  }
+}
+
+/**
  * Split chunks by maxRawSize limit as a hard constraint on raw markdown length
  * Splits chunks that exceed the limit, preferring whitespace boundaries
  *
+ * @deprecated Use splitTextByMaxRawSize for single strings
  * @param chunks - Array of markdown chunks
  * @param maxRawSize - Maximum raw character length per chunk
  * @returns Generator yielding chunks with no chunk exceeding maxRawSize
@@ -81,42 +130,8 @@ export function* splitByMaxRawSize(
   for (const chunk of chunks) {
     if (chunk.length <= maxRawSize) {
       yield chunk;
-      continue;
-    }
-
-    let remaining = chunk;
-
-    while (remaining.length > maxRawSize) {
-      let splitPos = maxRawSize;
-      let foundWhitespace = false;
-
-      // Search backwards from maxRawSize for any whitespace
-      // Only search in the last 20% to avoid creating very small chunks
-      for (let i = maxRawSize - 1; i >= Math.floor(maxRawSize * 0.8); i--) {
-        if (/\s/.test(remaining[i])) {
-          splitPos = i;
-          foundWhitespace = true;
-          break;
-        }
-      }
-
-      // Extract chunk - don't trim yet to preserve original position
-      const splitChunk = remaining.substring(0, splitPos);
-
-      // Move to remaining text, skipping whitespace if we split at whitespace
-      remaining = foundWhitespace
-        ? remaining.substring(splitPos).trim()
-        : remaining.substring(splitPos);
-
-      // Trim and yield the chunk if not empty
-      const trimmedChunk = splitChunk.trim();
-      if (trimmedChunk.length > 0) {
-        yield trimmedChunk;
-      }
-    }
-
-    if (remaining.length > 0) {
-      yield remaining;
+    } else {
+      yield* splitTextByMaxRawSize(chunk, maxRawSize);
     }
   }
 }
