@@ -1,4 +1,3 @@
-import type { Heading } from 'mdast';
 import { describe, expect, it } from 'vitest';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
@@ -356,7 +355,14 @@ Short content C.`;
   });
 
   describe('Breadcrumbs', () => {
-    it('should return empty breadcrumbs for orphaned content before first heading', () => {
+    /**
+     * Breadcrumb behavior:
+     * - Breadcrumbs contain ONLY ancestor headings (not the section's own heading if it's in the chunk)
+     * - If chunk contains a heading → breadcrumbs = ancestors of that heading
+     * - If chunk is content-only (split from its heading) → breadcrumbs = ancestors + section heading
+     */
+
+    it('should return empty breadcrumbs for orphaned content and top-level headings', () => {
       const splitter = new TreeSplitter({
         chunkSize: 100,
         maxOverflowRatio: 1.0,
@@ -373,45 +379,23 @@ Content under heading.`;
 
       expect(chunks.length).toBe(2);
 
-      // First chunk (orphaned content) should have empty breadcrumbs
-      const breadcrumbs0 = chunks[0].data?.breadcrumbs;
-      expect(breadcrumbs0).toEqual([]);
+      // Chunk 0: orphaned content → empty breadcrumbs
+      expect(toMarkdown(chunks[0]).trim()).toBe(
+        'Some intro text before any heading.',
+      );
+      expect(chunks[0].data?.breadcrumbs).toEqual([]);
 
-      // Second chunk should have the heading as breadcrumb
-      const breadcrumbs1 = chunks[1].data?.breadcrumbs;
-      expect(breadcrumbs1?.length).toBe(1);
-      expect(breadcrumbs1?.[0].type).toBe('heading');
-      expect(breadcrumbs1?.[0].depth).toBe(1);
+      // Chunk 1: "# First Heading" with content → empty breadcrumbs (H1 has no ancestors)
+      expect(toMarkdown(chunks[1])).toContain('# First Heading');
+      expect(chunks[1].data?.breadcrumbs).toEqual([]);
     });
 
-    it('should return single breadcrumb for top-level section', () => {
-      const splitter = new TreeSplitter({
-        chunkSize: 100,
-        maxOverflowRatio: 1.0,
-      });
-
-      const text = `# Main Heading
-
-Some content here.`;
-
-      const root = fromMarkdown(text);
-      const chunks = splitter.splitNode(root);
-
-      expect(chunks.length).toBe(1);
-
-      const breadcrumbs = chunks[0].data?.breadcrumbs;
-      expect(breadcrumbs?.length).toBe(1);
-      expect(breadcrumbs?.[0].type).toBe('heading');
-      expect(breadcrumbs?.[0].depth).toBe(1);
-    });
-
-    it('should return nested breadcrumbs for subsections', () => {
+    it('should return ancestor breadcrumbs for nested sections', () => {
       const splitter = new TreeSplitter({
         chunkSize: 50,
         maxOverflowRatio: 1.0,
       });
 
-      // Use content that forces splitting to test breadcrumbs at each level
       const text = `# Level 1
 
 ## Level 2
@@ -425,25 +409,32 @@ Content under level 3.`;
       const root = fromMarkdown(text);
       const chunks = splitter.splitNode(root);
 
-      // Find chunk with Level 3 heading
-      const level3Chunk = chunks.find(
-        (chunk) =>
-          chunk.type === 'root' &&
-          chunk.children.some(
-            (child) => child.type === 'heading' && child.depth === 3,
-          ),
-      );
+      // Output:
+      // Chunk 0: "# Level 1", breadcrumbs=[]
+      // Chunk 1: "## Level 2\n\nContent under level 2.", breadcrumbs=[depth:1]
+      // Chunk 2: "### Level 3\n\nContent under level 3.", breadcrumbs=[depth:1, depth:2]
 
-      expect(level3Chunk).toBeDefined();
-      const breadcrumbs = level3Chunk?.data?.breadcrumbs;
-      // Breadcrumbs include full hierarchy: Level 1 > Level 2 > Level 3
-      expect(breadcrumbs?.length).toBe(3);
-      expect(breadcrumbs?.[0].depth).toBe(1);
-      expect(breadcrumbs?.[1].depth).toBe(2);
-      expect(breadcrumbs?.[2].depth).toBe(3);
+      expect(chunks.length).toBe(3);
+
+      // Chunk 0: H1 heading only → empty breadcrumbs
+      expect(toMarkdown(chunks[0]).trim()).toBe('# Level 1');
+      expect(chunks[0].data?.breadcrumbs).toEqual([]);
+
+      // Chunk 1: H2 with content → breadcrumbs = [H1]
+      expect(toMarkdown(chunks[1])).toContain('## Level 2');
+      expect(toMarkdown(chunks[1])).toContain('Content under level 2');
+      expect(chunks[1].data?.breadcrumbs?.length).toBe(1);
+      expect(chunks[1].data?.breadcrumbs?.[0].depth).toBe(1);
+
+      // Chunk 2: H3 with content → breadcrumbs = [H1, H2]
+      expect(toMarkdown(chunks[2])).toContain('### Level 3');
+      expect(toMarkdown(chunks[2])).toContain('Content under level 3');
+      expect(chunks[2].data?.breadcrumbs?.length).toBe(2);
+      expect(chunks[2].data?.breadcrumbs?.[0].depth).toBe(1);
+      expect(chunks[2].data?.breadcrumbs?.[1].depth).toBe(2);
     });
 
-    it('should preserve breadcrumbs when section is split across chunks', () => {
+    it('should include section heading in breadcrumbs for content-only chunks', () => {
       const splitter = new TreeSplitter({
         chunkSize: 50,
         maxOverflowRatio: 1.0,
@@ -462,13 +453,30 @@ Third paragraph content.`;
       const root = fromMarkdown(text);
       const chunks = splitter.splitNode(root);
 
-      // All chunks from the sub-section should have full breadcrumbs
-      expect(chunks.length).toBeGreaterThan(1);
-      for (const chunk of chunks) {
-        const breadcrumbs = chunk.data?.breadcrumbs;
-        // All chunks include full hierarchy
-        expect(breadcrumbs?.length).toBeGreaterThanOrEqual(1);
-      }
+      // Output:
+      // Chunk 0: "# Main Section", breadcrumbs=[]
+      // Chunk 1: "## Sub Section\n\nFirst paragraph content.", breadcrumbs=[depth:1]
+      // Chunk 2: "Second paragraph content.\n\nThird paragraph content.", breadcrumbs=[depth:1, depth:2]
+
+      expect(chunks.length).toBe(3);
+
+      // Chunk 0: H1 heading only → empty breadcrumbs
+      expect(toMarkdown(chunks[0]).trim()).toBe('# Main Section');
+      expect(chunks[0].data?.breadcrumbs).toEqual([]);
+
+      // Chunk 1: H2 with first paragraph → breadcrumbs = [H1]
+      expect(toMarkdown(chunks[1])).toContain('## Sub Section');
+      expect(toMarkdown(chunks[1])).toContain('First paragraph content');
+      expect(chunks[1].data?.breadcrumbs?.length).toBe(1);
+      expect(chunks[1].data?.breadcrumbs?.[0].depth).toBe(1);
+
+      // Chunk 2: content-only (split from H2) → breadcrumbs = [H1, H2]
+      expect(toMarkdown(chunks[2])).toContain('Second paragraph content');
+      expect(toMarkdown(chunks[2])).toContain('Third paragraph content');
+      expect(toMarkdown(chunks[2])).not.toContain('##');
+      expect(chunks[2].data?.breadcrumbs?.length).toBe(2);
+      expect(chunks[2].data?.breadcrumbs?.[0].depth).toBe(1);
+      expect(chunks[2].data?.breadcrumbs?.[1].depth).toBe(2);
     });
 
     it('should reset breadcrumbs for sibling sections', () => {
@@ -490,58 +498,16 @@ Content B.`;
 
       expect(chunks.length).toBe(2);
 
-      // First chunk breadcrumb is Section A
-      const breadcrumbs0 = chunks[0].data?.breadcrumbs;
-      expect(breadcrumbs0?.length).toBe(1);
-      expect(breadcrumbs0?.[0].depth).toBe(1);
+      // Chunk 0: "# Section A" with content → empty breadcrumbs
+      expect(toMarkdown(chunks[0])).toContain('# Section A');
+      expect(chunks[0].data?.breadcrumbs).toEqual([]);
 
-      // Second chunk breadcrumb is Section B (not [A, B])
-      const breadcrumbs1 = chunks[1].data?.breadcrumbs;
-      expect(breadcrumbs1?.length).toBe(1);
-      expect(breadcrumbs1?.[0].depth).toBe(1);
-
-      // Verify they are different headings
-      expect(breadcrumbs0?.[0]).not.toBe(breadcrumbs1?.[0]);
+      // Chunk 1: "# Section B" with content → empty breadcrumbs (not [A, B])
+      expect(toMarkdown(chunks[1])).toContain('# Section B');
+      expect(chunks[1].data?.breadcrumbs).toEqual([]);
     });
 
-    it('should always include full breadcrumbs regardless of whether heading is merged with content', () => {
-      const splitter = new TreeSplitter({
-        chunkSize: 50, // Size that allows heading + content to merge
-        maxOverflowRatio: 1.0,
-      });
-
-      const text = `# Level 1
-
-## Level 2
-
-Content under level 2.
-
-### Level 3
-
-Content under level 3.`;
-
-      const root = fromMarkdown(text);
-      const chunks = splitter.splitNode(root);
-
-      // Find chunk containing "### Level 3" heading merged with its content
-      const level3Chunk = chunks.find((chunk) => {
-        const md = toMarkdown(chunk);
-        return (
-          md.includes('### Level 3') && md.includes('Content under level 3')
-        );
-      });
-
-      expect(level3Chunk).toBeDefined();
-
-      // Breadcrumbs always include full hierarchy including current section's heading
-      const breadcrumbs = level3Chunk?.data?.breadcrumbs;
-      expect(breadcrumbs?.length).toBe(3);
-      expect(breadcrumbs?.[0].depth).toBe(1); // Level 1
-      expect(breadcrumbs?.[1].depth).toBe(2); // Level 2
-      expect(breadcrumbs?.[2].depth).toBe(3); // Level 3
-    });
-
-    it('should include full breadcrumbs when chunk is split from its heading', () => {
+    it('should include full ancestor chain when content is deeply split from heading', () => {
       const splitter = new TreeSplitter({
         chunkSize: 20, // Very small to force heading to split from content
         maxOverflowRatio: 1.0,
@@ -558,30 +524,67 @@ Content under level 3.`;
       const root = fromMarkdown(text);
       const chunks = splitter.splitNode(root);
 
-      // Find chunk that is ONLY the Level 3 heading (split from content)
-      const level3HeadingChunk = chunks.find((chunk) => {
-        const md = toMarkdown(chunk).trim();
-        return md === '### Level 3';
+      // Output:
+      // Chunk 0: "# Level 1", breadcrumbs=[]
+      // Chunk 1: "## Level 2", breadcrumbs=[depth:1]
+      // Chunk 2: "### Level 3", breadcrumbs=[depth:1, depth:2]
+      // Chunk 3: "Content under", breadcrumbs=[depth:1, depth:2, depth:3]
+      // Chunk 4: "level 3.", breadcrumbs=[depth:1, depth:2, depth:3]
+
+      expect(chunks.length).toBeGreaterThanOrEqual(5);
+
+      // Chunk 0: H1 only → empty breadcrumbs
+      expect(toMarkdown(chunks[0]).trim()).toBe('# Level 1');
+      expect(chunks[0].data?.breadcrumbs).toEqual([]);
+
+      // Chunk 1: H2 only → breadcrumbs = [H1]
+      expect(toMarkdown(chunks[1]).trim()).toBe('## Level 2');
+      expect(chunks[1].data?.breadcrumbs?.length).toBe(1);
+      expect(chunks[1].data?.breadcrumbs?.[0].depth).toBe(1);
+
+      // Chunk 2: H3 only → breadcrumbs = [H1, H2]
+      expect(toMarkdown(chunks[2]).trim()).toBe('### Level 3');
+      expect(chunks[2].data?.breadcrumbs?.length).toBe(2);
+      expect(chunks[2].data?.breadcrumbs?.[0].depth).toBe(1);
+      expect(chunks[2].data?.breadcrumbs?.[1].depth).toBe(2);
+
+      // Chunk 3+: content split from H3 → breadcrumbs = [H1, H2, H3]
+      expect(toMarkdown(chunks[3])).toContain('Content');
+      expect(chunks[3].data?.breadcrumbs?.length).toBe(3);
+      expect(chunks[3].data?.breadcrumbs?.[0].depth).toBe(1);
+      expect(chunks[3].data?.breadcrumbs?.[1].depth).toBe(2);
+      expect(chunks[3].data?.breadcrumbs?.[2].depth).toBe(3);
+    });
+
+    it('should handle the example from issue: H1 > H2 hierarchy', () => {
+      const splitter = new TreeSplitter({
+        chunkSize: 30,
+        maxOverflowRatio: 2,
       });
 
-      expect(level3HeadingChunk).toBeDefined();
+      const text = `# Heading 1
 
-      // Breadcrumbs always include full hierarchy
-      const breadcrumbs = level3HeadingChunk?.data?.breadcrumbs;
-      expect(breadcrumbs?.length).toBe(3);
-      expect(breadcrumbs?.[0].depth).toBe(1); // Level 1
-      expect(breadcrumbs?.[1].depth).toBe(2); // Level 2
-      expect(breadcrumbs?.[2].depth).toBe(3); // Level 3
+Paragraph under Heading 1
 
-      // Content chunks (without heading) also include all breadcrumbs
-      const contentChunk = chunks.find((chunk) => {
-        const md = toMarkdown(chunk);
-        return md.includes('Content') && !md.includes('###');
-      });
+## Heading 2
 
-      expect(contentChunk).toBeDefined();
-      const contentBreadcrumbs = contentChunk?.data?.breadcrumbs;
-      expect(contentBreadcrumbs?.length).toBe(3);
+Paragraph under Heading 2`;
+
+      const root = fromMarkdown(text);
+      const chunks = splitter.splitNode(root);
+
+      expect(chunks.length).toBe(2);
+
+      // Chunk 0: H1 with content → empty breadcrumbs
+      expect(toMarkdown(chunks[0])).toContain('# Heading 1');
+      expect(toMarkdown(chunks[0])).toContain('Paragraph under Heading 1');
+      expect(chunks[0].data?.breadcrumbs).toEqual([]);
+
+      // Chunk 1: H2 with content → breadcrumbs = [H1]
+      expect(toMarkdown(chunks[1])).toContain('## Heading 2');
+      expect(toMarkdown(chunks[1])).toContain('Paragraph under Heading 2');
+      expect(chunks[1].data?.breadcrumbs?.length).toBe(1);
+      expect(chunks[1].data?.breadcrumbs?.[0].depth).toBe(1);
     });
   });
 });

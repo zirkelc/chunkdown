@@ -121,7 +121,10 @@ const { chunks } = splitter.split(text);
 
 #### Breadcrumbs
 
-Each chunk includes breadcrumbs, an array of ancestor headings that provide hierarchical context. This is useful for RAG applications where chunks need to be embedded with their surrounding context.
+Each chunk includes breadcrumbs, an array of **ancestor** headings that provide hierarchical context. This is useful for RAG applications to provide additional context when embedding chunks.
+
+> [!NOTE]
+> If the heading is part of the chunk itself, it is not included in the breadcrumbs.
 
 ```typescript
 import { chunkdown } from 'chunkdown';
@@ -147,28 +150,22 @@ const { chunks } = splitter.split(text);
 
 // chunks[0]:
 // text: "Large Language Models (LLMs) are advanced programs that understand and generate human language.",
-// breadcrumbs: []
+// breadcrumbs: []  // orphaned content before any heading
 
 // chunks[1]:
 // text: "# AI SDK Core\n\nThe AI SDK simplifies working with LLMs by offering a standardized API.",
-// breadcrumbs: [{ text: "AI SDK Core", depth: 1 }]
+// breadcrumbs: []  // H1 is in chunk, no ancestors
 
 // chunks[2]:
 // text: "## Text Generation\n\nGenerate text using various models.",
+// breadcrumbs: [{ text: "AI SDK Core", depth: 1 }]  // ancestor only
+
+// chunks[3]:
+// text: "### Structured Output\n\nUse generateObject to get typed responses matching a schema.",
 // breadcrumbs: [
 //   { text: "AI SDK Core", depth: 1 },
 //   { text: "Text Generation", depth: 2 }
-// ]
-
-// chunks[3]:
-// {
-//   text: "### Structured Output\n\nUse generateObject to get typed responses matching a schema.",
-//   breadcrumbs: [
-//     { text: "AI SDK Core", depth: 1 },
-//     { text: "Text Generation", depth: 2 },
-//     { text: "Structured Output", depth: 3 }
-//   ]
-// }
+// ]  // ancestors only (H3 is in chunk)
 ```
 
 #### Links and Images

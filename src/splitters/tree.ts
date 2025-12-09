@@ -97,12 +97,10 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
 
       /**
        * If the section fits within the allowed size, yield it and continue to the next section
+       * Breadcrumbs only contain ancestors (not the section's own heading, since it's in the chunk text)
        */
       if (sectionSize <= this.maxAllowedSize) {
-        const sectionBreadcrumbs = section.heading
-          ? [...breadcrumbs, section.heading]
-          : breadcrumbs;
-        section.data = { ...section.data, breadcrumbs: sectionBreadcrumbs };
+        section.data = { ...section.data, breadcrumbs };
         yield section;
         continue;
       }
@@ -157,10 +155,11 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
 
     /**
      * If no nested sections, just process the parent
+     * Pass ancestors only (breadcrumbs); splitSection handles adding section heading for content-only chunks
      */
     if (nestedSections.length === 0) {
       if (parentSection) {
-        yield* this.splitSection(parentSection, currentBreadcrumbs);
+        yield* this.splitSection(parentSection, breadcrumbs);
       }
       return;
     }
@@ -189,6 +188,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
 
       /**
        * If we can merge some children with parent, do it
+       * Breadcrumbs only contain ancestors (the merged section has its heading in the text)
        */
       if (mergeCount > 0) {
         const mergedSection = createSection({
@@ -201,7 +201,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
 
         mergedSection.data = {
           ...mergedSection.data,
-          breadcrumbs: currentBreadcrumbs,
+          breadcrumbs,
         };
         yield mergedSection;
 
@@ -221,9 +221,10 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
 
     /**
      * Parent couldn't be merged with children - process separately
+     * Pass ancestors only (breadcrumbs); splitSection handles adding section heading for content-only chunks
      */
     if (parentSection) {
-      yield* this.splitSection(parentSection, currentBreadcrumbs);
+      yield* this.splitSection(parentSection, breadcrumbs);
     }
 
     /**
@@ -235,6 +236,10 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
   /**
    * Splits section content with grouping to maximize chunk utilization
    * Works for both regular sections (with heading) and orphaned sections (without heading)
+   *
+   * Breadcrumb logic:
+   * - If chunk contains the section's heading → breadcrumbs = ancestors only
+   * - If chunk does NOT contain the heading (content split from heading) → breadcrumbs = ancestors + section heading
    */
   private *splitSection(
     section: Section,
@@ -255,13 +260,17 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
      */
     if (contentItems.length === 0) {
       if (section.heading) {
-        /**
-         * Process only heading
-         */
         yield* this.splitSubNode(section.heading, breadcrumbs);
       }
       return;
     }
+
+    /**
+     * Breadcrumbs for content-only chunks (when heading is split from content)
+     */
+    const contentBreadcrumbs = section.heading
+      ? [...breadcrumbs, section.heading]
+      : breadcrumbs;
 
     let currentItems: Nodes[] = [];
     let currentItemsSize = 0;
@@ -275,16 +284,10 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
     }
 
     for (const item of contentItems) {
-      /**
-       * Calculate item size once
-       */
       const itemSize = getContentSize(item);
       const potentialSize = currentItemsSize + itemSize;
 
       if (potentialSize <= this.maxAllowedSize) {
-        /**
-         * Item fits - add to current group to maximize utilization
-         */
         currentItems.push(item);
         currentItemsSize = potentialSize;
       } else {
@@ -293,23 +296,23 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
          */
         if (currentItems.length > 0) {
           const tree = createTree(currentItems);
-          tree.data = { ...tree.data, breadcrumbs };
+          tree.data = {
+            ...tree.data,
+            breadcrumbs:
+              currentItems[0] === section.heading
+                ? breadcrumbs
+                : contentBreadcrumbs,
+          };
           yield tree;
           currentItems = [];
           currentItemsSize = 0;
         }
 
         if (itemSize <= this.maxAllowedSize) {
-          /**
-           * Item fits alone - start new group with it
-           */
           currentItems = [item];
           currentItemsSize = itemSize;
         } else {
-          /**
-           * Item too large even alone - needs further splitting
-           */
-          yield* this.splitSubNode(item, breadcrumbs);
+          yield* this.splitSubNode(item, contentBreadcrumbs);
         }
       }
     }
@@ -319,7 +322,13 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
      */
     if (currentItems.length > 0) {
       const tree = createTree(currentItems);
-      tree.data = { ...tree.data, breadcrumbs };
+      tree.data = {
+        ...tree.data,
+        breadcrumbs:
+          currentItems[0] === section.heading
+            ? breadcrumbs
+            : contentBreadcrumbs,
+      };
       yield tree;
     }
   }
@@ -391,26 +400,15 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
             depth: siblingsDepth,
             children: siblings,
           });
-          // If single section with heading, include its heading in breadcrumbs
-          const groupBreadcrumbs =
-            siblings.length === 1 && siblings[0].heading
-              ? [...breadcrumbs, siblings[0].heading]
-              : breadcrumbs;
           groupSection.data = {
             ...groupSection.data,
-            breadcrumbs: groupBreadcrumbs,
+            breadcrumbs,
           };
           yield groupSection;
         }
 
-        /**
-         * Process oversized section
-         */
         yield* this.splitHierarchicalSection(section, breadcrumbs);
 
-        /**
-         * Reset group
-         */
         siblings = [];
         siblingsSize = 0;
         continue;
@@ -425,27 +423,16 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
           depth: siblingsDepth,
           children: siblings,
         });
-        // If single section with heading, include its heading in breadcrumbs
-        const groupBreadcrumbs =
-          siblings.length === 1 && siblings[0].heading
-            ? [...breadcrumbs, siblings[0].heading]
-            : breadcrumbs;
         groupSection.data = {
           ...groupSection.data,
-          breadcrumbs: groupBreadcrumbs,
+          breadcrumbs,
         };
         yield groupSection;
 
-        /**
-         * Reset group
-         */
         siblings = [];
         siblingsSize = 0;
       }
 
-      /**
-       * Add section to current group
-       */
       siblings.push(section);
       siblingsSize += sectionSize;
     }
@@ -458,14 +445,9 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
         depth: siblingsDepth,
         children: siblings,
       });
-      // If single section with heading, include its heading in breadcrumbs
-      const groupBreadcrumbs =
-        siblings.length === 1 && siblings[0].heading
-          ? [...breadcrumbs, siblings[0].heading]
-          : breadcrumbs;
       groupSection.data = {
         ...groupSection.data,
-        breadcrumbs: groupBreadcrumbs,
+        breadcrumbs,
       };
       yield groupSection;
     }

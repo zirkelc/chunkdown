@@ -44,7 +44,14 @@ describe('chunkdown', () => {
   });
 
   describe('Breadcrumbs', () => {
-    it('should return chunks with text and breadcrumbs', () => {
+    /**
+     * Breadcrumb behavior:
+     * - Breadcrumbs contain ONLY ancestor headings (not the section's own heading if it's in the chunk)
+     * - If chunk contains a heading → breadcrumbs = ancestors of that heading
+     * - If chunk is content-only (split from its heading) → breadcrumbs = ancestors + section heading
+     */
+
+    it('should return empty breadcrumbs when heading is in chunk (top-level)', () => {
       const splitter = chunkdown({
         chunkSize: 50,
         maxOverflowRatio: 1.0,
@@ -58,12 +65,11 @@ Some content here.`;
 
       expect(chunks.length).toBe(1);
       expect(chunks[0].text).toContain('# Main Section');
-      expect(chunks[0].breadcrumbs.length).toBe(1);
-      expect(chunks[0].breadcrumbs[0].text).toBe('Main Section');
-      expect(chunks[0].breadcrumbs[0].depth).toBe(1);
+      // Heading is in chunk → breadcrumbs are empty (no ancestors for H1)
+      expect(chunks[0].breadcrumbs.length).toBe(0);
     });
 
-    it('should return empty breadcrumbs for orphaned content', () => {
+    it('should return empty breadcrumbs for orphaned content and heading chunks', () => {
       const splitter = chunkdown({
         chunkSize: 100,
         maxOverflowRatio: 1.0,
@@ -82,13 +88,11 @@ Content under heading.`;
       // First chunk (orphaned content) should have empty breadcrumbs
       expect(chunks[0].breadcrumbs).toEqual([]);
 
-      // Second chunk should have the heading as breadcrumb
-      expect(chunks[1].breadcrumbs.length).toBe(1);
-      expect(chunks[1].breadcrumbs[0].text).toBe('First Heading');
-      expect(chunks[1].breadcrumbs[0].depth).toBe(1);
+      // Second chunk contains "# First Heading" → breadcrumbs are empty (no ancestors for H1)
+      expect(chunks[1].breadcrumbs).toEqual([]);
     });
 
-    it('should return nested breadcrumbs with text and depth', () => {
+    it('should return ancestor breadcrumbs when heading is in chunk (nested)', () => {
       const splitter = chunkdown({
         chunkSize: 20,
         maxOverflowRatio: 1.0,
@@ -104,11 +108,12 @@ Deep content here.`;
 
       const { chunks } = splitter.split(text);
 
-      // Find chunk with Level 3
+      // Find chunk with Level 3 heading
       const level3Chunk = chunks.find((c) => c.text.includes('### Level 3'));
 
       expect(level3Chunk).toBeDefined();
-      expect(level3Chunk?.breadcrumbs.length).toBe(3);
+      // Heading is in chunk → breadcrumbs are ancestors only: Level 1, Level 2
+      expect(level3Chunk?.breadcrumbs.length).toBe(2);
       expect(level3Chunk?.breadcrumbs[0]).toEqual({
         text: 'Level 1',
         depth: 1,
@@ -117,31 +122,33 @@ Deep content here.`;
         text: 'Level 2',
         depth: 2,
       });
-      expect(level3Chunk?.breadcrumbs[2]).toEqual({
-        text: 'Level 3',
-        depth: 3,
-      });
     });
 
-    it('should preserve breadcrumbs when using maxRawSize', () => {
+    it('should include section heading in breadcrumbs when content is split from heading', () => {
       const splitter = chunkdown({
-        chunkSize: 100,
+        chunkSize: 50,
         maxOverflowRatio: 1.0,
-        maxRawSize: 50,
       });
 
       const text = `# Section
 
-This is a longer paragraph that will need to be split due to maxRawSize limit being set to a small value.`;
+First paragraph that exceeds the chunk size limit.
+
+Second paragraph that also exceeds the limit.`;
 
       const { chunks } = splitter.split(text);
 
-      // All chunks should have the same breadcrumb
-      expect(chunks.length).toBe(5);
-      for (const chunk of chunks) {
-        expect(chunk.breadcrumbs.length).toBe(1);
-        expect(chunk.breadcrumbs[0].text).toBe('Section');
-        expect(chunk.breadcrumbs[0].depth).toBe(1);
+      expect(chunks.length).toBe(3);
+
+      // First chunk has heading only → empty breadcrumbs
+      expect(chunks[0].text).toBe('# Section');
+      expect(chunks[0].breadcrumbs.length).toBe(0);
+
+      // Remaining chunks are content-only → include section heading in breadcrumbs
+      for (let i = 1; i < chunks.length; i++) {
+        expect(chunks[i].breadcrumbs.length).toBe(1);
+        expect(chunks[i].breadcrumbs[0].text).toBe('Section');
+        expect(chunks[i].breadcrumbs[0].depth).toBe(1);
       }
     });
   });
