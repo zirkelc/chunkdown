@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/zirkelc/chunkdown/compare/v2.4.3...v3.0.0) (2025-12-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* breadcrumbs
+
+### Features
+
+* breadcrumbs ([c11b877](https://github.com/zirkelc/chunkdown/commit/c11b8770ec6e120d5c7552bb6911b0bec757051e))
+
 ## [2.4.3](https://github.com/zirkelc/chunkdown/compare/v2.4.2...v2.4.3) (2025-12-02)
 
 
