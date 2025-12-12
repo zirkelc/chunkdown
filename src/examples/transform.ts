@@ -47,7 +47,7 @@ const splitter = chunkdown({
   },
 });
 
-const chunks = splitter.splitText(text);
+const { chunks } = splitter.split(text);
 // chunks:
 // # Documentation
 //

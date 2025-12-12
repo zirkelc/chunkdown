@@ -19,7 +19,7 @@ const splitterPreserve = chunkdown({
   rules: { link: { style: 'preserve' } },
 });
 
-const chunksPreserve = splitterPreserve.splitText(text);
+const { chunks: chunksPreserve } = splitterPreserve.split(text);
 // [
 //   '# Introduction\n\nMarkdown supports two types of links: [inline](https://example.com/docs) and [reference][1].',
 //   '# Conclusion\n\nReference links are defined at the end of the document.\n\n[1]: https://example.com/docs "Documentation"',
@@ -31,7 +31,7 @@ const splitterInline = chunkdown({
   rules: { link: { style: 'inline' } },
 });
 
-const chunksInline = splitterInline.splitText(text);
+const { chunks: chunksInline } = splitterInline.split(text);
 // [
 //   '# Introduction\n\nMarkdown supports two types of links: [inline](https://example.com/docs) and [reference](https://example.com/docs "Documentation").',
 //   '# Conclusion\n\nReference links are defined at the end of the document.',

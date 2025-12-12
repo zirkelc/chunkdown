@@ -28,7 +28,7 @@ const chunkdownProtected = chunkdown({
     },
   },
 });
-const chunkdownChunks = chunkdownProtected.splitText(text);
+const { chunks: chunkdownChunks } = chunkdownProtected.split(text);
 console.log(chunkdownChunks);
 // [
 //   'Please check out the [AI SDK Core API Reference](https://ai-sdk.dev/docs/reference/ai-sdk-core)',

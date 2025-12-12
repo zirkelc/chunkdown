@@ -14,7 +14,7 @@ const text = `
 | David    | 40  | France  | Data Scientist    | david@example.com      |
 `;
 
-const chunks = splitter.splitText(text);
+const { chunks } = splitter.split(text);
 // Each chunk contains one or more rows and the header row
 // [
 //   '| Name | Age | Country | Occupation | Email |
