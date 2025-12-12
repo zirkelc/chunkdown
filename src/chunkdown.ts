@@ -1,9 +1,20 @@
-import type { Nodes, Root } from 'mdast';
-import { fromMarkdown, preprocessMarkdown, toMarkdown } from './markdown';
-import { splitByMaxRawSize } from './size';
+import type { Heading, Nodes, Root } from 'mdast';
+import {
+  fromMarkdown,
+  preprocessMarkdown,
+  toMarkdown,
+  toString,
+} from './markdown';
+import { splitTextByMaxRawSize } from './size';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
-import type { NodeRules, SplitterOptions } from './types';
+import type {
+  Breadcrumb,
+  Chunk,
+  NodeRules,
+  SplitterOptions,
+  SplitterResult,
+} from './types';
 
 /**
  * Default node rules:
@@ -49,23 +60,59 @@ class Chunkdown implements NodeSplitter<Root> {
     return this.options.maxRawSize;
   }
 
-  splitText(text: string): string[] {
+  /**
+   * Split markdown text into chunks with metadata.
+   *
+   * @param text - The markdown text to split
+   * @returns SplitResult containing chunks with text and breadcrumbs
+   */
+  split(text: string): SplitterResult {
     const root = fromMarkdown(text);
+    const preparedRoot = preprocessMarkdown(root, this.options);
+    const nodes = this.splitter.splitNode(preparedRoot);
 
-    const chunks = this.splitNode(root)
-      .map((node) => toMarkdown(node).trim())
-      .filter((chunk) => chunk.length > 0);
+    const chunks: Chunk[] = [];
 
-    if (this.options.maxRawSize !== undefined) {
-      return Array.from(splitByMaxRawSize(chunks, this.options.maxRawSize));
+    for (const node of nodes) {
+      const markdown = toMarkdown(node).trim();
+      if (markdown.length === 0) continue;
+
+      const headings = node.data?.breadcrumbs ?? [];
+      const breadcrumbs: Breadcrumb[] = headings.map((h) => ({
+        text: toString(h),
+        depth: h.depth,
+      }));
+
+      if (
+        this.options.maxRawSize !== undefined &&
+        markdown.length > this.options.maxRawSize
+      ) {
+        for (const part of splitTextByMaxRawSize(
+          markdown,
+          this.options.maxRawSize,
+        )) {
+          chunks.push({ text: part, breadcrumbs });
+        }
+      } else {
+        chunks.push({ text: markdown, breadcrumbs });
+      }
     }
 
-    return chunks;
+    return { chunks };
   }
 
+  /**
+   * @deprecated Use `split()` instead
+   */
+  splitText(text: string): string[] {
+    return this.split(text).chunks.map((c) => c.text);
+  }
+
+  /**
+   * @deprecated Use `split()` instead
+   */
   splitNode(root: Root): Array<Nodes> {
-    const preparedRoot = preprocessMarkdown(root, this.options);
-    return this.splitter.splitNode(preparedRoot);
+    return this.split(toMarkdown(root)).chunks.map((c) => fromMarkdown(c.text));
   }
 }
 

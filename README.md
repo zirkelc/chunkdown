@@ -90,7 +90,7 @@ They are trained on vast amounts of written material to recognize patterns in la
 
 AI SDK Core **simplifies working with LLMs by offering a standardized way of integrating them into your app** - so you can focus on building great AI applications for your users, not waste time on technical details.
 
-For example, here’s how you can generate text with various models using the AI SDK:
+For example, here's how you can generate text with various models using the AI SDK:
 
 <PreviewSwitchProviders />
 
@@ -113,7 +113,59 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
 Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.
 `;
 
-const chunks = splitter.splitText(text);
+const { chunks } = splitter.split(text);
+// Each chunk contains:
+// - text: the chunk content as markdown string
+// - breadcrumbs: array of ancestor headings for context
+```
+
+#### Breadcrumbs
+
+Each chunk includes breadcrumbs, an array of **ancestor** headings that provide hierarchical context. This is useful for RAG applications to provide additional context when embedding chunks.
+
+> [!NOTE]
+> If the heading is part of the chunk itself, it is not included in the breadcrumbs.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `
+Large Language Models (LLMs) are advanced programs that understand and generate human language.
+
+# AI SDK Core
+
+The AI SDK simplifies working with LLMs by offering a standardized API.
+
+## Text Generation
+
+Generate text using various models.
+
+### Structured Output
+
+Use generateObject to get typed responses matching a schema.
+`;
+
+const splitter = chunkdown({ chunkSize: 100 });
+const { chunks } = splitter.split(text);
+
+// chunks[0]:
+// text: "Large Language Models (LLMs) are advanced programs that understand and generate human language.",
+// breadcrumbs: []  // orphaned content before any heading
+
+// chunks[1]:
+// text: "# AI SDK Core\n\nThe AI SDK simplifies working with LLMs by offering a standardized API.",
+// breadcrumbs: []  // H1 is in chunk, no ancestors
+
+// chunks[2]:
+// text: "## Text Generation\n\nGenerate text using various models.",
+// breadcrumbs: [{ text: "AI SDK Core", depth: 1 }]  // ancestor only
+
+// chunks[3]:
+// text: "### Structured Output\n\nUse generateObject to get typed responses matching a schema.",
+// breadcrumbs: [
+//   { text: "AI SDK Core", depth: 1 },
+//   { text: "Text Generation", depth: 2 }
+// ]  // ancestors only (H3 is in chunk)
 ```
 
 #### Links and Images
@@ -130,21 +182,21 @@ const splitter = chunkdown({
   chunkSize: 50,
 });
 
-const chunks = splitter.splitText(text);
-// chunks[0]: "Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core)"
-// chunks[1]: "for more details on each function."
+const { chunks } = splitter.split(text);
+// chunks[0].text: "Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core)"
+// chunks[1].text: "for more details on each function."
 
 // Allow splitting links
-const splitte = chunkdown({
+const splitter2 = chunkdown({
   chunkSize: 50,
   rules: {
     formatting: { split: 'allow-split' }
   }
 });
 
-const chunks = splitter.splitText(text);
-// chunks[0]: "Please check out the [AI SDK Core API"
-// chunks[1]: "Reference](/docs/reference/ai-sdk-core) for more details on each function."
+const { chunks: chunks2 } = splitter2.split(text);
+// chunks2[0].text: "Please check out the [AI SDK Core API"
+// chunks2[1].text: "Reference](/docs/reference/ai-sdk-core) for more details on each function."
 ```
 
 ##### Reference-Style
@@ -166,23 +218,23 @@ const splitter = chunkdown({
   chunkSize: 100,
 });
 
-const chunks = splitter.splitText(text);
+const { chunks } = splitter.split(text);
 // Result:
-// chunks[0]: "Check out the [documentation](https://example.com/docs) and [API reference](https://example.com/api)."
+// chunks[0].text: "Check out the [documentation](https://example.com/docs) and [API reference](https://example.com/api)."
 
 // Preserve original style
-const splitter = chunkdown({
+const splitter2 = chunkdown({
   chunkSize: 100,
   rules: {
     link: { style: 'preserve' }
   }
 });
 
-const chunks = splitter.splitText(text);
+const { chunks: chunks2 } = splitter2.split(text);
 // Result:
-// chunks[0]: "Check out the [documentation][docs] and [API reference][api]."
-// chunks[1]: "[docs]: https://example.com/docs"
-// chunks[2]: "[api]: https://example.com/api"
+// chunks2[0].text: "Check out the [documentation][docs] and [API reference][api]."
+// chunks2[1].text: "[docs]: https://example.com/docs"
+// chunks2[2].text: "[api]: https://example.com/api"
 ```
 
 #### Formatting
@@ -199,24 +251,24 @@ const splitter = chunkdown({
   chunkSize: 30,
 });
 
-const chunks = splitter.splitText(text);
-// chunks[0]: "This is **a very long"
-// chunks[1]: "bold text that contains many"
-// chunks[2]: "words and exceeds the"
-// chunks[3]: "chunk size** in the middle."
+const { chunks } = splitter.split(text);
+// chunks[0].text: "This is **a very long"
+// chunks[1].text: "bold text that contains many"
+// chunks[2].text: "words and exceeds the"
+// chunks[3].text: "chunk size** in the middle."
 
 // Never split formatting
-const splitte = chunkdown({
+const splitter2 = chunkdown({
   chunkSize: 30,
   rules: {
     formatting: { split: 'never-split' }
   }
 });
 
-const chunks = splitter.splitText(text);
-// chunks[0]: "This is"
-// chunks[1]: "**a very long bold text that contains many words and exceeds the chunk size**"
-// chunks[2]: "in the middle."
+const { chunks: chunks2 } = splitter2.split(text);
+// chunks2[0].text: "This is"
+// chunks2[1].text: "**a very long bold text that contains many words and exceeds the chunk size**"
+// chunks2[2].text: "in the middle."
 ```
 
 #### Tables
@@ -243,7 +295,7 @@ const text = `
 | David    | 40  | France  | Data Scientist    | david@example.com      |
 `;
 
-const chunks = splitter.splitText(text);
+const { chunks } = splitter.split(text);
 // chunks[0]:
 // | Name | Age | Country | Occupation | Email |
 // | - | - | - | - | - |
@@ -282,7 +334,7 @@ const splitter = chunkdown({
   chunkSize: 100,
 });
 
-const chunks = splitter.splitText(text);
+const { chunks } = splitter.split(text);
 // Markdown variations are normalized to:
 // - __bold__ → **bold**
 // - _italic_ → *italic*
@@ -320,8 +372,8 @@ const splitter = chunkdown({
 });
 
 const text = `Check out our [website](https://example.com/with/a/very/long/url/that/increases/the/chunk/size/significantly).`;
-const chunks = splitter.splitText(text);
-// chunks[0]: "Check out our [website](https://example.com/with/a/very/long/url/that/incr...)."
+const { chunks } = splitter.split(text);
+// chunks[0].text: "Check out our [website](https://example.com/with/a/very/long/url/that/incr...)."
 ```
 
 ##### Removing Data URLs
@@ -363,8 +415,8 @@ const text = `
 
 Check our [website](https://example.com) for more info.
 `;
-const chunks = splitter.splitText(text);
-// chunks[0]: 
+const { chunks } = splitter.split(text);
+// chunks[0].text: 
 // # Article
 //
 // Check our [website](https://example.com) for more info.
@@ -381,8 +433,7 @@ Creates a new markdown splitter instance.
 An object with the following methods and properties:
 
 **Methods:**
-- `splitText(text: string): string[]`: Splits the input markdown text into chunks
-- `splitNode(root: Root): Array<Nodes>`: Splits a markdown AST root node into an array of AST nodes
+- `split(text: string): SplitterResult`: Splits markdown text into chunks
 
 **Properties (readonly):**
 - `chunkSize: number`: The configured target chunk size

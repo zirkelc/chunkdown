@@ -13,10 +13,10 @@ describe('chunkdown', () => {
         maxOverflowRatio: 1.0,
       });
 
-      const chunks = splitter.splitText(text);
+      const { chunks } = splitter.split(text);
 
       expect(chunks.length).toBe(1);
-      expect(getContentSize(chunks[0])).toBe(26);
+      expect(getContentSize(chunks[0].text)).toBe(26);
     });
 
     it('should enforce raw size limit if defined', () => {
@@ -27,19 +27,129 @@ describe('chunkdown', () => {
         maxRawSize,
       });
 
-      const chunks = splitter.splitText(text);
+      const { chunks } = splitter.split(text);
 
       expect(chunks.length).toBe(2);
 
-      const link1Chunk = chunks.find((chunk) => chunk.includes('link1'));
-      const link2Chunk = chunks.find((chunk) => chunk.includes('link2'));
+      const link1Chunk = chunks.find((chunk) => chunk.text.includes('link1'));
+      const link2Chunk = chunks.find((chunk) => chunk.text.includes('link2'));
 
       expect(link1Chunk).toBeDefined();
       expect(link2Chunk).toBeDefined();
 
       chunks.forEach((chunk) => {
-        expect(chunk.length).toBeLessThanOrEqual(maxRawSize);
+        expect(chunk.text.length).toBeLessThanOrEqual(maxRawSize);
       });
+    });
+  });
+
+  describe('Breadcrumbs', () => {
+    /**
+     * Breadcrumb behavior:
+     * - Breadcrumbs contain ONLY ancestor headings (not the section's own heading if it's in the chunk)
+     * - If chunk contains a heading → breadcrumbs = ancestors of that heading
+     * - If chunk is content-only (split from its heading) → breadcrumbs = ancestors + section heading
+     */
+
+    it('should return empty breadcrumbs when heading is in chunk (top-level)', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+
+      const text = `# Main Section
+
+Some content here.`;
+
+      const { chunks } = splitter.split(text);
+
+      expect(chunks.length).toBe(1);
+      expect(chunks[0].text).toContain('# Main Section');
+      // Heading is in chunk → breadcrumbs are empty (no ancestors for H1)
+      expect(chunks[0].breadcrumbs.length).toBe(0);
+    });
+
+    it('should return empty breadcrumbs for orphaned content and heading chunks', () => {
+      const splitter = chunkdown({
+        chunkSize: 100,
+        maxOverflowRatio: 1.0,
+      });
+
+      const text = `Some intro text before any heading.
+
+# First Heading
+
+Content under heading.`;
+
+      const { chunks } = splitter.split(text);
+
+      expect(chunks.length).toBe(2);
+
+      // First chunk (orphaned content) should have empty breadcrumbs
+      expect(chunks[0].breadcrumbs).toEqual([]);
+
+      // Second chunk contains "# First Heading" → breadcrumbs are empty (no ancestors for H1)
+      expect(chunks[1].breadcrumbs).toEqual([]);
+    });
+
+    it('should return ancestor breadcrumbs when heading is in chunk (nested)', () => {
+      const splitter = chunkdown({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+      });
+
+      const text = `# Level 1
+
+## Level 2
+
+### Level 3
+
+Deep content here.`;
+
+      const { chunks } = splitter.split(text);
+
+      // Find chunk with Level 3 heading
+      const level3Chunk = chunks.find((c) => c.text.includes('### Level 3'));
+
+      expect(level3Chunk).toBeDefined();
+      // Heading is in chunk → breadcrumbs are ancestors only: Level 1, Level 2
+      expect(level3Chunk?.breadcrumbs.length).toBe(2);
+      expect(level3Chunk?.breadcrumbs[0]).toEqual({
+        text: 'Level 1',
+        depth: 1,
+      });
+      expect(level3Chunk?.breadcrumbs[1]).toEqual({
+        text: 'Level 2',
+        depth: 2,
+      });
+    });
+
+    it('should include section heading in breadcrumbs when content is split from heading', () => {
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.0,
+      });
+
+      const text = `# Section
+
+First paragraph that exceeds the chunk size limit.
+
+Second paragraph that also exceeds the limit.`;
+
+      const { chunks } = splitter.split(text);
+
+      expect(chunks.length).toBe(3);
+
+      // First chunk has heading only → empty breadcrumbs
+      expect(chunks[0].text).toBe('# Section');
+      expect(chunks[0].breadcrumbs.length).toBe(0);
+
+      // Remaining chunks are content-only → include section heading in breadcrumbs
+      for (let i = 1; i < chunks.length; i++) {
+        expect(chunks[i].breadcrumbs.length).toBe(1);
+        expect(chunks[i].breadcrumbs[0].text).toBe('Section');
+        expect(chunks[i].breadcrumbs[0].depth).toBe(1);
+      }
     });
   });
 
@@ -49,10 +159,10 @@ describe('chunkdown', () => {
         chunkSize: 50,
         maxOverflowRatio: 1.0,
       });
-      expect(splitter.splitText('')).toEqual([]);
-      expect(splitter.splitText(' ')).toEqual([]);
-      expect(splitter.splitText(' ')).toEqual([]);
-      expect(splitter.splitText('   \n\t   ')).toEqual([]);
+      expect(splitter.split('').chunks).toEqual([]);
+      expect(splitter.split(' ').chunks).toEqual([]);
+      expect(splitter.split(' ').chunks).toEqual([]);
+      expect(splitter.split('   \n\t   ').chunks).toEqual([]);
     });
 
     it('should handle unicode non-breaking whitespace', () => {
@@ -65,12 +175,13 @@ describe('chunkdown', () => {
 
 
 
+
 Second paragraph.`;
 
-      const chunks = splitter.splitText(text);
+      const { chunks } = splitter.split(text);
 
       expect(chunks.length).toBe(4);
-      const emptyChunks = chunks.filter((chunk) => chunk.trim() === '');
+      const emptyChunks = chunks.filter((chunk) => chunk.text.trim() === '');
       expect(emptyChunks.length).toBe(0);
     });
 
@@ -88,12 +199,12 @@ First sentence.
 Third sentence.
   `;
 
-      const chunks = splitter.splitText(text);
+      const { chunks } = splitter.split(text);
 
       expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('First sentence.');
-      expect(chunks[1]).toBe('Second sentence.');
-      expect(chunks[2]).toBe('Third sentence.');
+      expect(chunks[0].text).toBe('First sentence.');
+      expect(chunks[1].text).toBe('Second sentence.');
+      expect(chunks[2].text).toBe('Third sentence.');
     });
   });
 
@@ -122,11 +233,11 @@ Third sentence.
         maxOverflowRatio: 1.5,
       });
       const text = `This text is thirty char long. This text is thirty char long.`; // 61 chars
-      const chunks = splitter.splitText(text);
+      const { chunks } = splitter.split(text);
 
       expect(chunks.length).toBe(2);
       chunks.forEach((chunk) => {
-        expect(getContentSize(chunk)).toBeLessThanOrEqual(30); // Within 1.5x limit
+        expect(getContentSize(chunk.text)).toBeLessThanOrEqual(30); // Within 1.5x limit
       });
     });
 
@@ -136,11 +247,11 @@ Third sentence.
         maxOverflowRatio: 1.0,
       });
       const text = `This text is thirty char long. This text is thirty char long.`;
-      const chunks = splitter.splitText(text);
+      const { chunks } = splitter.split(text);
 
       expect(chunks.length).toBe(4);
       chunks.forEach((chunk) => {
-        expect(getContentSize(chunk)).toBeLessThanOrEqual(20);
+        expect(getContentSize(chunk.text)).toBeLessThanOrEqual(20);
       });
     });
   });
@@ -154,10 +265,10 @@ Third sentence.
         });
         const url = `https://example.com/${'x'.repeat(100)}`;
         const text = `Check [documentation](${url}) for more details.`;
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(1);
-        expect(chunks[0]).toBe(
+        expect(chunks[0].text).toBe(
           `Check [documentation](${url}) for more details.`,
         );
       });
@@ -170,10 +281,10 @@ Third sentence.
         });
         const url = `https://example.com/${'x'.repeat(100)}`;
         const text = `Check [documentation](${url}) for more details.`;
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(9);
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'Check [documentation',
           '](https://example.co',
           'm/xxxxxxxxxxxxxxxxxx',
@@ -193,10 +304,10 @@ Third sentence.
         });
         const url = `./architecture-${'x'.repeat(100)}.png`;
         const text = `Check ![architecture](${url}) for more details.`;
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(1);
-        expect(chunks[0]).toBe(
+        expect(chunks[0].text).toBe(
           `Check ![architecture](${url}) for more details.`,
         );
       });
@@ -210,10 +321,10 @@ Third sentence.
         const url = `./architecture-${'x'.repeat(100)}.png`;
         const text = `Check ![architecture](${url}) for more details.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(8);
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'Check ![architecture',
           '](./architecture-xxx',
           'xxxxxxxxxxxxxxxxxxxx',
@@ -231,10 +342,10 @@ Third sentence.
           maxOverflowRatio: 1.0,
         });
         const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
         expect(chunks.length).toBe(2);
-        expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
-        expect(chunks[1]).toBe('antidisestablishmentarianism');
+        expect(chunks[0].text).toBe('supercalifragilisticexpialidocious');
+        expect(chunks[1].text).toBe('antidisestablishmentarianism');
       });
 
       it('should only split words if they exceed raw size limit', () => {
@@ -245,16 +356,16 @@ Third sentence.
         });
 
         const text = `supercalifragilisticexpialidocious antidisestablishmentarianism`;
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(4);
-        expect(chunks[0]).toBe('supercalifragilistic');
-        expect(chunks[1]).toBe('expialidocious');
-        expect(chunks[2]).toBe('antidisestablishment');
-        expect(chunks[3]).toBe('arianism');
+        expect(chunks[0].text).toBe('supercalifragilistic');
+        expect(chunks[1].text).toBe('expialidocious');
+        expect(chunks[2].text).toBe('antidisestablishment');
+        expect(chunks[3].text).toBe('arianism');
 
         chunks.forEach((chunk) => {
-          expect(chunk.length).toBeLessThanOrEqual(20);
+          expect(chunk.text.length).toBeLessThanOrEqual(20);
         });
       });
     });
@@ -263,21 +374,21 @@ Third sentence.
       it('should normalize reference-style links to inline by default', () => {
         const text = 'Check [this link][ref].\n\n[ref]: https://example.com';
         const splitter = chunkdown({ chunkSize: 100, maxOverflowRatio: 2 });
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks[0]).toContain('[this link](https://example.com)');
-        expect(chunks[0]).not.toContain('[ref]:');
-        expect(chunks.join('\n\n')).not.toContain('[ref]:');
+        expect(chunks[0].text).toContain('[this link](https://example.com)');
+        expect(chunks[0].text).not.toContain('[ref]:');
+        expect(chunks.map((c) => c.text).join('\n\n')).not.toContain('[ref]:');
       });
 
       it('should normalize reference-style images to inline by default', () => {
         const text = 'See ![image][img].\n\n[img]: /path/to/image.png';
         const splitter = chunkdown({ chunkSize: 100, maxOverflowRatio: 1 });
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks[0]).toContain('![image](/path/to/image.png)');
-        expect(chunks[0]).not.toContain('[img]:');
-        expect(chunks.join('\n\n')).not.toContain('[img]:');
+        expect(chunks[0].text).toContain('![image](/path/to/image.png)');
+        expect(chunks[0].text).not.toContain('[img]:');
+        expect(chunks.map((c) => c.text).join('\n\n')).not.toContain('[img]:');
       });
     });
 
@@ -295,9 +406,9 @@ Third sentence.
 
 This is a paragraph after the list.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'This is a paragraph before the list.',
           '* First item\n* Second item\n* Third item',
           'This is a paragraph after the list.',
@@ -317,9 +428,9 @@ This is a paragraph after the list.`;
 
 This is a paragraph after the table.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'This is a paragraph before the table.',
           '| Column 1 | Column 2 |\n| - | - |\n| Cell 1 | Cell 2 |',
           'This is a paragraph after the table.',
@@ -338,9 +449,9 @@ This is a paragraph after the table.`;
 
 This is a paragraph after the blockquote.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'This is a paragraph before the blockquote.',
           '> This is a blockquote\n> with multiple lines',
           'This is a paragraph after the blockquote.',
@@ -362,9 +473,9 @@ function hello() {
 
 This is a paragraph after the code block.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'This is a paragraph before the code block.',
           '```javascript\nfunction hello() {\n  console.log("Hello");\n}\n```',
           'This is a paragraph after the code block.',
@@ -382,9 +493,9 @@ This is a paragraph after the code block.`;
 
 This is a paragraph after the rule.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'This is a paragraph before the rule.\n\n***',
           'This is a paragraph after the rule.',
         ]);
@@ -403,9 +514,9 @@ This is a paragraph after the rule.`;
 
 This is a paragraph after the HTML.`;
 
-        const chunks = splitter.splitText(text);
+        const { chunks } = splitter.split(text);
 
-        expect(chunks).toEqual([
+        expect(chunks.map((c) => c.text)).toEqual([
           'This is a paragraph before the HTML.',
           '<div class="example">\n  <p>HTML content</p>\n</div>',
           'This is a paragraph after the HTML.',
@@ -449,9 +560,9 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
             chunkSize: 200,
             maxOverflowRatio: 1.0,
           });
-          const chunks = splitter.splitText(text);
+          const { chunks } = splitter.split(text);
 
-          expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
           [
             "# AI SDK Core",
             "Large Language Models (LLMs) are advanced programs that can understand, create, and engage with human language on a large scale.",
@@ -480,13 +591,13 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(300); // 200 * 1.5
           });
 
           // Verify links and images are never broken
           chunks.forEach((chunk) => {
-            const brackets = (chunk.match(/[[\]]/g) || []).length;
-            const backticks = (chunk.match(/`/g) || []).length;
+            const brackets = (chunk.text.match(/[[\]]/g) || []).length;
+            const backticks = (chunk.text.match(/`/g) || []).length;
 
             if (brackets > 0) expect(brackets % 2).toBe(0);
             if (backticks > 0) expect(backticks % 2).toBe(0);
@@ -498,9 +609,9 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
             chunkSize: 200,
             maxOverflowRatio: 1.5,
           });
-          const chunks = splitter.splitText(text);
+          const { chunks } = splitter.split(text);
 
-          expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
           [
             "# AI SDK Core
 
@@ -530,12 +641,12 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(300); // 200 * 1.5
           });
 
           // Verify links and images are never broken
           chunks.forEach((chunk) => {
-            const brackets = (chunk.match(/[[\]]/g) || []).length;
+            const brackets = (chunk.text.match(/[[\]]/g) || []).length;
 
             if (brackets > 0) expect(brackets % 2).toBe(0);
           });
@@ -779,9 +890,9 @@ Here's a sentence with a footnote[^1].
             chunkSize: 200,
             maxOverflowRatio: 1.0,
           });
-          const chunks = splitter.splitText(text);
+          const { chunks } = splitter.split(text);
 
-          expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
             [
               "# Markdown Showcase
 
@@ -992,12 +1103,12 @@ Here's a sentence with a footnote[^1].
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(300); // 200 * 1.5
           });
 
           // Verify links and images are never broken
           chunks.forEach((chunk) => {
-            const brackets = (chunk.match(/[[\]]/g) || []).length;
+            const brackets = (chunk.text.match(/[[\]]/g) || []).length;
 
             if (brackets > 0) expect(brackets % 2).toBe(0);
           });
@@ -1008,9 +1119,9 @@ Here's a sentence with a footnote[^1].
             chunkSize: 200,
             maxOverflowRatio: 1.5,
           });
-          const chunks = splitter.splitText(text);
+          const { chunks } = splitter.split(text);
 
-          expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
             [
               "# Markdown Showcase
 
@@ -1229,12 +1340,12 @@ Here's a sentence with a footnote[^1].
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk)).toBeLessThanOrEqual(300); // 200 * 1.5
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(300); // 200 * 1.5
           });
 
           // Verify links and images are never broken
           chunks.forEach((chunk) => {
-            const brackets = (chunk.match(/[[\]]/g) || []).length;
+            const brackets = (chunk.text.match(/[[\]]/g) || []).length;
 
             if (brackets > 0) expect(brackets % 2).toBe(0);
           });
@@ -1253,9 +1364,9 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
             chunkSize,
             maxOverflowRatio,
           });
-          const chunks = splitter.splitText(text);
+          const { chunks } = splitter.split(text);
 
-          expect(chunks).toMatchInlineSnapshot(`
+          expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
           [
             "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation:",
             "[\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
@@ -1267,14 +1378,14 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk)).toBeLessThanOrEqual(
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(
               chunkSize * maxOverflowRatio,
             );
           });
 
           // Verify links and images are never broken
           chunks.forEach((chunk) => {
-            const brackets = (chunk.match(/[[\]]/g) || []).length;
+            const brackets = (chunk.text.match(/[[\]]/g) || []).length;
 
             if (brackets > 0) expect(brackets % 2).toBe(0);
           });
@@ -1287,26 +1398,26 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
             chunkSize,
             maxOverflowRatio,
           });
-          const chunks = splitter.splitText(text);
+          const { chunks } = splitter.split(text);
 
-          expect(chunks).toMatchInlineSnapshot(`
-          [
-            "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
-            "Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[\\[2\\]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions.",
-            "When using a pack, they can carry about 25 to 30% of their body weight for 8 to 13 [km](https://en.wikipedia.org/wiki/Kilometre "Kilometre") (5–8 [miles](https://en.wikipedia.org/wiki/Mile "Mile")).[\\[3\\]](https://en.wikipedia.org/wiki/Llama#cite_note-OK_State-3) The name *llama* (also historically spelled "lama" or "glama") was adopted by [European settlers](https://en.wikipedia.org/wiki/European_colonization_of_the_Americas "European colonization of the Americas") from [native Peruvians](https://en.wikipedia.org/wiki/Indigenous_people_in_Peru "Indigenous people in Peru").[\\[4\\]](https://en.wikipedia.org/wiki/Llama#cite_note-4)",
-          ]
-        `);
+          expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
+            [
+              "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
+              "Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[\\[2\\]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions.",
+              "When using a pack, they can carry about 25 to 30% of their body weight for 8 to 13 [km](https://en.wikipedia.org/wiki/Kilometre "Kilometre") (5–8 [miles](https://en.wikipedia.org/wiki/Mile "Mile")).[\\[3\\]](https://en.wikipedia.org/wiki/Llama#cite_note-OK_State-3) The name *llama* (also historically spelled "lama" or "glama") was adopted by [European settlers](https://en.wikipedia.org/wiki/European_colonization_of_the_Americas "European colonization of the Americas") from [native Peruvians](https://en.wikipedia.org/wiki/Indigenous_people_in_Peru "Indigenous people in Peru").[\\[4\\]](https://en.wikipedia.org/wiki/Llama#cite_note-4)",
+            ]
+          `);
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk)).toBeLessThanOrEqual(
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(
               chunkSize * maxOverflowRatio,
             );
           });
 
           // Verify links and images are never broken
           chunks.forEach((chunk) => {
-            const brackets = (chunk.match(/[[\]]/g) || []).length;
+            const brackets = (chunk.text.match(/[[\]]/g) || []).length;
 
             if (brackets > 0) expect(brackets % 2).toBe(0);
           });

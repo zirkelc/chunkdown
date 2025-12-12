@@ -1,5 +1,6 @@
 import type {
   Definition,
+  Heading,
   Image,
   ImageReference,
   Link,
@@ -32,6 +33,10 @@ declare module 'mdast' {
      * Content size of the node
      */
     size?: number;
+    /**
+     * Breadcrumbs - ancestor headings for hierarchical context
+     */
+    breadcrumbs?: Heading[];
   }
 }
 
