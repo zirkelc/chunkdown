@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/zirkelc/chunkdown/compare/v3.0.0...v3.1.0) (2025-12-16)
+
+
+### Features
+
+* add support for node rules for code and inlineCode ([bcc2a0f](https://github.com/zirkelc/chunkdown/commit/bcc2a0f64718fc38d7cd4b388a520a42c7df0325))
+
 ## [3.0.0](https://github.com/zirkelc/chunkdown/compare/v2.4.3...v3.0.0) (2025-12-12)
 
 
