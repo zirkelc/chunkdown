@@ -571,6 +571,95 @@ describe('TextSplitter', () => {
       });
     });
 
+    describe('Inline Code', () => {
+      const text = `Check \`long inline code example here\` for more details.`;
+
+      it('may split inline code if rules are undefined', () => {
+        const splitter = new TextSplitter({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+          rules: {
+            inlineCode: undefined,
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        const codeChunk = chunks.find((chunk) =>
+          chunk.includes('`long inline code example here`'),
+        );
+        expect(codeChunk).toBeUndefined();
+      });
+
+      it('should split inline code if rules are set to allow-split', () => {
+        const splitter = new TextSplitter({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+          rules: {
+            inlineCode: { split: { rule: 'allow-split' } },
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        const codeChunk = chunks.find((chunk) =>
+          chunk.includes('`long inline code example here`'),
+        );
+        expect(codeChunk).toBeUndefined();
+      });
+
+      it('should not split inline code if rules are set to never-split', () => {
+        const splitter = new TextSplitter({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+          rules: {
+            inlineCode: { split: { rule: 'never-split' } },
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        const codeChunk = chunks.find((chunk) =>
+          chunk.includes('`long inline code example here`'),
+        );
+        expect(codeChunk).toBeDefined();
+      });
+
+      it('should split inline code if exceeds size limit', () => {
+        const splitter = new TextSplitter({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+          rules: {
+            inlineCode: { split: { rule: 'size-split', size: 10 } },
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        const codeChunk = chunks.find((chunk) =>
+          chunk.includes('`long inline code example here`'),
+        );
+        expect(codeChunk).toBeUndefined();
+      });
+
+      it('should not split inline code if does not exceed size limit', () => {
+        const splitter = new TextSplitter({
+          chunkSize: 10,
+          maxOverflowRatio: 1.0,
+          rules: {
+            inlineCode: { split: { rule: 'size-split', size: 50 } },
+          },
+        });
+
+        const chunks = splitter.splitText(text);
+
+        const codeChunk = chunks.find((chunk) =>
+          chunk.includes('`long inline code example here`'),
+        );
+        expect(codeChunk).toBeDefined();
+      });
+    });
+
     describe('Regression: Split links should not produce escaped markdown', () => {
       it('should not escape markdown syntax when splitting links with allow-split', () => {
         // When a link is split (allow-split), the fragments should be yielded as raw text

@@ -462,6 +462,8 @@ Configure splitting behavior for specific markdown node types. Rules allow fine-
 - `table`: Table elements
 - `list`: List elements (ordered and unordered)
 - `blockquote`: Blockquote elements
+- `code`: Fenced code blocks `` ```code``` ``
+- `inlineCode`: Inline code `` `code` ``
 - `formatting`: Formatting elements (combines `strong`, `emphasis`, `delete`)
 - `strong`: Bold text `**bold**` (overrides `formatting` if specified)
 - `emphasis`: Italic text `*italic*` (overrides `formatting` if specified)

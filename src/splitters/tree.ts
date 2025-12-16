@@ -14,6 +14,7 @@ import { getContentSize, getSectionSize } from '../size';
 import type { SplitterOptions } from '../types';
 import { AbstractNodeSplitter } from './base';
 import { BlockquoteSplitter } from './blockquote';
+import { CodeSplitter } from './code';
 import type { NodeSplitter } from './interface';
 import { ListSplitter } from './list';
 import { TableSplitter } from './table';
@@ -33,6 +34,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
       ['list', new ListSplitter(options)],
       ['table', new TableSplitter(options)],
       ['blockquote', new BlockquoteSplitter(options)],
+      ['code', new CodeSplitter(options)],
     ]);
 
     /**

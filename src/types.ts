@@ -1,8 +1,10 @@
 import type {
   Blockquote,
+  Code,
   Delete,
   Emphasis,
   Image,
+  InlineCode,
   Link,
   List,
   Nodes,
@@ -27,6 +29,8 @@ type NodeTypes = {
   list: List;
   table: Table;
   blockquote: Blockquote;
+  code: Code;
+  inlineCode: InlineCode;
 };
 
 /**
