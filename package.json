@@ -1,6 +1,6 @@
 {
   "name": "chunkdown",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "A tree-based markdown text splitter that understands document structure to create semantically meaningful chunks for RAG applications",
   "packageManager": "pnpm@10.0.0",
   "type": "module",
