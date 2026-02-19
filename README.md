@@ -45,6 +45,36 @@ Words are the smallest meaningful unit of information for embedding purposes. Wh
 
 [Comparison of chunk size 1: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=TGFyZ2UgTGFuZ3VhZ2UgTW9kZWxzIChMTE1zKSBhcmUgYWR2YW5jZWQgcHJvZ3JhbXMgdGhhdCBjYW4gdW5kZXJzdGFuZCwgY3JlYXRlLCBhbmQgZW5nYWdlIHdpdGggaHVtYW4gbGFuZ3VhZ2Ugb24gYSBsYXJnZSBzY2FsZS4KVGhleSBhcmUgdHJhaW5lZCBvbiB2YXN0IGFtb3VudHMgb2Ygd3JpdHRlbiBtYXRlcmlhbCB0byByZWNvZ25pemUgcGF0dGVybnMgaW4gbGFuZ3VhZ2UgYW5kIHByZWRpY3Qgd2hhdCBtaWdodCBjb21lIG5leHQgaW4gYSBnaXZlbiBwaWVjZSBvZiB0ZXh0Lg%3D%3D&chunkSize=1&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&maxOverflow=1&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A1%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
 
+#### Plain Text Boundary Detection
+
+Matching regex patterns directly on markdown text causes formatting characters (`**`, `[](...)`) to interfere with natural language boundary detection. For example, a sentence-ending period inside `**Bold.**` would be found at the wrong position if matched against raw markdown.
+
+The solution: extract plain text from the AST, match patterns there, then map positions back to markdown. Protected ranges prevent splits inside markdown constructs like links, images, and formatting.
+
+```
+Markdown:  "**Important:** Check [link](url)."
+            0         1         2         3
+            0123456789012345678901234567890123
+              ↑       ↑        ↑         ↑
+              2       11       21        32
+              (bold)  (bold)   (link     (period)
+                               starts)
+
+Plain:     "Important: Check link."
+            0         1         2
+            0123456789012345678901
+                             ↑  ↑
+                             17 21
+                             (link text) (period)
+
+Position mapping:
+- Plain 9 (colon) → Markdown 13 (after bold syntax)
+- Plain 17-20 (link text) → Markdown 22-25 (inside [])
+- Plain 21 (period) → Markdown 32 (after link syntax)
+```
+
+The bold `**` and link `[]()` syntax are stripped in plain text, but positions map back correctly to markdown for accurate boundary detection.
+
 #### Never Break Semantics
 
 Semantic elements like links, images, inline code, and certain formatting elements should ideally always remain intact. Breaking a long link like `[structured data generation](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)` into `[structured` and `data generation](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data` destroys meaning. The splitter preserves these constructs and splits around them.

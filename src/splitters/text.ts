@@ -1,4 +1,4 @@
-import type { Nodes, Root } from 'mdast';
+import type { Code, Image, InlineCode, Nodes, Root, Text } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
 import type { SplitterOptions } from '../types';
@@ -12,6 +12,39 @@ type ProtectedRange = {
   start: number;
   end: number;
   type: string;
+};
+
+/**
+ * Represents a segment mapping plain text positions to markdown positions
+ */
+type PositionSegment = {
+  /** Start position in plain text (inclusive) */
+  plainStart: number;
+  /** End position in plain text (exclusive) */
+  plainEnd: number;
+  /** Start position in markdown (inclusive) */
+  mdStart: number;
+  /** End position in markdown (exclusive) */
+  mdEnd: number;
+  /**
+   * Character-level offset map for segments with escape sequences.
+   * Maps plain text offset (within segment) to markdown offset (within segment).
+   * Only present when markdown length differs from plain text length.
+   * charMap[i] gives the markdown offset for plain text offset i.
+   */
+  charMap?: Array<number>;
+};
+
+/**
+ * Mapping between plain text and markdown with position segments
+ */
+type PositionMapping = {
+  /** Extracted plain text content */
+  plainText: string;
+  /** Original markdown text */
+  markdown: string;
+  /** Segments mapping plain text positions to markdown positions */
+  segments: Array<PositionSegment>;
 };
 
 /**
@@ -31,6 +64,321 @@ type Pattern = {
   type: string;
   priority: number;
 };
+
+/**
+ * Build a position mapping from AST to enable pattern matching on plain text
+ * while preserving the ability to map back to markdown positions.
+ *
+ * Walks the AST depth-first and extracts text content from:
+ * - `text` nodes: direct value mapping
+ * - `inlineCode` nodes: value without backticks
+ * - `image` nodes: alt text
+ */
+function buildPositionMapping(ast: Nodes, markdown: string): PositionMapping {
+  const segments: Array<PositionSegment> = [];
+  const plainTextParts: Array<string> = [];
+  let plainOffset = 0;
+
+  const traverse = (node: Nodes): void => {
+    /**
+     * Skip nodes without position information
+     */
+    if (
+      node.position?.start?.offset === undefined ||
+      node.position?.end?.offset === undefined
+    ) {
+      if (`children` in node && Array.isArray(node.children)) {
+        for (const child of node.children) {
+          traverse(child);
+        }
+      }
+      return;
+    }
+
+    switch (node.type) {
+      case `text`: {
+        const textNode = node as Text;
+        const text = textNode.value;
+        const mdStart = node.position.start.offset;
+        const mdEnd = node.position.end.offset;
+        const mdSlice = markdown.slice(mdStart, mdEnd);
+
+        const segment: PositionSegment = {
+          plainStart: plainOffset,
+          plainEnd: plainOffset + text.length,
+          mdStart,
+          mdEnd,
+        };
+
+        /**
+         * If markdown length differs from text length, escape sequences are present.
+         * Build a character map for accurate position mapping.
+         */
+        if (mdSlice.length !== text.length) {
+          const charMap: Array<number> = [];
+          let mdOffset = 0;
+          let plainIdx = 0;
+
+          while (plainIdx < text.length && mdOffset < mdSlice.length) {
+            /**
+             * Check for escape sequence (backslash followed by the expected char)
+             */
+            if (
+              mdSlice[mdOffset] === `\\` &&
+              mdOffset + 1 < mdSlice.length &&
+              mdSlice[mdOffset + 1] === text[plainIdx]
+            ) {
+              /**
+               * Skip the backslash, map to the character after it
+               */
+              charMap.push(mdOffset + 1);
+              mdOffset += 2;
+              plainIdx += 1;
+            } else if (mdSlice[mdOffset] === text[plainIdx]) {
+              charMap.push(mdOffset);
+              mdOffset += 1;
+              plainIdx += 1;
+            } else {
+              /**
+               * Unexpected mismatch - skip markdown character
+               */
+              mdOffset += 1;
+            }
+          }
+
+          segment.charMap = charMap;
+        }
+
+        segments.push(segment);
+        plainTextParts.push(text);
+        plainOffset += text.length;
+        break;
+      }
+
+      case `inlineCode`: {
+        /**
+         * Inline code needs special handling because the content is stored as a `value`
+         * property, and we need to skip the backtick syntax (`` ` `` or ``` `` ```).
+         * The backticks are markdown syntax, not content.
+         *
+         * mdast representation:
+         * - inlineCode: { type: 'inlineCode', value: 'code' }  ← no children, value property
+         */
+        const codeNode = node as InlineCode;
+        const text = codeNode.value;
+        const mdStart = node.position.start.offset;
+        const mdEnd = node.position.end.offset;
+
+        /**
+         * Find where the code content starts by looking for the text in the markdown slice.
+         * Handles both single and multiple backticks (` or `` or ```).
+         */
+        const markdownSlice = markdown.slice(mdStart, mdEnd);
+        const codeStartOffset = markdownSlice.indexOf(text);
+
+        if (codeStartOffset >= 0) {
+          segments.push({
+            plainStart: plainOffset,
+            plainEnd: plainOffset + text.length,
+            mdStart: mdStart + codeStartOffset,
+            mdEnd: mdStart + codeStartOffset + text.length,
+          });
+
+          plainTextParts.push(text);
+          plainOffset += text.length;
+        }
+        break;
+      }
+
+      case `code`: {
+        /**
+         * Code blocks need special handling because the content is stored as a `value`
+         * property, and we need to skip the fence syntax (``` or ~~~) and language identifier.
+         * Only the code content itself is plain text.
+         *
+         * mdast representation:
+         * - code: { type: 'code', lang: 'js', value: 'const x = 1;' }  ← no children, value property
+         */
+        const codeNode = node as Code;
+        const text = codeNode.value;
+        const mdStart = node.position.start.offset;
+        const mdEnd = node.position.end.offset;
+
+        /**
+         * Find where the code content starts in the markdown.
+         * Code blocks have format: ```lang\ncode\n```
+         * We need to find the first newline after the opening fence.
+         */
+        const markdownSlice = markdown.slice(mdStart, mdEnd);
+        const firstNewline = markdownSlice.indexOf(`\n`);
+
+        if (firstNewline >= 0 && text.length > 0) {
+          const codeStartOffset = firstNewline + 1;
+
+          segments.push({
+            plainStart: plainOffset,
+            plainEnd: plainOffset + text.length,
+            mdStart: mdStart + codeStartOffset,
+            mdEnd: mdStart + codeStartOffset + text.length,
+          });
+
+          plainTextParts.push(text);
+          plainOffset += text.length;
+        }
+        break;
+      }
+
+      case `image`: {
+        /**
+         * Images need special handling because alt text is stored as a property,
+         * not as child nodes. In contrast, links store their text as child `text`
+         * nodes which are handled automatically through recursion in the default case.
+         *
+         * mdast representation:
+         * - image: { type: 'image', alt: 'text', url: '...' }  ← property
+         * - link:  { type: 'link', url: '...', children: [{ type: 'text', value: 'text' }] }  ← children
+         */
+        const imageNode = node as Image;
+        const text = imageNode.alt || ``;
+
+        if (text) {
+          const mdStart = node.position.start.offset;
+          /**
+           * Alt text starts after `![` (2 characters)
+           */
+          segments.push({
+            plainStart: plainOffset,
+            plainEnd: plainOffset + text.length,
+            mdStart: mdStart + 2,
+            mdEnd: mdStart + 2 + text.length,
+          });
+
+          plainTextParts.push(text);
+          plainOffset += text.length;
+        }
+        break;
+      }
+
+      default:
+        /**
+         * Recurse into children for container nodes
+         */
+        if (`children` in node && Array.isArray(node.children)) {
+          for (const child of node.children) {
+            traverse(child);
+          }
+        }
+    }
+  };
+
+  traverse(ast);
+
+  return {
+    plainText: plainTextParts.join(``),
+    markdown,
+    segments,
+  };
+}
+
+/**
+ * Map a position in plain text to the corresponding position in markdown.
+ * Uses binary search to find the segment containing the position.
+ *
+ * For segments with escape sequences (where markdown length differs from plain text length),
+ * uses a pre-built character map for accurate position mapping.
+ */
+function plainToMarkdownPosition(
+  plainPos: number,
+  mapping: PositionMapping,
+): number {
+  const { segments } = mapping;
+
+  if (segments.length === 0) {
+    return plainPos;
+  }
+
+  /**
+   * Binary search for the segment containing or nearest to plainPos
+   */
+  let left = 0;
+  let right = segments.length - 1;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const segment = segments[mid];
+
+    /**
+     * Position is exactly at segment end - prefer this over "within next segment"
+     * This handles boundaries correctly when a position is at a segment boundary
+     * (e.g., after "." but before "[" in markdown like "text.[link](url)")
+     */
+    if (plainPos === segment.plainEnd) {
+      return segment.mdEnd;
+    }
+
+    /**
+     * Position is within this segment (strictly inside, not at boundaries)
+     */
+    if (plainPos > segment.plainStart && plainPos < segment.plainEnd) {
+      const offsetInPlain = plainPos - segment.plainStart;
+
+      /**
+       * If character map exists (escape sequences), use it for accurate mapping.
+       * Otherwise, use direct 1:1 mapping.
+       */
+      if (segment.charMap && offsetInPlain < segment.charMap.length) {
+        return segment.mdStart + segment.charMap[offsetInPlain];
+      }
+      return segment.mdStart + offsetInPlain;
+    }
+
+    /**
+     * Position is exactly at segment start - check if previous segment ends here
+     * If so, prefer the previous segment's end (for boundary semantics)
+     */
+    if (plainPos === segment.plainStart) {
+      if (mid > 0 && segments[mid - 1].plainEnd === plainPos) {
+        return segments[mid - 1].mdEnd;
+      }
+      return segment.mdStart;
+    }
+
+    if (plainPos < segment.plainStart) {
+      right = mid - 1;
+    } else {
+      left = mid + 1;
+    }
+  }
+
+  /**
+   * Position falls in a gap between segments or outside all segments.
+   * Map to the nearest segment boundary.
+   */
+  if (left >= segments.length) {
+    /**
+     * Position is after all segments - map to end of last segment
+     */
+    const lastSegment = segments[segments.length - 1];
+    const overflow = plainPos - lastSegment.plainEnd;
+    return lastSegment.mdEnd + overflow;
+  }
+
+  if (right < 0) {
+    /**
+     * Position is before all segments - map relative to first segment
+     */
+    const firstSegment = segments[0];
+    const underflow = firstSegment.plainStart - plainPos;
+    return Math.max(0, firstSegment.mdStart - underflow);
+  }
+
+  /**
+   * Position is in a gap between segments[right] and segments[left].
+   * Map to the end of the previous segment (segments[right]).
+   */
+  const prevSegment = segments[right];
+  return prevSegment.mdEnd;
+}
 
 export class TextSplitter extends AbstractNodeSplitter {
   private patterns: Array<Pattern>;
@@ -79,9 +427,10 @@ export class TextSplitter extends AbstractNodeSplitter {
       { regex: /[:;](?=\s)/g, type: 'colon_semicolon', priority: priority++ },
 
       // Complete bracket pairs (parentheses, square brackets, curly braces)
-      // Example: "Hello (world) there" → splits after ")" regardless of what follows
+      // Include optional trailing sentence-ending punctuation to prevent orphaning
+      // Example: "Hello (world). There" → splits after "." not after ")"
       {
-        regex: /\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g,
+        regex: /\([^)]*\)[.?!]?|\[[^\]]*\][.?!]?|\{[^}]*\}[.?!]?/g,
         type: 'bracket_pairs',
         priority: priority++,
       },
@@ -129,17 +478,24 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   splitNode(node: Nodes): Nodes[] {
-    const text = toMarkdown(node);
-    // Parse the markdown text to get correct position offsets for this text
-    // the original node has offsets relative to its source document, not to this text
-    const ast = fromMarkdown(text);
+    const markdown = toMarkdown(node);
+    /**
+     * Parse the markdown text to get correct position offsets for this text.
+     * The original node has offsets relative to its source document, not to this text.
+     */
+    const ast = fromMarkdown(markdown);
     const protectedRanges = this.extractProtectedRangesFromAST(ast);
-    const boundaries = this.extractSemanticBoundaries(text, protectedRanges);
+    /**
+     * Build position mapping for plain text pattern matching.
+     * This enables matching on clean text without markdown formatting pollution.
+     */
+    const mapping = buildPositionMapping(ast, markdown);
+    const boundaries = this.extractSemanticBoundaries(mapping, protectedRanges);
 
     const nodes: Nodes[] = [];
 
     for (const textChunk of this.splitRecursive(
-      text,
+      markdown,
       boundaries,
       protectedRanges,
     )) {
@@ -185,7 +541,7 @@ export class TextSplitter extends AbstractNodeSplitter {
        * Only protect nodes that have position information
        */
       if (
-        !node.position?.start?.offset ||
+        node.position?.start?.offset === undefined ||
         node.position?.end?.offset === undefined
       ) {
         /**
@@ -302,46 +658,61 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Find all semantic boundaries with text-based pattern matching
-   * Since structural boundaries are handled by hierarchical AST processing,
-   * this function only identifies semantic text boundaries for fine-grained splitting
+   * Find all semantic boundaries using plain text pattern matching.
+   * Patterns are matched against the plain text (without markdown formatting),
+   * then positions are mapped back to markdown coordinates.
    *
-   * @param text - The text to analyze
-   * @param protectedRanges - Ranges that should not be split
-   * @returns Array of boundaries sorted by priority (desc), then position (asc)
+   * This approach avoids formatting characters (`**`, `[](...)`) from polluting
+   * natural language boundary detection.
+   *
+   * @param mapping - Position mapping from plain text to markdown
+   * @param protectedRanges - Ranges in markdown coordinates that should not be split
+   * @returns Array of boundaries in markdown coordinates, sorted by priority then position
    */
   protected extractSemanticBoundaries(
-    text: string,
+    mapping: PositionMapping,
     protectedRanges: ProtectedRange[],
   ): Boundary[] {
     const boundaries: Boundary[] = [];
+    const { plainText } = mapping;
 
     /**
-     * Find all semantic boundaries for each pattern
+     * Find all semantic boundaries for each pattern on plain text
      */
     for (const pattern of this.patterns) {
       /**
-       * Reset lastIndex to ensure the regex starts from the beginning
-       * This is important because the regex objects are reused across calls
+       * Reset lastIndex to ensure the regex starts from the beginning.
+       * This is important because the regex objects are reused across calls.
        */
       pattern.regex.lastIndex = 0;
 
       let match: RegExpExecArray | null;
       // biome-ignore lint/suspicious/noAssignInExpressions: regex.exec assignment in while condition
-      while ((match = pattern.regex.exec(text)) !== null) {
-        const position = match.index + match[0].length;
+      while ((match = pattern.regex.exec(plainText)) !== null) {
+        /**
+         * Position in plain text (after the match)
+         */
+        const plainPosition = match.index + match[0].length;
 
         /**
-         * Check if boundary is within a protected range using binary search
+         * Map the plain text position to markdown position
          */
-        const isProtected = this.isPositionProtected(position, protectedRanges);
+        const mdPosition = plainToMarkdownPosition(plainPosition, mapping);
+
+        /**
+         * Check if the markdown position is within a protected range
+         */
+        const isProtected = this.isPositionProtected(
+          mdPosition,
+          protectedRanges,
+        );
 
         /**
          * Only add boundary if not protected
          */
         if (!isProtected) {
           boundaries.push({
-            position,
+            position: mdPosition,
             type: pattern.type,
             priority: pattern.priority,
           });
@@ -350,8 +721,8 @@ export class TextSplitter extends AbstractNodeSplitter {
     }
 
     /**
-     * Sort by priority (ascending), then by position (ascending)
-     * This gives us the highest priority boundaries first, in positional order
+     * Sort by priority (ascending), then by position (ascending).
+     * This gives us the highest priority boundaries first, in positional order.
      */
     return boundaries.sort((a, b) =>
       a.priority !== b.priority
