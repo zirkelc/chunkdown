@@ -1096,128 +1096,176 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
     });
   });
 
-  describe(`Longer Text Examples with Snapshots`, () => {
-    it(`should split mixed markdown formatting`, () => {
-      // Arrange
-      const splitter = new TextSplitter({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
-        rules: {
-          link: { split: `never-split` },
-          inlineCode: { split: `never-split` },
-          strong: { split: `never-split` },
-          emphasis: { split: `never-split` },
-        },
+  describe(`Boundary Scoring`, () => {
+    describe(`Penalty Application`, () => {
+      it(`should prefer boundary outside protected element over inside`, () => {
+        /**
+         * Text has sentence boundary inside link AND outside link.
+         * Should split at the outside boundary (higher score due to no penalty).
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+          rules: { link: { split: `allow-split` } },
+        });
+        const text = `Before here. [Link. More](url) After.`;
+
+        // Act
+        const chunks = splitter.splitText(text);
+
+        // Assert
+        expect(chunks[0]).toBe(`Before here.`);
       });
-      const text = `This is **bold text** and *italic text*. Check [documentation](https://example.com) for details. Use \`config.init()\` to start.`;
 
-      // Act
-      const chunks = splitter.splitText(text);
+      it(`should exclude boundaries with infinite penalty`, () => {
+        /**
+         * Boundaries inside never-split elements get penalty: Infinity,
+         * resulting in score -Infinity which excludes them from selection.
+         * The period inside [Link. More] is excluded, so split happens outside.
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+          rules: { link: { split: `never-split` } },
+        });
+        const text = `Start here. [Link. More](url) End here.`;
 
-      // Assert
-      expect(chunks).toMatchInlineSnapshot(`
-        [
-          "This is **bold text** and *italic text*.",
-          "Check [documentation](https://example.com) for details.",
-          "Use \`config.init()\` to start.",
-        ]
-      `);
+        // Act
+        const chunks = splitter.splitText(text);
+
+        // Assert
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Start here.",
+            "[Link. More](url) End here.",
+          ]
+        `);
+      });
     });
 
-    it(`should split paragraph with multiple sentences`, () => {
-      // Arrange
-      const splitter = new TextSplitter({
-        chunkSize: 60,
-        maxOverflowRatio: 1.0,
+    describe(`Score-Based Selection`, () => {
+      it(`should select higher-weight boundary over lower-weight`, () => {
+        /**
+         * Given both a period (weight 100) and comma (weight 40) boundary,
+         * should prefer the period even if comma appears first.
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 30,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `First, second. Third part here.`;
+
+        // Act
+        const chunks = splitter.splitText(text);
+
+        // Assert
+        expect(chunks[0]).toBe(`First, second.`);
       });
-      const text = `Large Language Models (LLMs) are advanced programs. They understand human language on a large scale. AI SDK Core simplifies working with LLMs. It offers a standardized API for integration.`;
 
-      // Act
-      const chunks = splitter.splitText(text);
+      it(`should favor more balanced split when weights are equal`, () => {
+        /**
+         * Two period boundaries with equal weight.
+         * Balance bonus should favor the more centered split.
+         * First period at pos 11, second at pos 23, third at end.
+         * Second boundary (pos 23) is more balanced (23 vs 12)
+         * than first boundary (pos 11) which gives (11 vs 24).
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 30,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `AAAAAAAAAA. BBBBBBBBBB. CCCCCCCCCC.`;
 
-      // Assert
-      expect(chunks).toMatchInlineSnapshot(`
-        [
-          "Large Language Models (LLMs) are advanced programs.",
-          "They understand human language on a large scale.",
-          "AI SDK Core simplifies working with LLMs.",
-          "It offers a standardized API for integration.",
-        ]
-      `);
+        // Act
+        const chunks = splitter.splitText(text);
+
+        // Assert
+        expect(chunks[0]).toBe(`AAAAAAAAAA. BBBBBBBBBB.`);
+        expect(chunks[1]).toBe(`CCCCCCCCCC.`);
+      });
     });
 
-    it(`should split text with multiple links`, () => {
-      // Arrange
-      const splitter = new TextSplitter({
-        chunkSize: 80,
-        maxOverflowRatio: 1.0,
-        rules: {
-          link: { split: `never-split` },
-        },
+    describe(`Weight Degradation`, () => {
+      it(`should degrade to lower-weight boundaries in recursive splits`, () => {
+        /**
+         * Weight degradation: after splitting at weight W, recursive
+         * splits only use boundaries with weight ≤ W.
+         * Here, first split is at comma (weight 40) due to position/balance.
+         * Recursive splits use weight ≤ 40, but period_fallback (weight 10) still matches.
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `one, two, three. Four.`;
+
+        // Act
+        const chunks = splitter.splitText(text);
+
+        // Assert
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "one, two,",
+            "three.",
+            "Four.",
+          ]
+        `);
       });
-      const text = `AI SDK Core has functions for [text generation](./generating-text), [structured data](./generating-structured-data), and [tool usage](./tools-and-tool-calling). These functions take a standardized approach.`;
 
-      // Act
-      const chunks = splitter.splitText(text);
+      it(`should split consistently at sentence boundaries when available`, () => {
+        /**
+         * When sentence boundaries (periods) are available and fit size limits,
+         * they're consistently used as the preferred split points.
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `alpha, beta. Gamma, delta. Epsilon.`;
 
-      // Assert
-      expect(chunks).toMatchInlineSnapshot(`
-        [
-          "AI SDK Core has functions for [text generation](./generating-text), [structured data](./generating-structured-data), and [tool usage](./tools-and-tool-calling).",
-          "These functions take a standardized approach.",
-        ]
-      `);
-    });
+        // Act
+        const chunks = splitter.splitText(text);
 
-    it(`should split nested formatting with links`, () => {
-      // Arrange
-      const splitter = new TextSplitter({
-        chunkSize: 40,
-        maxOverflowRatio: 1.0,
-        rules: {
-          link: { split: `never-split` },
-          strong: { split: `never-split` },
-          emphasis: { split: `never-split` },
-        },
+        // Assert
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "alpha, beta.",
+            "Gamma, delta.",
+            "Epsilon.",
+          ]
+        `);
       });
-      const text = `The **[AI SDK](https://ai-sdk.dev)** is a *powerful* tool. It supports **bold with *nested italic* inside**. Check the docs.`;
 
-      // Act
-      const chunks = splitter.splitText(text);
+      it(`should continue with same weight boundaries when available`, () => {
+        /**
+         * When splitting by commas, should continue using commas
+         * as long as they are available and needed.
+         */
+        // Arrange
+        const splitter = new TextSplitter({
+          chunkSize: 12,
+          maxOverflowRatio: 1.0,
+        });
+        const text = `one, two, three, four, five`;
 
-      // Assert
-      expect(chunks).toMatchInlineSnapshot(`
-        [
-          "The **[AI SDK](https://ai-sdk.dev)** is a *powerful* tool.",
-          "It supports",
-          "**bold with *nested italic* inside**.",
-          "Check the docs.",
-        ]
-      `);
-    });
+        // Act
+        const chunks = splitter.splitText(text);
 
-    it(`should split long paragraph with various punctuation boundaries`, () => {
-      // Arrange
-      const splitter = new TextSplitter({
-        chunkSize: 50,
-        maxOverflowRatio: 1.0,
+        // Assert
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "one, two,",
+            "three,",
+            "four, five",
+          ]
+        `);
       });
-      const text = `What is an LLM? It's a Large Language Model! These models are trained on vast amounts of text: books, articles, websites. They learn patterns – grammar, facts, reasoning – and can generate coherent responses. Amazing, isn't it?`;
-
-      // Act
-      const chunks = splitter.splitText(text);
-
-      // Assert
-      expect(chunks).toMatchInlineSnapshot(`
-        [
-          "What is an LLM? It's a Large Language Model!",
-          "These models are trained on vast amounts of text:",
-          "books, articles, websites.",
-          "They learn patterns – grammar, facts,",
-          "reasoning – and can generate coherent responses.",
-          "Amazing, isn't it?",
-        ]
-      `);
     });
   });
 });

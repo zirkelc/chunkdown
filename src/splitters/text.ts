@@ -36,19 +36,10 @@ const MARKDOWN_PENALTIES: Record<string, number> = {
 };
 
 /**
- * Represents a protected range in the text that should not be split
- * Contains the start and end positions and the type of the protected content
+ * Represents a range in the text with an associated penalty for splitting.
+ * Protected ranges use `penalty: Infinity` to prevent splitting entirely.
  */
-type ProtectedRange = {
-  start: number;
-  end: number;
-  type: string;
-};
-
-/**
- * Represents a markdown element range with associated penalty
- */
-type MarkdownElementRange = {
+type PenalizedRange = {
   start: number;
   end: number;
   type: string;
@@ -179,21 +170,17 @@ export class TextSplitter extends AbstractNodeSplitter {
      * The original node has offsets relative to its source document, not to this text.
      */
     const ast = fromMarkdown(markdown);
-    const protectedRanges = this.extractProtectedRangesFromAST(ast);
+    const ranges = this.extractPenalizedRanges(ast);
     /**
      * Build position mapping for plain text pattern matching.
      * This enables matching on clean text without markdown formatting pollution.
      */
     const mapping = buildPositionMapping(ast, markdown);
-    const boundaries = this.extractSemanticBoundaries(mapping, protectedRanges);
+    const boundaries = this.extractSemanticBoundaries(mapping, ranges);
 
     const nodes: Nodes[] = [];
 
-    for (const textChunk of this.splitRecursive(
-      markdown,
-      boundaries,
-      protectedRanges,
-    )) {
+    for (const textChunk of this.splitRecursive(markdown, boundaries, ranges)) {
       // HACK: We use 'html' node type to preserve the markdown text as-is.
       // The chunks are already valid markdown (from toMarkdown above), so we need
       // a node type that passes through unchanged during serialization. The 'html'
@@ -219,21 +206,22 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Extract protected ranges from markdown AST nodes
-   * Uses mdast position information to identify constructs that should never be split
+   * Extract penalized ranges from markdown AST nodes.
+   * Uses mdast position information to identify constructs with split penalties.
+   * Protected ranges (that should never be split) use `penalty: Infinity`.
    *
    * @param ast - Parsed mdast AST with position information
-   * @returns Array of protected ranges that must stay together
+   * @returns Array of penalized ranges, merged and sorted by start position
    */
-  protected extractProtectedRangesFromAST(ast: Nodes): ProtectedRange[] {
-    const ranges: ProtectedRange[] = [];
+  protected extractPenalizedRanges(ast: Nodes): PenalizedRange[] {
+    const ranges: PenalizedRange[] = [];
 
     /**
-     * Recursively traverse AST nodes to find inline constructs that need protection
+     * Recursively traverse AST nodes to find constructs with split penalties
      */
     const traverse = (node: Nodes): void => {
       /**
-       * Only protect nodes that have position information
+       * Only process nodes that have position information
        */
       if (
         node.position?.start?.offset === undefined ||
@@ -242,7 +230,7 @@ export class TextSplitter extends AbstractNodeSplitter {
         /**
          * Still traverse children even if this node lacks position info
          */
-        if ('children' in node && Array.isArray(node.children)) {
+        if (`children` in node && Array.isArray(node.children)) {
           node.children.forEach(traverse);
         }
         return;
@@ -252,78 +240,77 @@ export class TextSplitter extends AbstractNodeSplitter {
       const end = node.position.end.offset;
 
       /**
-       * Protect inline markdown constructs that should never be split
+       * Protected range (via rules) receive penalty: Infinity to exclude from splits.
+       * Otherwise, apply penalties for markdown constructs based on type.
+       * Using else-if ensures exactly one range per node (no duplicates).
        */
-      switch (node.type) {
-        case 'link':
-        case 'linkReference':
-        case 'image':
-        case 'imageReference':
-        case 'inlineCode':
-        case 'emphasis':
-        case 'strong':
-        case 'delete':
-        case 'heading':
-          if (!this.canSplitNode(node)) {
-            ranges.push({ start, end, type: node.type });
-          }
-          break;
+      if (!this.canSplitNode(node)) {
+        ranges.push({ start, end, type: node.type, penalty: Infinity });
+      } else {
+        const penalty = MARKDOWN_PENALTIES[node.type];
+        if (penalty !== undefined) {
+          ranges.push({ start, end, type: node.type, penalty });
+        }
       }
 
       /**
        * Recursively traverse children
        */
-      if ('children' in node && Array.isArray(node.children)) {
+      if (`children` in node && Array.isArray(node.children)) {
         node.children.forEach(traverse);
       }
     };
 
-    // Start traversal from the root
+    /**
+     * Start traversal from the root
+     */
     traverse(ast);
 
     /**
-     * Sort by start position and merge only truly overlapping ranges
+     * Merge overlapping ranges, using max penalty
      */
-    const sortedRanges = ranges.sort((a, b) => a.start - b.start);
-    const mergedRanges: ProtectedRange[] = [];
+    if (ranges.length === 0) return [];
 
-    for (const range of sortedRanges) {
-      const lastMerged = mergedRanges[mergedRanges.length - 1];
+    const sorted = ranges.sort((a, b) => a.start - b.start);
+    const merged: PenalizedRange[] = [];
 
-      if (lastMerged && range.start < lastMerged.end) {
+    for (const range of sorted) {
+      const last = merged[merged.length - 1];
+      if (last && range.start < last.end) {
         /**
-         * Only merge truly overlapping ranges (not adjacent ones)
+         * Overlapping range - extend and take max penalty
          */
-        lastMerged.end = Math.max(lastMerged.end, range.end);
-        lastMerged.type = `${lastMerged.type}+${range.type}`;
+        last.end = Math.max(last.end, range.end);
+        last.penalty = Math.max(last.penalty, range.penalty);
+        last.type = `${last.type}+${range.type}`;
       } else {
         /**
-         * Non-overlapping range - add it as separate range
+         * Non-overlapping range - add as new entry
          */
-        mergedRanges.push(range);
+        merged.push({ ...range });
       }
     }
 
-    return mergedRanges;
+    return merged;
   }
 
   /**
-   * Adjust protected ranges for a substring operation
-   * When working with substrings, the protected ranges need to be recalculated
+   * Adjust penalized ranges for a substring operation.
+   * When working with substrings, the ranges need to be recalculated.
    *
-   * @param protectedRanges - Original protected ranges
+   * @param ranges - Original penalized ranges
    * @param substringStart - Start position of the substring in the original text
    * @param substringEnd - End position of the substring in the original text
-   * @returns Adjusted protected ranges for the substring
+   * @returns Adjusted penalized ranges for the substring
    */
-  protected adjustProtectedRangesForSubstring(
-    protectedRanges: ProtectedRange[],
+  protected adjustRangesForSubstring(
+    ranges: PenalizedRange[],
     substringStart: number,
     substringEnd: number,
-  ): ProtectedRange[] {
-    const adjustedRanges: ProtectedRange[] = [];
+  ): PenalizedRange[] {
+    const adjustedRanges: PenalizedRange[] = [];
 
-    for (const range of protectedRanges) {
+    for (const range of ranges) {
       /**
        * Only include ranges that intersect with the substring
        */
@@ -331,13 +318,14 @@ export class TextSplitter extends AbstractNodeSplitter {
         /**
          * Adjust the range positions relative to the substring
          */
-        const adjustedRange = {
+        const adjustedRange: PenalizedRange = {
           start: Math.max(0, range.start - substringStart),
           end: Math.min(
             substringEnd - substringStart,
             range.end - substringStart,
           ),
           type: range.type,
+          penalty: range.penalty,
         };
 
         /**
@@ -353,53 +341,17 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Extract markdown element ranges with associated penalties for scoring.
-   * These ranges influence boundary scores - splitting inside formatting is penalized.
-   */
-  protected extractMarkdownElementRanges(ast: Nodes): MarkdownElementRange[] {
-    const ranges: MarkdownElementRange[] = [];
-
-    const traverse = (node: Nodes): void => {
-      if (
-        node.position?.start?.offset === undefined ||
-        node.position?.end?.offset === undefined
-      ) {
-        if (`children` in node && Array.isArray(node.children)) {
-          node.children.forEach(traverse);
-        }
-        return;
-      }
-
-      const penalty = MARKDOWN_PENALTIES[node.type];
-      if (penalty !== undefined) {
-        ranges.push({
-          start: node.position.start.offset,
-          end: node.position.end.offset,
-          type: node.type,
-          penalty,
-        });
-      }
-
-      if (`children` in node && Array.isArray(node.children)) {
-        node.children.forEach(traverse);
-      }
-    };
-
-    traverse(ast);
-    return ranges.sort((a, b) => a.start - b.start);
-  }
-
-  /**
-   * Score a boundary based on its weight and any markdown element penalties.
-   * Returns weight minus the maximum penalty from overlapping elements.
+   * Score a boundary based on its weight and any penalized range penalties.
+   * Returns weight minus the maximum penalty from overlapping ranges.
+   * A score of -Infinity means the boundary is protected and should not be used.
    */
   protected scoreBoundary(
     position: number,
     weight: number,
-    elementRanges: MarkdownElementRange[],
+    ranges: PenalizedRange[],
   ): number {
     let maxPenalty = 0;
-    for (const range of elementRanges) {
+    for (const range of ranges) {
       if (position > range.start && position < range.end) {
         maxPenalty = Math.max(maxPenalty, range.penalty);
       }
@@ -429,22 +381,19 @@ export class TextSplitter extends AbstractNodeSplitter {
    * This approach avoids formatting characters (`**`, `[](...)`) from polluting
    * natural language boundary detection.
    *
+   * Boundaries inside protected ranges (penalty: Infinity) are filtered out
+   * via scoring — they receive score -Infinity and are excluded.
+   *
    * @param mapping - Position mapping from plain text to markdown
-   * @param protectedRanges - Ranges in markdown coordinates that should not be split
+   * @param ranges - Penalized ranges in markdown coordinates
    * @returns Array of boundaries in markdown coordinates, sorted by score descending
    */
   protected extractSemanticBoundaries(
     mapping: PositionMapping,
-    protectedRanges: ProtectedRange[],
+    ranges: PenalizedRange[],
   ): Boundary[] {
     const boundaries: Boundary[] = [];
     const { plain } = mapping;
-
-    /**
-     * Extract markdown element ranges for scoring
-     */
-    const ast = fromMarkdown(mapping.markdown);
-    const elementRanges = this.extractMarkdownElementRanges(ast);
 
     /**
      * Find all semantic boundaries for each pattern on plain text
@@ -470,22 +419,14 @@ export class TextSplitter extends AbstractNodeSplitter {
         const mdPosition = plainToMarkdownPosition(plainPosition, mapping);
 
         /**
-         * Check if the markdown position is within a protected range
+         * Score the boundary — protected ranges yield -Infinity score
          */
-        const isProtected = this.isPositionProtected(
-          mdPosition,
-          protectedRanges,
-        );
+        const score = this.scoreBoundary(mdPosition, pattern.weight, ranges);
 
         /**
-         * Only add boundary if not protected
+         * Only add boundary if score is finite (not protected)
          */
-        if (!isProtected) {
-          const score = this.scoreBoundary(
-            mdPosition,
-            pattern.weight,
-            elementRanges,
-          );
+        if (Number.isFinite(score)) {
           boundaries.push({
             mdPosition: mdPosition,
             plainPosition,
@@ -507,51 +448,6 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Check if a position falls within any protected range using binary search
-   * Protected ranges are sorted by start position, so we can use binary search
-   *
-   * @param position - Position to check
-   * @param protectedRanges - Sorted array of protected ranges
-   * @returns True if position is within any protected range
-   */
-  private isPositionProtected(
-    position: number,
-    protectedRanges: ProtectedRange[],
-  ): boolean {
-    /**
-     * For small arrays, linear search is faster
-     */
-    if (protectedRanges.length < 10) {
-      return protectedRanges.some(
-        (range) => position > range.start && position < range.end,
-      );
-    }
-
-    /**
-     * Binary search for larger arrays
-     */
-    let left = 0;
-    let right = protectedRanges.length - 1;
-
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      const range = protectedRanges[mid];
-
-      if (position > range.start && position < range.end) {
-        return true;
-      }
-
-      if (position <= range.start) {
-        right = mid - 1;
-      } else {
-        left = mid + 1;
-      }
-    }
-
-    return false;
-  }
-
-  /**
    * Adjust boundary positions for a substring operation
    * @param boundaries - Original boundaries
    * @param substringStart - Start position of substring in original text
@@ -567,7 +463,7 @@ export class TextSplitter extends AbstractNodeSplitter {
       .filter(
         (b) => b.mdPosition > substringStart && b.mdPosition <= substringEnd,
       )
-      .map((b) => ({ ...b, position: b.mdPosition - substringStart }));
+      .map((b) => ({ ...b, mdPosition: b.mdPosition - substringStart }));
   }
 
   /**
@@ -577,14 +473,14 @@ export class TextSplitter extends AbstractNodeSplitter {
    *
    * @param text - The text to split
    * @param boundaries - Available boundaries sorted by score descending
-   * @param protectedRanges - Pre-computed protected ranges from AST
+   * @param ranges - Pre-computed penalized ranges from AST
    * @param originalOffset - Offset of this text in the original document
    * @returns Generator yielding text chunks
    */
   private *splitRecursive(
     text: string,
     boundaries: Boundary[],
-    protectedRanges: ProtectedRange[],
+    ranges: PenalizedRange[],
     originalOffset: number = 0,
   ): Generator<string> {
     const textSize = getContentSize(text);
@@ -683,8 +579,8 @@ export class TextSplitter extends AbstractNodeSplitter {
     if (firstPartSize <= this.maxAllowedSize) {
       yield firstPart;
     } else {
-      const firstPartRanges = this.adjustProtectedRangesForSubstring(
-        protectedRanges,
+      const firstPartRanges = this.adjustRangesForSubstring(
+        ranges,
         originalOffset,
         originalOffset + position,
       );
@@ -707,8 +603,8 @@ export class TextSplitter extends AbstractNodeSplitter {
     if (secondPartSize <= this.maxAllowedSize) {
       yield secondPart;
     } else {
-      const secondPartRanges = this.adjustProtectedRangesForSubstring(
-        protectedRanges,
+      const secondPartRanges = this.adjustRangesForSubstring(
+        ranges,
         originalOffset + position,
         originalOffset + text.length,
       );
