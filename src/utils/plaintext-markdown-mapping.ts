@@ -406,7 +406,11 @@ export function plainToMarkdownPosition(
      */
     if (plainPos === segment.plainStart) {
       if (mid > 0 && segments[mid - 1].plainEnd === plainPos) {
-        return segments[mid - 1].mdEnd;
+        const prevSegment = segments[mid - 1];
+        if (prevSegment.nodeEnd !== undefined && prevSegment.nodeEnd > prevSegment.mdEnd) {
+          return prevSegment.nodeEnd;
+        }
+        return prevSegment.mdEnd;
       }
       return segment.mdStart;
     }
@@ -445,5 +449,8 @@ export function plainToMarkdownPosition(
    * Map to the end of the previous segment (segments[right]).
    */
   const prevSegment = segments[right];
+  if (prevSegment.nodeEnd !== undefined && prevSegment.nodeEnd > prevSegment.mdEnd) {
+    return prevSegment.nodeEnd;
+  }
   return prevSegment.mdEnd;
 }

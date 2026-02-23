@@ -586,6 +586,30 @@ describe(`plainToMarkdownPosition`, () => {
       // Assert - should map to end of "*italic*" (nodeEnd)
       expect(mdPos).toBe(8);
     });
+
+    test(`uses nodeEnd when binary search lands on next segment first`, () => {
+      /**
+       * This tests the bug where links like [[1]](url) were split between ] and (
+       * because binary search landed on the next segment first, and the nodeEnd
+       * check only existed in the plainPos === segment.plainEnd branch.
+       */
+      // Arrange
+      const markdown = `Some text.[[1]](https://example.com) More text.`;
+      const ast = fromMarkdown(markdown);
+      const mapping = buildPositionMapping(ast, markdown);
+
+      // Find the segment for the link text "[1]"
+      // The plain text will be "Some text.[1] More text." (without link URL)
+      // Position 13 is end of "[1]" in plain text (after the "]")
+      const linkTextEndPos = mapping.plain.indexOf(`]`) + 1; // end of "[1]"
+
+      // Act
+      const mdPos = plainToMarkdownPosition(linkTextEndPos, mapping);
+
+      // Assert - should map to end of the full link "[[1]](https://example.com)" not just "[[1]"
+      // This ensures links don't get split between ] and (
+      expect(mdPos).toBeGreaterThan(markdown.indexOf(`)`));
+    });
   });
 
   describe(`gaps between segments`, () => {
@@ -615,6 +639,45 @@ describe(`plainToMarkdownPosition`, () => {
 
       // Assert - maps to position 7 in markdown
       expect(mdPos).toBe(7);
+    });
+
+    test(`uses nodeEnd when position is in gap after formatted segment`, () => {
+      /**
+       * This tests the gap handling code path (lines 451-454) where:
+       * - Binary search exits without finding an exact match
+       * - Position falls between segments[right].plainEnd and segments[left].plainStart
+       * - Previous segment has nodeEnd that should be used
+       *
+       * We manually construct a mapping to create this scenario since it's
+       * hard to produce naturally from markdown parsing.
+       */
+      // Arrange
+      const mapping: PositionMapping = {
+        plain: `bold gap text`,
+        markdown: `**bold** gap text`,
+        segments: [
+          {
+            plainStart: 0,
+            plainEnd: 4, // "bold"
+            mdStart: 2,
+            mdEnd: 6,
+            nodeEnd: 8, // includes closing **
+          },
+          // Gap in plain text: positions 4-5 don't have a segment
+          {
+            plainStart: 5, // "gap text" starts at 5, leaving position 4 in a gap
+            plainEnd: 13,
+            mdStart: 9,
+            mdEnd: 17,
+          },
+        ],
+      };
+
+      // Act - position 4 is in the gap between segments
+      const mdPos = plainToMarkdownPosition(4, mapping);
+
+      // Assert - should use nodeEnd (8) from previous segment, not mdEnd (6)
+      expect(mdPos).toBe(8);
     });
   });
 
