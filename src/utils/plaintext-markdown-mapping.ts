@@ -13,6 +13,12 @@ export type PositionSegment = {
   /** End position in markdown (exclusive) */
   mdEnd: number;
   /**
+   * Start position of the parent node in markdown (inclusive of opening syntax).
+   * Used to identify the full markdown element containing this segment.
+   * Only present for segments inside formatting nodes (emphasis, strong, etc.).
+   */
+  nodeStart?: number;
+  /**
    * End position of the parent node in markdown (inclusive of closing syntax).
    * Used to skip over closing syntax markers when mapping boundaries.
    * Only present for segments inside formatting nodes (emphasis, strong, etc.).
@@ -91,9 +97,10 @@ export function buildPositionMapping(
 
   /**
    * @param node - Current node to process
+   * @param parentNodeStart - Start position of parent formatting node (for opening syntax)
    * @param parentNodeEnd - End position of parent formatting node (for closing syntax)
    */
-  const traverse = (node: Nodes, parentNodeEnd?: number): void => {
+  const traverse = (node: Nodes, parentNodeStart?: number, parentNodeEnd?: number): void => {
     /**
      * Skip nodes without position information
      */
@@ -103,7 +110,7 @@ export function buildPositionMapping(
     ) {
       if (`children` in node && Array.isArray(node.children)) {
         for (const child of node.children) {
-          traverse(child, parentNodeEnd);
+          traverse(child, parentNodeStart, parentNodeEnd);
         }
       }
       return;
@@ -124,6 +131,7 @@ export function buildPositionMapping(
           plainEnd: plainOffset + text.length,
           mdStart,
           mdEnd,
+          nodeStart: parentNodeStart,
           nodeEnd: parentNodeEnd,
         };
 
@@ -202,6 +210,8 @@ export function buildPositionMapping(
             plainEnd: plainOffset + text.length,
             mdStart: mdStart + codeStartOffset,
             mdEnd: mdStart + codeStartOffset + text.length,
+            nodeStart: mdStart,
+            nodeEnd: mdEnd,
           });
 
           plainTextParts.push(text);
@@ -278,6 +288,8 @@ export function buildPositionMapping(
             plainEnd: plainOffset + text.length,
             mdStart: mdStart + 2,
             mdEnd: mdStart + 2 + text.length,
+            nodeStart: mdStart,
+            nodeEnd: mdEnd,
           });
 
           plainTextParts.push(text);
@@ -312,22 +324,22 @@ export function buildPositionMapping(
       default:
         /**
          * Recurse into children for container nodes.
-         * For wrapping nodes (formatting + links), pass their end position
-         * so child text nodes know about the closing syntax markers.
+         * For wrapping nodes (formatting + links), pass their start/end positions
+         * so child text nodes know about the opening/closing syntax markers.
          *
          * For nested nodes (e.g., ***bold-italic*** or **[link](url)**),
-         * use the MAX of current and parent nodeEnd to skip ALL closing syntax.
+         * use MIN for start and MAX for end to capture ALL surrounding syntax.
          */
         if (`children` in node && Array.isArray(node.children)) {
-          const currentEnd = wrappingTypes.has(node.type)
-            ? node.position.end.offset
-            : undefined;
-          const nodeEnd =
-            currentEnd !== undefined
-              ? Math.max(currentEnd, parentNodeEnd ?? 0)
-              : parentNodeEnd;
+          const isWrapping = wrappingTypes.has(node.type);
+          const nodeStart = isWrapping
+            ? Math.min(node.position.start.offset, parentNodeStart ?? Number.POSITIVE_INFINITY)
+            : parentNodeStart;
+          const nodeEnd = isWrapping
+            ? Math.max(node.position.end.offset, parentNodeEnd ?? 0)
+            : parentNodeEnd;
           for (const child of node.children) {
-            traverse(child, nodeEnd);
+            traverse(child, nodeStart, nodeEnd);
           }
         }
     }
