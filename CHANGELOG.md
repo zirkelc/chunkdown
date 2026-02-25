@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/zirkelc/chunkdown/compare/v3.1.0...v3.2.0) (2026-02-25)
+
+
+### Features
+
+* improve text splitter with plaintext-to-markdown mapping ([2280108](https://github.com/zirkelc/chunkdown/commit/2280108584b071e679b0ac1dd7a1b0cb60bb4ff4))
+
 ## [3.1.0](https://github.com/zirkelc/chunkdown/compare/v3.0.0...v3.1.0) (2025-12-16)
 
 
