@@ -6,7 +6,6 @@
 ### Features
 
 * improve text splitter with plaintext-to-markdown mapping ([2280108](https://github.com/zirkelc/chunkdown/commit/2280108584b071e679b0ac1dd7a1b0cb60bb4ff4))
-* plaintext splitter ([927c682](https://github.com/zirkelc/chunkdown/commit/927c6820e0487972a93c0e103027046b21540a09))
 
 ## [3.1.0](https://github.com/zirkelc/chunkdown/compare/v3.0.0...v3.1.0) (2025-12-16)
 
