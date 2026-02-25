@@ -1,6 +1,6 @@
 <div align='center'>
 
-# chunkdown 🧩
+# Chunkdown 🧩
 
 > Create chunks worth embedding
 
@@ -676,35 +676,4 @@ const chunks = splitter.splitText(text, {
 // Extend broken markdown:
 // - **This is a very long bold text that**
 // - **might be split into two chunks**
-```
-
-### Return Chunk Start and End Positions
-
-Currently, the splitter returns the chunks as array of strings. That means the original position of each chunk in the source text is lost.
-In a typical RAG setup, the source document and each chunk is stored with it's embedding in a database. This duplicates lots of text since each chunk contains parts of the original document.
-
-Chunkdown could return the start and end positions of each chunk in the original text, allowing to store only the original document and reference the chunk positions when needed.
-
-```ts
-const document = '...'; // original markdown document
-const chunks = splitter.splitDocument(document);
-// Result:
-// [
-//   { text: 'First chunk text...', start: 0, end: 256 },
-//   { text: 'Second chunk text...', start: 257, end: 512 },
-//   ...
-// ]
-
-await db.insert(documentTable).values({
-  text: document,
-});
-
-await db.insert(chunkTable).values(
-  chunks.map((chunk) => ({
-    start: chunk.start, // start position in original document
-    end: chunk.end, // end position in original document
-    text: null, // chunk text not stored separately
-    embedding: await embed(chunk.text),
-  })),
-);
 ```
