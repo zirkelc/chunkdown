@@ -284,27 +284,21 @@ Short content C.`;
       // Key behavior to test: Small siblings A+B merged, but sibling C separate
       // Find the chunk containing small siblings A and B (merged together)
       const siblingABChunk = chunks.find(
-        (chunk) =>
-          chunk.includes('## Small Sibling A') &&
-          chunk.includes('## Small Sibling B'),
+        (chunk) => chunk.includes('## Small Sibling A') && chunk.includes('## Small Sibling B'),
       );
       expect(siblingABChunk).toBeDefined();
       expect(siblingABChunk).not.toContain('## Large Sibling Section');
       expect(siblingABChunk).not.toContain('## Small Sibling C');
 
       // Large sibling should be in separate chunk(s)
-      const largeSiblingChunks = chunks.filter((chunk) =>
-        chunk.includes('## Large Sibling Section'),
-      );
+      const largeSiblingChunks = chunks.filter((chunk) => chunk.includes('## Large Sibling Section'));
       expect(largeSiblingChunks.length).toBeDefined();
       expect(largeSiblingChunks).not.toContain('## Small Sibling A');
       expect(largeSiblingChunks).not.toContain('## Small Sibling B');
       expect(largeSiblingChunks).not.toContain('## Small Sibling C');
 
       // Small sibling C should be alone
-      const siblingCChunk = chunks.find((chunk) =>
-        chunk.includes('## Small Sibling C'),
-      );
+      const siblingCChunk = chunks.find((chunk) => chunk.includes('## Small Sibling C'));
       expect(siblingCChunk).toBeDefined();
       expect(siblingCChunk).not.toContain('## Small Sibling A');
       expect(siblingCChunk).not.toContain('## Small Sibling B');
@@ -380,9 +374,7 @@ Content under heading.`;
       expect(chunks.length).toBe(2);
 
       // Chunk 0: orphaned content → empty breadcrumbs
-      expect(toMarkdown(chunks[0]).trim()).toBe(
-        'Some intro text before any heading.',
-      );
+      expect(toMarkdown(chunks[0]).trim()).toBe('Some intro text before any heading.');
       expect(chunks[0].data?.breadcrumbs).toEqual([]);
 
       // Chunk 1: "# First Heading" with content → empty breadcrumbs (H1 has no ancestors)

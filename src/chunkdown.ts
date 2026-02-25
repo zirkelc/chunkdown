@@ -1,20 +1,9 @@
 import type { Heading, Nodes, Root } from 'mdast';
-import {
-  fromMarkdown,
-  preprocessMarkdown,
-  toMarkdown,
-  toString,
-} from './markdown';
+import { fromMarkdown, preprocessMarkdown, toMarkdown, toString } from './markdown';
 import { splitTextByMaxRawSize } from './size';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
-import type {
-  Breadcrumb,
-  Chunk,
-  NodeRules,
-  SplitterOptions,
-  SplitterResult,
-} from './types';
+import type { Breadcrumb, Chunk, NodeRules, SplitterOptions, SplitterResult } from './types';
 
 /**
  * Default node rules:
@@ -83,14 +72,8 @@ class Chunkdown implements NodeSplitter<Root> {
         depth: h.depth,
       }));
 
-      if (
-        this.options.maxRawSize !== undefined &&
-        markdown.length > this.options.maxRawSize
-      ) {
-        for (const part of splitTextByMaxRawSize(
-          markdown,
-          this.options.maxRawSize,
-        )) {
+      if (this.options.maxRawSize !== undefined && markdown.length > this.options.maxRawSize) {
+        for (const part of splitTextByMaxRawSize(markdown, this.options.maxRawSize)) {
           chunks.push({ text: part, breadcrumbs });
         }
       } else {

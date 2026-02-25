@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHierarchicalAST } from './ast';
 import { fromMarkdown } from './markdown';
-import {
-  getContentSize,
-  getRawSize,
-  getSectionSize,
-  splitByMaxRawSize,
-} from './size';
+import { getContentSize, getRawSize, getSectionSize, splitByMaxRawSize } from './size';
 
 describe('getContentSize', () => {
   it('should measure plain text correctly', () => {
@@ -20,9 +15,7 @@ describe('getContentSize', () => {
     expect(getContentSize('`Hello` world')).toBe(11);
     expect(getContentSize('[Hello](http://example.com) world')).toBe(11);
     expect(getContentSize('# Hello world')).toBe(11);
-    expect(getContentSize('***`Hello`*** [world](https://example.com)')).toBe(
-      11,
-    );
+    expect(getContentSize('***`Hello`*** [world](https://example.com)')).toBe(11);
   });
 
   it('should measure AST node content', () => {

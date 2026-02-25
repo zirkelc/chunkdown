@@ -6,9 +6,7 @@ import type { NodeSplitter } from './interface';
 /**
  * Abstract base class for node splitters
  */
-export abstract class AbstractNodeSplitter<NODE extends Nodes = Nodes>
-  implements NodeSplitter<NODE>
-{
+export abstract class AbstractNodeSplitter<NODE extends Nodes = Nodes> implements NodeSplitter<NODE> {
   protected options: SplitterOptions;
   protected chunkSize: number;
   protected maxOverflowRatio: number;
@@ -58,12 +56,7 @@ export abstract class AbstractNodeSplitter<NODE extends Nodes = Nodes>
     /**
      * Formatting nodes can also be configured with the formatting split rule
      */
-    if (
-      !splitRule &&
-      (node.type === 'strong' ||
-        node.type === 'emphasis' ||
-        node.type === 'delete')
-    ) {
+    if (!splitRule && (node.type === 'strong' || node.type === 'emphasis' || node.type === 'delete')) {
       splitRule = this.splitRules.formatting;
     }
 

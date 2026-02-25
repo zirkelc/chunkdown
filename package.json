@@ -2,8 +2,29 @@
   "name": "chunkdown",
   "version": "3.1.0",
   "description": "A tree-based markdown text splitter that understands document structure to create semantically meaningful chunks for RAG applications",
-  "packageManager": "pnpm@10.0.0",
+  "keywords": [
+    "chunk",
+    "embedding",
+    "markdown",
+    "splitter",
+    "textsplitter"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "Chris Cook",
+    "email": "chris@zirkelc.dev",
+    "url": "https://zirkelc.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zirkelc/chunkdown.git"
+  },
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": "./dist/index.js",
@@ -14,28 +35,11 @@
     "dev": "pnpm --filter chunkdown-www dev",
     "test": "vitest",
     "build": "tsdown",
-    "lint": "biome check . --write --no-errors-on-unmatched"
+    "lint": "oxlint --fix",
+    "lint:ci": "oxlint",
+    "format": "oxfmt --write",
+    "format:ci": "oxfmt --check"
   },
-  "keywords": [
-    "markdown",
-    "splitter",
-    "textsplitter",
-    "chunk",
-    "embedding"
-  ],
-  "author": {
-    "name": "Chris Cook",
-    "email": "chris@zirkelc.dev",
-    "url": "https://zirkelc.dev"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/zirkelc/chunkdown.git"
-  },
-  "license": "MIT",
-  "files": [
-    "dist"
-  ],
   "dependencies": {
     "mdast-util-from-markdown": "^2.0.2",
     "mdast-util-gfm": "^3.1.0",
@@ -53,12 +57,13 @@
     "@types/mdast": "^4.0.4",
     "chalk": "^5.6.2",
     "f-strings": "^0.0.0",
+    "oxfmt": "^0.35.0",
+    "oxlint": "^1.50.0",
     "publint": "^0.3.15",
     "tsdown": "^0.15.9",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.js"
+  "packageManager": "pnpm@10.0.0"
 }

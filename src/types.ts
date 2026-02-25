@@ -102,18 +102,13 @@ export type TransformContext = {
  * - null to remove the node
  * - undefined to keep the node unchanged
  */
-export type NodeTransform<NODE extends Nodes> = (
-  node: NODE,
-  context: TransformContext,
-) => NODE | null | undefined;
+export type NodeTransform<NODE extends Nodes> = (node: NODE, context: TransformContext) => NODE | null | undefined;
 
 /**
  * Node-specific rules
  */
 export type NodeRules = {
-  [K in keyof NodeTypes]?: NodeRule<
-    NodeTypes[K] extends Nodes ? NodeTypes[K] : never
-  >;
+  [K in keyof NodeTypes]?: NodeRule<NodeTypes[K] extends Nodes ? NodeTypes[K] : never>;
 };
 
 /**
@@ -179,18 +174,14 @@ export type NodeRule<NODE extends Nodes> = NODE extends Link
  * Complex splitting rules
  */
 export type ComplexSplitRules = {
-  [K in keyof NodeTypes]?: ComplexSplitRule<
-    NodeTypes[K] extends Nodes ? NodeTypes[K] : never
-  >;
+  [K in keyof NodeTypes]?: ComplexSplitRule<NodeTypes[K] extends Nodes ? NodeTypes[K] : never>;
 };
 
 /**
  * Rule for splitting.
  * Can be a simple string or a complex object.
  */
-export type SplitRule<NODE extends Nodes> =
-  | SimpleSplitRule
-  | ComplexSplitRule<NODE>;
+export type SplitRule<NODE extends Nodes> = SimpleSplitRule | ComplexSplitRule<NODE>;
 
 /**
  * Simple splitting rule.
@@ -200,10 +191,7 @@ export type SimpleSplitRule = 'never-split' | 'allow-split';
 /**
  * Complex splitting rule.
  */
-export type ComplexSplitRule<NODE extends Nodes> =
-  | NeverSplitRule<NODE>
-  | AllowSplitRule<NODE>
-  | SizeSplitRule<NODE>;
+export type ComplexSplitRule<NODE extends Nodes> = NeverSplitRule<NODE> | AllowSplitRule<NODE> | SizeSplitRule<NODE>;
 
 /**
  * Never split a node.

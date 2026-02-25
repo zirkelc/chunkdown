@@ -97,11 +97,7 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
     }
   }
 
-  private *splitTableRow(
-    table: Table,
-    headerRow: TableRow,
-    row: TableRow,
-  ): Generator<Nodes> {
+  private *splitTableRow(table: Table, headerRow: TableRow, row: TableRow): Generator<Nodes> {
     /**
      * Create mini-tables for each cell, pairing it with its corresponding header cell
      */
@@ -144,11 +140,7 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
     }
   }
 
-  private *splitTableCell(
-    table: Table,
-    headerCell: TableCell,
-    cell: TableCell,
-  ): Generator<Nodes> {
+  private *splitTableCell(table: Table, headerCell: TableCell, cell: TableCell): Generator<Nodes> {
     /**
      * Convert the cell content to a tree structure
      */

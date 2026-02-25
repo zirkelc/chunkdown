@@ -6,13 +6,7 @@ import type { NodeRules } from '../types';
 import { buildPositionMapping } from '../utils/plaintext-markdown-mapping';
 
 /** Chalk color functions for chunk visualization */
-const colors = [
-  chalk.cyan,
-  chalk.yellow,
-  chalk.green,
-  chalk.magenta,
-  chalk.blue,
-];
+const colors = [chalk.cyan, chalk.yellow, chalk.green, chalk.magenta, chalk.blue];
 
 /** Consistent colors for each splitter (not in chunk colors) */
 const chunkdown = chalk.whiteBright.bold(`▸ chunkdown`);
@@ -227,8 +221,7 @@ const examples: Array<Example> = [
     const chunkdownChunks = chunkdownSplitter.splitText(example.text);
     const langchainChunks = await langchainSplitter.splitText(example.text);
 
-    const isDifferent =
-      JSON.stringify(chunkdownChunks) !== JSON.stringify(langchainChunks);
+    const isDifferent = JSON.stringify(chunkdownChunks) !== JSON.stringify(langchainChunks);
 
     if (isDifferent) diffCount++;
 
@@ -237,26 +230,16 @@ const examples: Array<Example> = [
     const mapping = buildPositionMapping(ast, example.text);
 
     console.log(`${'─'.repeat(80)}`);
-    console.log(
-      `${chalk.bold(`#${exampleIdx} ${example.name}`)} ${chalk.dim(`(chunkSize: ${example.chunkSize})`)}`,
-    );
+    console.log(`${chalk.bold(`#${exampleIdx} ${example.name}`)} ${chalk.dim(`(chunkSize: ${example.chunkSize})`)}`);
     console.log(`${'─'.repeat(80)}`);
-    console.log(
-      `${chalk.dim(`Markdown (${example.text.length}):`)} ${example.text}`,
-    );
-    console.log(
-      `${chalk.dim(`Plain (${mapping.plain.length}):`)} ${mapping.plain}`,
-    );
+    console.log(`${chalk.dim(`Markdown (${example.text.length}):`)} ${example.text}`);
+    console.log(`${chalk.dim(`Plain (${mapping.plain.length}):`)} ${mapping.plain}`);
     console.log(``);
 
     /** Show visual splits */
     console.log(chalk.dim(`Splits:`));
-    console.log(
-      `  ${chunkdown} ${visualizeSplits(example.text, chunkdownChunks)}`,
-    );
-    console.log(
-      `  ${langchain} ${visualizeSplits(example.text, langchainChunks)}`,
-    );
+    console.log(`  ${chunkdown} ${visualizeSplits(example.text, chunkdownChunks)}`);
+    console.log(`  ${langchain} ${visualizeSplits(example.text, langchainChunks)}`);
     console.log(``);
 
     /** Show chunks */
@@ -277,10 +260,7 @@ const examples: Array<Example> = [
     console.log(``);
     console.log(chalk.dim(`Mapping:`));
     for (const segment of mapping.segments) {
-      const plainSlice = mapping.plain.slice(
-        segment.plainStart,
-        segment.plainEnd,
-      );
+      const plainSlice = mapping.plain.slice(segment.plainStart, segment.plainEnd);
       /** Use node boundaries if available, otherwise fall back to md boundaries */
       const elementStart = segment.nodeStart ?? segment.mdStart;
       const elementEnd = segment.nodeEnd ?? segment.mdEnd;

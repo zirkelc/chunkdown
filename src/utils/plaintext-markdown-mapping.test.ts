@@ -1,11 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { fromMarkdown } from '../markdown';
-import {
-  buildPositionMapping,
-  type PositionMapping,
-  plainToMarkdownPosition,
-} from './plaintext-markdown-mapping';
+import { buildPositionMapping, type PositionMapping, plainToMarkdownPosition } from './plaintext-markdown-mapping';
 
 describe(`buildPositionMapping`, () => {
   describe(`text nodes`, () => {

@@ -54,10 +54,7 @@ export type PositionMapping = {
  * - `inlineCode` nodes: value without backticks
  * - `image` nodes: alt text
  */
-export function buildPositionMapping(
-  ast: Nodes,
-  markdown: string,
-): PositionMapping {
+export function buildPositionMapping(ast: Nodes, markdown: string): PositionMapping {
   const segments: Array<PositionSegment> = [];
   const plainTextParts: Array<string> = [];
   let plainOffset = 0;
@@ -104,10 +101,7 @@ export function buildPositionMapping(
     /**
      * Skip nodes without position information
      */
-    if (
-      node.position?.start?.offset === undefined ||
-      node.position?.end?.offset === undefined
-    ) {
+    if (node.position?.start?.offset === undefined || node.position?.end?.offset === undefined) {
       if (`children` in node && Array.isArray(node.children)) {
         for (const child of node.children) {
           traverse(child, parentNodeStart, parentNodeEnd);
@@ -335,9 +329,7 @@ export function buildPositionMapping(
           const nodeStart = isWrapping
             ? Math.min(node.position.start.offset, parentNodeStart ?? Number.POSITIVE_INFINITY)
             : parentNodeStart;
-          const nodeEnd = isWrapping
-            ? Math.max(node.position.end.offset, parentNodeEnd ?? 0)
-            : parentNodeEnd;
+          const nodeEnd = isWrapping ? Math.max(node.position.end.offset, parentNodeEnd ?? 0) : parentNodeEnd;
           for (const child of node.children) {
             traverse(child, nodeStart, nodeEnd);
           }
@@ -361,10 +353,7 @@ export function buildPositionMapping(
  * For segments with escape sequences (where markdown length differs from plain text length),
  * uses a pre-built character map for accurate position mapping.
  */
-export function plainToMarkdownPosition(
-  plainPos: number,
-  mapping: PositionMapping,
-): number {
+export function plainToMarkdownPosition(plainPos: number, mapping: PositionMapping): number {
   const { segments } = mapping;
 
   if (segments.length === 0) {

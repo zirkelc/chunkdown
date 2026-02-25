@@ -71,9 +71,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('creates nested sections for different depths', () => {
-    const result = createAST(
-      '# Main\n\nMain content.\n\n## Sub\n\nSub content.\n\n### Deep\n\nDeep content.',
-    );
+    const result = createAST('# Main\n\nMain content.\n\n## Sub\n\nSub content.\n\n### Deep\n\nDeep content.');
 
     const main = getSection(result, [0]);
     expect(main.depth).toBe(1);
@@ -102,9 +100,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('handles heading level jumps', () => {
-    const result = createAST(
-      '# Title\n\nContent.\n\n### Deep\n\nDeep content.',
-    );
+    const result = createAST('# Title\n\nContent.\n\n### Deep\n\nDeep content.');
 
     const main = getSection(result, [0]);
     expect(main.children.length).toBe(2);
@@ -114,9 +110,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('handles complex sibling sections', () => {
-    const result = createAST(
-      '# Ch1\n\nIntro.\n\n## S1.1\n\nContent.\n\n## S1.2\n\nMore.\n\n# Ch2\n\nSecond.',
-    );
+    const result = createAST('# Ch1\n\nIntro.\n\n## S1.1\n\nContent.\n\n## S1.2\n\nMore.\n\n# Ch2\n\nSecond.');
     expect(result.children.length).toBe(2);
 
     const ch1 = getSection(result, [0]);
@@ -129,9 +123,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('treats thematic breaks as section boundaries', () => {
-    const result = createAST(
-      '# Section\n\nBefore break.\n\n---\n\nAfter break.',
-    );
+    const result = createAST('# Section\n\nBefore break.\n\n---\n\nAfter break.');
     expect(result.children.length).toBe(2);
 
     const section = getSection(result, [0]);
@@ -149,9 +141,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('handles multiple thematic breaks', () => {
-    const result = createAST(
-      '# Title\n\nContent.\n\n---\n\nMiddle.\n\n---\n\nEnd.',
-    );
+    const result = createAST('# Title\n\nContent.\n\n---\n\nMiddle.\n\n---\n\nEnd.');
     expect(result.children.length).toBe(2); // section + orphaned section
 
     // First section with content before first break + the first thematic break
@@ -194,9 +184,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('handles extreme nesting levels', () => {
-    const result = createAST(
-      '# L1\n\n## L2\n\n### L3\n\n#### L4\n\n##### L5\n\n###### L6\n\nDeep content.',
-    );
+    const result = createAST('# L1\n\n## L2\n\n### L3\n\n#### L4\n\n##### L5\n\n###### L6\n\nDeep content.');
 
     const l6 = getSection(result, [0, 0, 0, 0, 0, 0]);
     expect(l6.depth).toBe(6);
@@ -204,9 +192,7 @@ describe('createHierarchicalAST', () => {
   });
 
   it('handles mixed content types in sections', () => {
-    const result = createAST(
-      '# Title\n\nParagraph.\n\n- List item\n\n```\ncode\n```\n\n> Quote',
-    );
+    const result = createAST('# Title\n\nParagraph.\n\n- List item\n\n```\ncode\n```\n\n> Quote');
 
     const section = getSection(result, [0]);
     expect(section.children.length).toBe(4);
@@ -281,9 +267,7 @@ describe('createTree', () => {
   it('returns root node as-is', () => {
     const root: Root = {
       type: 'root',
-      children: [
-        { type: 'paragraph', children: [{ type: 'text', value: 'Test' }] },
-      ],
+      children: [{ type: 'paragraph', children: [{ type: 'text', value: 'Test' }] }],
     };
     const result = createTree(root);
 

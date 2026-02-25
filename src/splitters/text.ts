@@ -158,9 +158,7 @@ export class TextSplitter extends AbstractNodeSplitter {
   splitText(text: string): string[] {
     const ast = fromMarkdown(text);
     const chunks = this.splitNode(ast);
-    return chunks
-      .map((chunk) => toMarkdown(chunk).trim())
-      .filter((chunk) => chunk.length > 0);
+    return chunks.map((chunk) => toMarkdown(chunk).trim()).filter((chunk) => chunk.length > 0);
   }
 
   splitNode(node: Nodes): Nodes[] {
@@ -223,10 +221,7 @@ export class TextSplitter extends AbstractNodeSplitter {
       /**
        * Only process nodes that have position information
        */
-      if (
-        node.position?.start?.offset === undefined ||
-        node.position?.end?.offset === undefined
-      ) {
+      if (node.position?.start?.offset === undefined || node.position?.end?.offset === undefined) {
         /**
          * Still traverse children even if this node lacks position info
          */
@@ -320,10 +315,7 @@ export class TextSplitter extends AbstractNodeSplitter {
          */
         const adjustedRange: PenalizedRange = {
           start: Math.max(0, range.start - substringStart),
-          end: Math.min(
-            substringEnd - substringStart,
-            range.end - substringStart,
-          ),
+          end: Math.min(substringEnd - substringStart, range.end - substringStart),
           type: range.type,
           penalty: range.penalty,
         };
@@ -345,11 +337,7 @@ export class TextSplitter extends AbstractNodeSplitter {
    * Returns weight minus the maximum penalty from overlapping ranges.
    * A score of -Infinity means the boundary is protected and should not be used.
    */
-  protected scoreBoundary(
-    position: number,
-    weight: number,
-    ranges: PenalizedRange[],
-  ): number {
+  protected scoreBoundary(position: number, weight: number, ranges: PenalizedRange[]): number {
     let maxPenalty = 0;
     for (const range of ranges) {
       if (position > range.start && position < range.end) {
@@ -363,10 +351,7 @@ export class TextSplitter extends AbstractNodeSplitter {
    * Calculate a balance bonus (0-20) based on how evenly a split divides the text.
    * Perfectly balanced splits get maximum bonus.
    */
-  protected calculateBalanceBonus(
-    firstSize: number,
-    secondSize: number,
-  ): number {
+  protected calculateBalanceBonus(firstSize: number, secondSize: number): number {
     const total = firstSize + secondSize;
     if (total === 0) return 0;
     const ratio = Math.min(firstSize, secondSize) / total;
@@ -388,10 +373,7 @@ export class TextSplitter extends AbstractNodeSplitter {
    * @param ranges - Penalized ranges in markdown coordinates
    * @returns Array of boundaries in markdown coordinates, sorted by score descending
    */
-  protected extractSemanticBoundaries(
-    mapping: PositionMapping,
-    ranges: PenalizedRange[],
-  ): Boundary[] {
+  protected extractSemanticBoundaries(mapping: PositionMapping, ranges: PenalizedRange[]): Boundary[] {
     const boundaries: Boundary[] = [];
     const { plain } = mapping;
 
@@ -442,9 +424,7 @@ export class TextSplitter extends AbstractNodeSplitter {
      * Sort by score (descending), then by position (ascending).
      * Higher scores are preferred split points.
      */
-    return boundaries.sort((a, b) =>
-      a.score !== b.score ? b.score - a.score : a.mdPosition - b.mdPosition,
-    );
+    return boundaries.sort((a, b) => (a.score !== b.score ? b.score - a.score : a.mdPosition - b.mdPosition));
   }
 
   /**
@@ -460,9 +440,7 @@ export class TextSplitter extends AbstractNodeSplitter {
     substringEnd: number,
   ): Boundary[] {
     return boundaries
-      .filter(
-        (b) => b.mdPosition > substringStart && b.mdPosition <= substringEnd,
-      )
+      .filter((b) => b.mdPosition > substringStart && b.mdPosition <= substringEnd)
       .map((b) => ({ ...b, mdPosition: b.mdPosition - substringStart }));
   }
 
@@ -504,9 +482,7 @@ export class TextSplitter extends AbstractNodeSplitter {
     /**
      * Get valid boundaries within current text bounds
      */
-    const validBoundaries = boundaries.filter(
-      (b) => b.mdPosition > 0 && b.mdPosition < text.length,
-    );
+    const validBoundaries = boundaries.filter((b) => b.mdPosition > 0 && b.mdPosition < text.length);
 
     if (validBoundaries.length === 0) {
       yield text;
@@ -522,14 +498,9 @@ export class TextSplitter extends AbstractNodeSplitter {
         const secondPart = text.substring(b.mdPosition);
         const firstPartSize = getContentSize(firstPart);
         const secondPartSize = getContentSize(secondPart);
-        const balanceBonus = this.calculateBalanceBonus(
-          firstPartSize,
-          secondPartSize,
-        );
+        const balanceBonus = this.calculateBalanceBonus(firstPartSize, secondPartSize);
         const combinedScore = b.score + balanceBonus;
-        const bothWithinLimits =
-          firstPartSize <= this.maxAllowedSize &&
-          secondPartSize <= this.maxAllowedSize;
+        const bothWithinLimits = firstPartSize <= this.maxAllowedSize && secondPartSize <= this.maxAllowedSize;
 
         return {
           boundary: b,
@@ -548,22 +519,13 @@ export class TextSplitter extends AbstractNodeSplitter {
      * Select the best boundary
      */
     const selected = scoredBoundaries[0];
-    const {
-      boundary,
-      position,
-      firstPart,
-      secondPart,
-      firstPartSize,
-      secondPartSize,
-    } = selected;
+    const { boundary, position, firstPart, secondPart, firstPartSize, secondPartSize } = selected;
 
     /**
      * Filter remaining boundaries to only those with weight <= selected weight
      * This prevents using weaker boundaries in recursive calls
      */
-    const lowerWeightBoundaries = boundaries.filter(
-      (b) => b.weight <= boundary.weight,
-    );
+    const lowerWeightBoundaries = boundaries.filter((b) => b.weight <= boundary.weight);
 
     /**
      * Calculate actual positions for boundary adjustments
@@ -579,22 +541,13 @@ export class TextSplitter extends AbstractNodeSplitter {
     if (firstPartSize <= this.maxAllowedSize) {
       yield firstPart;
     } else {
-      const firstPartRanges = this.adjustRangesForSubstring(
-        ranges,
-        originalOffset,
-        originalOffset + position,
-      );
+      const firstPartRanges = this.adjustRangesForSubstring(ranges, originalOffset, originalOffset + position);
       const firstPartBoundaries = this.adjustBoundariesForSubstring(
         lowerWeightBoundaries,
         firstPartActualStart,
         firstPartActualEnd,
       );
-      yield* this.splitRecursive(
-        firstPart,
-        firstPartBoundaries,
-        firstPartRanges,
-        originalOffset,
-      );
+      yield* this.splitRecursive(firstPart, firstPartBoundaries, firstPartRanges, originalOffset);
     }
 
     /**

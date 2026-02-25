@@ -272,9 +272,7 @@ Third sentence.
         const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(1);
-        expect(chunks[0].text).toBe(
-          `Check [documentation](${url}) for more details.`,
-        );
+        expect(chunks[0].text).toBe(`Check [documentation](${url}) for more details.`);
       });
 
       it('should split links if they exceed raw size limit', () => {
@@ -311,9 +309,7 @@ Third sentence.
         const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(1);
-        expect(chunks[0].text).toBe(
-          `Check ![architecture](${url}) for more details.`,
-        );
+        expect(chunks[0].text).toBe(`Check ![architecture](${url}) for more details.`);
       });
 
       it('should split images if they exceed raw size limit', () => {
@@ -1382,9 +1378,7 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(
-              chunkSize * maxOverflowRatio,
-            );
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(chunkSize * maxOverflowRatio);
           });
 
           // Verify links and images are never broken
@@ -1414,9 +1408,7 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(
-              chunkSize * maxOverflowRatio,
-            );
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(chunkSize * maxOverflowRatio);
           });
 
           // Verify links and images are never broken
