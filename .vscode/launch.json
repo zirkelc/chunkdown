@@ -8,14 +8,14 @@
       // Debug current file in VSCode
       "program": "${file}",
       /*
-     * Path to tsx binary
-     * Assuming locally installed
-     */
+       * Path to tsx binary
+       * Assuming locally installed
+       */
       "runtimeExecutable": "tsx",
       /*
-     * Open terminal when debugging starts (Optional)
-     * Useful to see console.logs
-     */
+       * Open terminal when debugging starts (Optional)
+       * Useful to see console.logs
+       */
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen",
       // Files to exclude from debugger (e.g. call stack)
@@ -23,23 +23,17 @@
         // Node.js internal core modules
         "<node_internals>/**",
         // Ignore all dependencies (optional)
-        "${workspaceFolder}/node_modules/**",
-      ],
+        "${workspaceFolder}/node_modules/**"
+      ]
     },
     {
       "type": "node",
       "name": "Vitest Test (run)",
       "request": "launch",
       "autoAttachChildProcesses": true,
-      "skipFiles": [
-        "<node_internals>/**",
-        "**/node_modules/**"
-      ],
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
       "program": "${workspaceRoot}/node_modules/vitest/vitest.mjs",
-      "args": [
-        "run",
-        "${relativeFile}"
-      ],
+      "args": ["run", "${relativeFile}"],
       "smartStep": true,
       "console": "integratedTerminal"
     },
@@ -48,14 +42,9 @@
       "name": "Vitest Test (watch)",
       "request": "launch",
       "autoAttachChildProcesses": true,
-      "skipFiles": [
-        "<node_internals>/**",
-        "**/node_modules/**"
-      ],
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
       "program": "${workspaceRoot}/node_modules/vitest/vitest.mjs",
-      "args": [
-        "${relativeFile}"
-      ],
+      "args": ["${relativeFile}"],
       "smartStep": true,
       "console": "integratedTerminal"
     }

@@ -11,10 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  checks: write         # needed for checks
-  id-token: write       # needed for npm publish with provenance
-  contents: write       # needed for github release
-  pull-requests: write  # needed for coverage comment
+  checks: write # needed for checks
+  id-token: write # needed for npm publish with provenance
+  contents: write # needed for github release
+  pull-requests: write # needed for coverage comment
 
 jobs:
   lint:
@@ -22,10 +22,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Setup Biome
-        uses: biomejs/setup-biome@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
       - name: Lint
-        run: biome ci --no-errors-on-unmatched .
+        run: pnpm lint:ci
+      - name: Format
+        run: pnpm format:ci
 
   test:
     name: Test

@@ -32,10 +32,7 @@ export const getRawSize = (input: string | Nodes): number => {
   }
 
   // If input is an AST node, use the position to calculate raw size
-  if (
-    input.position?.start?.offset !== undefined &&
-    input.position?.end?.offset !== undefined
-  ) {
+  if (input.position?.start?.offset !== undefined && input.position?.end?.offset !== undefined) {
     return input.position.end.offset - input.position.start.offset;
   }
 
@@ -74,10 +71,7 @@ export const getSectionSize = (section: Section): number => {
  * @param maxRawSize - Maximum raw character length per chunk
  * @returns Generator yielding chunks with no chunk exceeding maxRawSize
  */
-export function* splitTextByMaxRawSize(
-  text: string,
-  maxRawSize: number,
-): Generator<string> {
+export function* splitTextByMaxRawSize(text: string, maxRawSize: number): Generator<string> {
   let remaining = text;
 
   while (remaining.length > maxRawSize) {
@@ -98,9 +92,7 @@ export function* splitTextByMaxRawSize(
     const splitChunk = remaining.substring(0, splitPos);
 
     // Move to remaining text, skipping whitespace if we split at whitespace
-    remaining = foundWhitespace
-      ? remaining.substring(splitPos).trim()
-      : remaining.substring(splitPos);
+    remaining = foundWhitespace ? remaining.substring(splitPos).trim() : remaining.substring(splitPos);
 
     // Trim and yield the chunk if not empty
     const trimmedChunk = splitChunk.trim();
@@ -123,10 +115,7 @@ export function* splitTextByMaxRawSize(
  * @param maxRawSize - Maximum raw character length per chunk
  * @returns Generator yielding chunks with no chunk exceeding maxRawSize
  */
-export function* splitByMaxRawSize(
-  chunks: string[],
-  maxRawSize: number,
-): Generator<string> {
+export function* splitByMaxRawSize(chunks: string[], maxRawSize: number): Generator<string> {
   for (const chunk of chunks) {
     if (chunk.length <= maxRawSize) {
       yield chunk;

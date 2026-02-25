@@ -91,10 +91,7 @@ export class BlockquoteSplitter extends AbstractNodeSplitter<Blockquote> {
     }
   }
 
-  private *splitBlock(
-    blockquote: Blockquote,
-    block: Blockquote['children'][0],
-  ): Generator<Blockquote> {
+  private *splitBlock(blockquote: Blockquote, block: Blockquote['children'][0]): Generator<Blockquote> {
     /**
      * Convert the block to a tree
      */

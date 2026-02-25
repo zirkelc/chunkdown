@@ -92,9 +92,7 @@ export const createHierarchicalAST = (root: Root): HierarchicalRoot => {
          * Now recursively process the collected children to handle nested headings
          * Filter out only RootContent nodes for recursive processing
          */
-        const contentNodes = section.children.filter(
-          (child): child is RootContent => !isSection(child),
-        );
+        const contentNodes = section.children.filter((child): child is RootContent => !isSection(child));
         section.children = transform(contentNodes);
 
         result.push(section);

@@ -1,23 +1,6 @@
-import type {
-  Code,
-  Delete,
-  Emphasis,
-  Heading,
-  Link,
-  List,
-  ListItem,
-  Paragraph,
-  Strong,
-  Table,
-  Text,
-} from 'mdast';
+import type { Code, Delete, Emphasis, Heading, Link, List, ListItem, Paragraph, Strong, Table, Text } from 'mdast';
 import { describe, expect, it } from 'vitest';
-import {
-  fromMarkdown,
-  preprocessMarkdown,
-  toMarkdown,
-  toString,
-} from './markdown';
+import { fromMarkdown, preprocessMarkdown, toMarkdown, toString } from './markdown';
 import type { SplitterOptions } from './types';
 
 function markdown(text: string, options: SplitterOptions): string {
@@ -107,17 +90,13 @@ describe('Markdown', () => {
       const paragraph = ast.children[0] as Paragraph;
       expect(paragraph.type).toBe('paragraph');
 
-      const linkNode = paragraph.children.find(
-        (child) => child.type === 'link',
-      ) as Link;
+      const linkNode = paragraph.children.find((child) => child.type === 'link') as Link;
       expect(linkNode).toBeDefined();
       expect(linkNode.url).toBe('https://github.com');
 
       const result = toMarkdown(ast);
       // resourceLink: true converts autolinks to [url](url) format
-      expect(result.trim()).toBe(
-        'Visit [https://github.com](https://github.com) for more info',
-      );
+      expect(result.trim()).toBe('Visit [https://github.com](https://github.com) for more info');
     });
 
     it('should handle code blocks with language', () => {
@@ -176,10 +155,8 @@ describe('Normalization', () => {
       const underscoreAst = fromMarkdown(doubleUnderscore);
 
       // Both should parse to 'strong' nodes
-      const asteriskStrong = (asteriskAst.children[0] as Paragraph)
-        .children[0] as Strong;
-      const underscoreStrong = (underscoreAst.children[0] as Paragraph)
-        .children[0] as Strong;
+      const asteriskStrong = (asteriskAst.children[0] as Paragraph).children[0] as Strong;
+      const underscoreStrong = (underscoreAst.children[0] as Paragraph).children[0] as Strong;
 
       expect(asteriskStrong.type).toBe('strong');
       expect(underscoreStrong.type).toBe('strong');
@@ -202,17 +179,13 @@ describe('Normalization', () => {
       const underscoreAst = fromMarkdown(singleUnderscore);
 
       // Both should parse to 'emphasis' nodes
-      const asteriskEmphasis = (asteriskAst.children[0] as Paragraph)
-        .children[0] as Emphasis;
-      const underscoreEmphasis = (underscoreAst.children[0] as Paragraph)
-        .children[0] as Emphasis;
+      const asteriskEmphasis = (asteriskAst.children[0] as Paragraph).children[0] as Emphasis;
+      const underscoreEmphasis = (underscoreAst.children[0] as Paragraph).children[0] as Emphasis;
 
       expect(asteriskEmphasis.type).toBe('emphasis');
       expect(underscoreEmphasis.type).toBe('emphasis');
       expect((asteriskEmphasis.children[0] as Text).value).toBe('italic text');
-      expect((underscoreEmphasis.children[0] as Text).value).toBe(
-        'italic text',
-      );
+      expect((underscoreEmphasis.children[0] as Text).value).toBe('italic text');
 
       // Both should normalize to the same output
       const asteriskResult = toMarkdown(asteriskAst);
@@ -478,8 +451,7 @@ describe('Normalization', () => {
     });
 
     it('handles titles in reference definitions', () => {
-      const text =
-        'Check [link][ref].\n\n[ref]: https://example.com "Example Title"';
+      const text = 'Check [link][ref].\n\n[ref]: https://example.com "Example Title"';
       const options: SplitterOptions = {
         chunkSize: 100,
         maxOverflowRatio: 2,
@@ -592,8 +564,7 @@ describe('Normalization', () => {
 
 describe('Transform', () => {
   it('transforms nodes when transform returns modified node', () => {
-    const text =
-      'Visit [our site](https://example.com/very/long/path/to/page).';
+    const text = 'Visit [our site](https://example.com/very/long/path/to/page).';
     const options: SplitterOptions = {
       chunkSize: 100,
       maxOverflowRatio: 2,
@@ -658,8 +629,7 @@ describe('Transform', () => {
   });
 
   it('applies transforms after style normalization', () => {
-    const text =
-      'Check [reference][ref].\n\n[ref]: https://example.com/very/long/url';
+    const text = 'Check [reference][ref].\n\n[ref]: https://example.com/very/long/url';
     const options: SplitterOptions = {
       chunkSize: 100,
       maxOverflowRatio: 2,

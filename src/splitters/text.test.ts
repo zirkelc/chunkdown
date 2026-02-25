@@ -27,9 +27,9 @@ describe('TextSplitter', () => {
       const chunks = splitter.splitText(text);
 
       expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Hello world.');
-      expect(chunks[1]).toBe('The sun is shining.');
-      expect(chunks[2]).toBe('Today is nice.');
+      expect(chunks[0]).toBe(`Hello world.`);
+      expect(chunks[1]).toBe(`The sun is shining.`);
+      expect(chunks[2]).toBe(`Today is nice.`);
     });
 
     it('should split by question and exclamation marks', () => {
@@ -69,11 +69,11 @@ describe('TextSplitter', () => {
       const chunks = splitter.splitText(text);
 
       expect(chunks.length).toBe(5);
-      expect(chunks[0]).toBe('Note:');
-      expect(chunks[1]).toBe('this');
-      expect(chunks[2]).toBe('is important;');
-      expect(chunks[3]).toBe('very important:');
-      expect(chunks[4]).toBe('indeed.');
+      expect(chunks[0]).toBe(`Note:`);
+      expect(chunks[1]).toBe(`this is`);
+      expect(chunks[2]).toBe(`important;`);
+      expect(chunks[3]).toBe(`very important:`);
+      expect(chunks[4]).toBe(`indeed.`);
     });
 
     it('should split by closing brackets', () => {
@@ -181,7 +181,10 @@ describe('TextSplitter', () => {
       expect(chunks[6]).toBe('very nice.');
     });
 
-    it('should split by ellipsis', () => {
+    it('should handle ellipsis via period fallback', () => {
+      /**
+       * Ellipsis pattern removed - period_fallback handles it
+       */
       const splitter = new TextSplitter({
         chunkSize: 15,
         maxOverflowRatio: 1.0,
@@ -189,13 +192,11 @@ describe('TextSplitter', () => {
       const text = `Wait... what happened... I don't know....`;
       const chunks = splitter.splitText(text);
 
-      expect(chunks.length).toBe(5);
-      expect(chunks[0]).toBe('Wait...');
-      expect(chunks[1]).toBe('what happened.');
-      expect(chunks[2]).toBe('..');
-      // The period before ellipsis gets escaped to prevent interpretation as list item
-      expect(chunks[3]).toBe("I don't know\\..");
-      expect(chunks[4]).toBe('..');
+      expect(chunks.length).toBe(4);
+      expect(chunks[0]).toBe(`Wait... what`);
+      expect(chunks[1]).toBe(`happened...`);
+      expect(chunks[2]).toBe(`I don't`);
+      expect(chunks[3]).toBe(`know\\....`);
     });
 
     it('should split by period fallback', () => {
@@ -238,6 +239,23 @@ describe('TextSplitter', () => {
       expect(chunks[0]).toBe('supercalifragilisticexpialidocious');
       expect(chunks[1]).toBe('antidisestablishmentarianism');
     });
+
+    it(`should keep period after closing bracket in same chunk`, () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 15,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `Test (one).[link](url) after`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      // Period should stay with the parenthetical, not orphaned at start of next chunk
+      expect(chunks[0]).toBe(`Test (one).`);
+      expect(chunks[1]).not.toMatch(/^\./); // Should NOT start with period
+    });
   });
 
   describe('Rules', () => {
@@ -245,6 +263,11 @@ describe('TextSplitter', () => {
       const text = `Some **long strong text** with some *long italic text* and ~~long deleted text~~.`;
 
       it('may split formatting if rules are undefined', () => {
+        /**
+         * With undefined rules, formatting CAN be split but the scoring system
+         * penalizes splitting inside formatting, so it prefers other boundaries.
+         * With this chunk size, all formatting elements stay intact.
+         */
         const splitter = new TextSplitter({
           chunkSize: 30,
           maxOverflowRatio: 1.0,
@@ -256,42 +279,46 @@ describe('TextSplitter', () => {
         });
         const chunks = splitter.splitText(text);
 
-        const strongChunk = chunks.find((chunk) =>
-          chunk.includes('**long strong text**'),
-        );
-        const italicChunk = chunks.find((chunk) =>
-          chunk.includes('*long italic text*'),
-        );
-        const deletedChunk = chunks.find((chunk) =>
-          chunk.includes('~~long deleted text~~'),
-        );
+        const strongChunk = chunks.find((chunk) => chunk.includes(`**long strong text**`));
+        const italicChunk = chunks.find((chunk) => chunk.includes(`*long italic text*`));
+        const deletedChunk = chunks.find((chunk) => chunk.includes(`~~long deleted text~~`));
 
-        expect([strongChunk, italicChunk, deletedChunk]).toContain(undefined);
+        /**
+         * Scoring system penalizes splitting inside formatting,
+         * so all elements are preserved intact.
+         */
+        expect(strongChunk).toBeDefined();
+        expect(italicChunk).toBeDefined();
+        expect(deletedChunk).toBeDefined();
       });
 
       it('may split formatting if rules are set to allow-split', () => {
+        /**
+         * With allow-split, formatting CAN be split but the scoring system
+         * still penalizes it, preferring other boundaries.
+         */
         const splitter = new TextSplitter({
           chunkSize: 30,
           maxOverflowRatio: 1.0,
           rules: {
-            strong: { split: { rule: 'allow-split' } },
-            emphasis: { split: { rule: 'allow-split' } },
-            delete: { split: { rule: 'allow-split' } },
+            strong: { split: { rule: `allow-split` } },
+            emphasis: { split: { rule: `allow-split` } },
+            delete: { split: { rule: `allow-split` } },
           },
         });
         const chunks = splitter.splitText(text);
 
-        const strongChunk = chunks.find((chunk) =>
-          chunk.includes('**long strong text**'),
-        );
-        const italicChunk = chunks.find((chunk) =>
-          chunk.includes('*long italic text*'),
-        );
-        const deletedChunk = chunks.find((chunk) =>
-          chunk.includes('~~long deleted text~~'),
-        );
+        const strongChunk = chunks.find((chunk) => chunk.includes(`**long strong text**`));
+        const italicChunk = chunks.find((chunk) => chunk.includes(`*long italic text*`));
+        const deletedChunk = chunks.find((chunk) => chunk.includes(`~~long deleted text~~`));
 
-        expect([strongChunk, italicChunk, deletedChunk]).toContain(undefined);
+        /**
+         * Scoring system penalizes splitting inside formatting,
+         * so all elements are preserved intact.
+         */
+        expect(strongChunk).toBeDefined();
+        expect(italicChunk).toBeDefined();
+        expect(deletedChunk).toBeDefined();
       });
 
       it('should not split formatting if rules are set to never-split', () => {
@@ -306,15 +333,9 @@ describe('TextSplitter', () => {
         });
         const chunks = splitter.splitText(text);
 
-        const strongChunk = chunks.find((chunk) =>
-          chunk.includes('**long strong text**'),
-        );
-        const italicChunk = chunks.find((chunk) =>
-          chunk.includes('*long italic text*'),
-        );
-        const deletedChunk = chunks.find((chunk) =>
-          chunk.includes('~~long deleted text~~'),
-        );
+        const strongChunk = chunks.find((chunk) => chunk.includes('**long strong text**'));
+        const italicChunk = chunks.find((chunk) => chunk.includes('*long italic text*'));
+        const deletedChunk = chunks.find((chunk) => chunk.includes('~~long deleted text~~'));
 
         expect(strongChunk).toBeDefined();
         expect(italicChunk).toBeDefined();
@@ -334,15 +355,9 @@ describe('TextSplitter', () => {
         });
         const chunks = splitter.splitText(text);
 
-        const strongChunk = chunks.find((chunk) =>
-          chunk.includes('**long strong text**'),
-        );
-        const italicChunk = chunks.find((chunk) =>
-          chunk.includes('*long italic text*'),
-        );
-        const deletedChunk = chunks.find((chunk) =>
-          chunk.includes('~~long deleted text~~'),
-        );
+        const strongChunk = chunks.find((chunk) => chunk.includes('**long strong text**'));
+        const italicChunk = chunks.find((chunk) => chunk.includes('*long italic text*'));
+        const deletedChunk = chunks.find((chunk) => chunk.includes('~~long deleted text~~'));
 
         expect(strongChunk).toBeDefined();
         expect(italicChunk).toBeDefined();
@@ -361,15 +376,9 @@ describe('TextSplitter', () => {
         });
         const chunks = splitter.splitText(text);
 
-        const strongChunk = chunks.find((chunk) =>
-          chunk.includes('**very very very long strong text**'),
-        );
-        const italicChunk = chunks.find((chunk) =>
-          chunk.includes('*very very very long italic text*'),
-        );
-        const deletedChunk = chunks.find((chunk) =>
-          chunk.includes('~~very very very long deleted text~~'),
-        );
+        const strongChunk = chunks.find((chunk) => chunk.includes('**very very very long strong text**'));
+        const italicChunk = chunks.find((chunk) => chunk.includes('*very very very long italic text*'));
+        const deletedChunk = chunks.find((chunk) => chunk.includes('~~very very very long deleted text~~'));
 
         expect(strongChunk).toBeUndefined();
         expect(italicChunk).toBeUndefined();
@@ -387,15 +396,17 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const strongChunk = chunks.find((chunk) =>
-          chunk.includes('**long strong text**'),
-        );
+        const strongChunk = chunks.find((chunk) => chunk.includes('**long strong text**'));
         expect(strongChunk).toBeDefined();
       });
     });
 
     describe('Links', () => {
-      const text = `Check [documentation](https://example.com) for more details.`;
+      /**
+       * Text contains two links: one with spaces (can be split internally),
+       * one without spaces (cannot be split, only overflows).
+       */
+      const text = `Check [link text here](https://a.com) and [documentation](https://b.com) for details.`;
 
       it('may split links if rules are undefined', () => {
         const splitter = new TextSplitter({
@@ -408,10 +419,22 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const linkChunk = chunks.find((chunk) =>
-          chunk.includes('[documentation](https://example.com)'),
-        );
-        expect(linkChunk).toBeUndefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "[link text",
+            "here](https://a.com)",
+            "and",
+            "[documentation](https://b.com)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Link with spaces: split at internal whitespace
+        expect(chunks.find((c) => c.includes(`[link text here]`))).toBeUndefined();
+        // Link without spaces: cannot be split, overflows intact
+        expect(chunks.find((c) => c.includes(`[documentation]`))).toBeDefined();
       });
 
       it('should split links if rules are set to allow-split', () => {
@@ -419,16 +442,28 @@ describe('TextSplitter', () => {
           chunkSize: 10,
           maxOverflowRatio: 1.0,
           rules: {
-            link: { split: { rule: 'allow-split' } },
+            link: { split: { rule: `allow-split` } },
           },
         });
 
         const chunks = splitter.splitText(text);
 
-        const linkChunk = chunks.find((chunk) =>
-          chunk.includes('[documentation](https://example.com)'),
-        );
-        expect(linkChunk).toBeUndefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "[link text",
+            "here](https://a.com)",
+            "and",
+            "[documentation](https://b.com)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Link with spaces: split at internal whitespace
+        expect(chunks.find((c) => c.includes(`[link text here]`))).toBeUndefined();
+        // Link without spaces: cannot be split, overflows intact
+        expect(chunks.find((c) => c.includes(`[documentation]`))).toBeDefined();
       });
 
       it('should not split links if rules are set to never-split', () => {
@@ -442,10 +477,20 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const linkChunk = chunks.find((chunk) =>
-          chunk.includes('[documentation](https://example.com)'),
-        );
-        expect(linkChunk).toBeDefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "[link text here](https://a.com)",
+            "and",
+            "[documentation](https://b.com)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Both links preserved intact
+        expect(chunks.find((c) => c.includes(`[link text here]`))).toBeDefined();
+        expect(chunks.find((c) => c.includes(`[documentation]`))).toBeDefined();
       });
 
       it('should split links if exceeds size limit', () => {
@@ -453,16 +498,28 @@ describe('TextSplitter', () => {
           chunkSize: 10,
           maxOverflowRatio: 1.0,
           rules: {
-            link: { split: { rule: 'size-split', size: 10 } },
+            link: { split: { rule: `size-split`, size: 10 } },
           },
         });
 
         const chunks = splitter.splitText(text);
 
-        const linkChunk = chunks.find((chunk) =>
-          chunk.includes('[documentation](https://example.com)'),
-        );
-        expect(linkChunk).toBeUndefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "[link text",
+            "here](https://a.com)",
+            "and",
+            "[documentation](https://b.com)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Link with spaces: split at internal whitespace
+        expect(chunks.find((c) => c.includes(`[link text here]`))).toBeUndefined();
+        // Link without spaces: cannot be split, overflows intact
+        expect(chunks.find((c) => c.includes(`[documentation]`))).toBeDefined();
       });
 
       it('should not split links if does not exceed size limit', () => {
@@ -470,21 +527,35 @@ describe('TextSplitter', () => {
           chunkSize: 10,
           maxOverflowRatio: 1.0,
           rules: {
-            link: { split: { rule: 'size-split', size: 20 } },
+            link: { split: { rule: 'size-split', size: 50 } },
           },
         });
 
         const chunks = splitter.splitText(text);
 
-        const linkChunk = chunks.find((chunk) =>
-          chunk.includes('[documentation](https://example.com)'),
-        );
-        expect(linkChunk).toBeDefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "[link text here](https://a.com)",
+            "and",
+            "[documentation](https://b.com)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Both links preserved intact
+        expect(chunks.find((c) => c.includes(`[link text here]`))).toBeDefined();
+        expect(chunks.find((c) => c.includes(`[documentation]`))).toBeDefined();
       });
     });
 
     describe('Images', () => {
-      const text = `Check ![architecture](./architecture.png) for more details.`;
+      /**
+       * Text contains two images: one with spaces in alt (can be split internally),
+       * one without spaces (cannot be split, only overflows).
+       */
+      const text = `Check ![image alt text](./a.png) and ![architecture](./b.png) for details.`;
 
       it('may split images if rules are undefined', () => {
         const splitter = new TextSplitter({
@@ -494,12 +565,26 @@ describe('TextSplitter', () => {
             image: undefined,
           },
         });
+
         const chunks = splitter.splitText(text);
 
-        const imageChunk = chunks.find((chunk) =>
-          chunk.includes('![architecture](./architecture.png)'),
-        );
-        expect(imageChunk).toBeUndefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "![image",
+            "alt",
+            "text](./a.png)",
+            "and",
+            "![architecture](./b.png)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Image with spaces: split at internal whitespace
+        expect(chunks.find((c) => c.includes(`![image alt text]`))).toBeUndefined();
+        // Image without spaces: cannot be split, overflows intact
+        expect(chunks.find((c) => c.includes(`![architecture]`))).toBeDefined();
       });
 
       it('should split images if rules are set to allow-split', () => {
@@ -513,10 +598,23 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const imageChunk = chunks.find((chunk) =>
-          chunk.includes('![architecture](./architecture.png)'),
-        );
-        expect(imageChunk).toBeUndefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "![image",
+            "alt",
+            "text](./a.png)",
+            "and",
+            "![architecture](./b.png)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Image with spaces: split at internal whitespace
+        expect(chunks.find((c) => c.includes(`![image alt text]`))).toBeUndefined();
+        // Image without spaces: cannot be split, overflows intact
+        expect(chunks.find((c) => c.includes(`![architecture]`))).toBeDefined();
       });
 
       it('should not split images if rules are set to never-split', () => {
@@ -530,10 +628,20 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const imageChunk = chunks.find((chunk) =>
-          chunk.includes('![architecture](./architecture.png)'),
-        );
-        expect(imageChunk).toBeDefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "![image alt text](./a.png)",
+            "and",
+            "![architecture](./b.png)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Both images preserved intact
+        expect(chunks.find((c) => c.includes(`![image alt text]`))).toBeDefined();
+        expect(chunks.find((c) => c.includes(`![architecture]`))).toBeDefined();
       });
 
       it('should split images if exceeds size limit', () => {
@@ -547,10 +655,23 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const imageChunk = chunks.find((chunk) =>
-          chunk.includes('![architecture](./architecture.png)'),
-        );
-        expect(imageChunk).toBeUndefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "![image",
+            "alt",
+            "text](./a.png)",
+            "and",
+            "![architecture](./b.png)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Image with spaces: split at internal whitespace
+        expect(chunks.find((c) => c.includes(`![image alt text]`))).toBeUndefined();
+        // Image without spaces: cannot be split, overflows intact
+        expect(chunks.find((c) => c.includes(`![architecture]`))).toBeDefined();
       });
 
       it('should not split images if does not exceed size limit', () => {
@@ -558,16 +679,26 @@ describe('TextSplitter', () => {
           chunkSize: 10,
           maxOverflowRatio: 1.0,
           rules: {
-            image: { split: { rule: 'size-split', size: 20 } },
+            image: { split: { rule: 'size-split', size: 50 } },
           },
         });
 
         const chunks = splitter.splitText(text);
 
-        const imageChunk = chunks.find((chunk) =>
-          chunk.includes('![architecture](./architecture.png)'),
-        );
-        expect(imageChunk).toBeDefined();
+        expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Check",
+            "![image alt text](./a.png)",
+            "and",
+            "![architecture](./b.png)",
+            "for",
+            "details.",
+          ]
+        `);
+
+        // Both images preserved intact
+        expect(chunks.find((c) => c.includes(`![image alt text]`))).toBeDefined();
+        expect(chunks.find((c) => c.includes(`![architecture]`))).toBeDefined();
       });
     });
 
@@ -585,9 +716,7 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const codeChunk = chunks.find((chunk) =>
-          chunk.includes('`long inline code example here`'),
-        );
+        const codeChunk = chunks.find((chunk) => chunk.includes('`long inline code example here`'));
         expect(codeChunk).toBeUndefined();
       });
 
@@ -602,9 +731,7 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const codeChunk = chunks.find((chunk) =>
-          chunk.includes('`long inline code example here`'),
-        );
+        const codeChunk = chunks.find((chunk) => chunk.includes('`long inline code example here`'));
         expect(codeChunk).toBeUndefined();
       });
 
@@ -619,9 +746,7 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const codeChunk = chunks.find((chunk) =>
-          chunk.includes('`long inline code example here`'),
-        );
+        const codeChunk = chunks.find((chunk) => chunk.includes('`long inline code example here`'));
         expect(codeChunk).toBeDefined();
       });
 
@@ -636,9 +761,7 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const codeChunk = chunks.find((chunk) =>
-          chunk.includes('`long inline code example here`'),
-        );
+        const codeChunk = chunks.find((chunk) => chunk.includes('`long inline code example here`'));
         expect(codeChunk).toBeUndefined();
       });
 
@@ -653,54 +776,48 @@ describe('TextSplitter', () => {
 
         const chunks = splitter.splitText(text);
 
-        const codeChunk = chunks.find((chunk) =>
-          chunk.includes('`long inline code example here`'),
-        );
+        const codeChunk = chunks.find((chunk) => chunk.includes('`long inline code example here`'));
         expect(codeChunk).toBeDefined();
       });
     });
 
     describe('Regression: Split links should not produce escaped markdown', () => {
-      it('should not escape markdown syntax when splitting links with allow-split', () => {
-        // When a link is split (allow-split), the fragments should be yielded as raw text
-        // without being parsed through fromMarkdown, which would escape [ ] ( ) characters
-        const text =
-          'Please check out the [AI SDK Core API Reference](https://ai-sdk.dev/docs/reference/ai-sdk-core) for more details.';
+      it('should preserve links intact when possible with allow-split', () => {
+        /**
+         * With the new scoring system, links are penalized for splitting,
+         * so the algorithm prefers keeping them intact when there are
+         * other valid split points available.
+         */
+        const text = `Please check out the [AI SDK Core API Reference](https://ai-sdk.dev/docs/reference/ai-sdk-core) for more details.`;
 
         const splitter = new TextSplitter({
           chunkSize: 35,
           maxOverflowRatio: 1.0,
           rules: {
-            link: { split: 'allow-split' },
+            link: { split: `allow-split` },
           },
         });
 
         const chunks = splitter.splitText(text);
 
-        // No chunk should have escaped brackets or parentheses
-        for (const chunk of chunks) {
-          expect(chunk).not.toContain('\\[');
-          expect(chunk).not.toContain('\\]');
-          expect(chunk).not.toContain('\\(');
-          expect(chunk).not.toContain('\\)');
-        }
+        /**
+         * The link is preserved intact because the scoring system
+         * penalizes splitting inside links, preferring other boundaries.
+         */
+        expect(chunks.length).toBe(3);
+        expect(chunks[0]).toBe(`Please check out the`);
+        expect(chunks[1]).toBe(`[AI SDK Core API Reference](https://ai-sdk.dev/docs/reference/ai-sdk-core)`);
+        expect(chunks[2]).toBe(`for more details.`);
 
-        // Verify chunks don't have incorrectly parsed links like [https://ai-sdk](https://ai-sdk)
+        // No chunk should have escaped brackets
         for (const chunk of chunks) {
-          expect(chunk).not.toMatch(/\[[^\]]+\]\([^)]+\)/); // No markdown link syntax
+          expect(chunk).not.toContain(`\\[`);
+          expect(chunk).not.toContain(`\\]`);
         }
-
-        // Verify the raw link text and URL are preserved (chunks are trimmed so spaces may be lost)
-        const joined = chunks.join(' ');
-        expect(joined).toContain('SDK Core API Reference');
-        // URL may be split at boundaries, but parts should be present
-        expect(joined).toContain('ai-sdk');
-        expect(joined).toContain('for more details');
       });
 
       it('should preserve link fragments as plain text when URL is split', () => {
-        const text =
-          'Visit [docs](https://example.com/very/long/path/to/docs) now.';
+        const text = 'Visit [docs](https://example.com/very/long/path/to/docs) now.';
 
         const splitter = new TextSplitter({
           chunkSize: 20,
@@ -717,9 +834,7 @@ describe('TextSplitter', () => {
           // Should not contain escaped markdown characters
           expect(chunk).not.toContain('\\[');
           // Should not contain auto-linked URLs like [https://...](https://...)
-          expect(chunk).not.toMatch(
-            /\[https?:\/\/[^\]]+\]\(https?:\/\/[^)]+\)/,
-          );
+          expect(chunk).not.toMatch(/\[https?:\/\/[^\]]+\]\(https?:\/\/[^)]+\)/);
         }
       });
     });
@@ -779,9 +894,7 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
         ];
 
         for (const link of allLinks) {
-          const foundInChunk = chunkStrings.some((chunk) =>
-            chunk.includes(link),
-          );
+          const foundInChunk = chunkStrings.some((chunk) => chunk.includes(link));
           expect(foundInChunk).toBe(true);
         }
 
@@ -794,6 +907,236 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
           }
         }
       });
+    });
+  });
+
+  describe(`Plain Text Pattern Matching`, () => {
+    it(`should match patterns on plain text content, not markdown syntax`, () => {
+      /**
+       * The period after "First" in plain text is INSIDE the protected strong range,
+       * so it should NOT cause a split inside the bold formatting.
+       * The bold element should remain intact in a chunk.
+       */
+      const splitter = new TextSplitter({
+        chunkSize: 15,
+        maxOverflowRatio: 1.0,
+        rules: {
+          strong: { split: `never-split` },
+        },
+      });
+      const text = `**First.** Second sentence here.`;
+      const chunks = splitter.splitText(text);
+
+      // Arrange
+      // The bold element should be intact in one chunk (not split inside)
+      const hasIntactBold = chunks.some((c) => c.includes(`**First.**`));
+      expect(hasIntactBold).toBe(true);
+
+      // No chunk should have a broken bold (e.g., `**First` without closing)
+      const hasBrokenBold = chunks.some((c) => c.includes(`**First`) && !c.includes(`**First.**`));
+      expect(hasBrokenBold).toBe(false);
+    });
+
+    it(`should not split inside protected link syntax`, () => {
+      /**
+       * Link text contains a period, but links are protected.
+       * Split should happen after the link, not inside it.
+       */
+      const splitter = new TextSplitter({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+        rules: {
+          link: { split: `never-split` },
+        },
+      });
+      const text = `Check [link.text](url) and more.`;
+      const chunks = splitter.splitText(text);
+
+      // Arrange
+      // The period inside link text should not cause a split
+      const fullLink = chunks.some((c) => c.includes(`[link.text](url)`));
+      expect(fullLink).toBe(true);
+    });
+
+    it(`should handle inline code with periods correctly`, () => {
+      /**
+       * Inline code may contain periods, but those shouldn't be
+       * matched as sentence boundaries when code is protected.
+       */
+      const splitter = new TextSplitter({
+        chunkSize: 25,
+        maxOverflowRatio: 1.0,
+        rules: {
+          inlineCode: { split: `never-split` },
+        },
+      });
+      const text = 'Check `config.value` and then continue.';
+      const chunks = splitter.splitText(text);
+
+      // Arrange
+      // The period inside inline code should not cause a split
+      const hasFullCode = chunks.some((c) => c.includes('`config.value`'));
+      expect(hasFullCode).toBe(true);
+    });
+
+    it(`should handle nested formatting with accurate position mapping`, () => {
+      /**
+       * Nested bold and italic should be handled correctly.
+       * Plain text extraction should work through nested nodes.
+       */
+      const splitter = new TextSplitter({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+        rules: {
+          strong: { split: `never-split` },
+          emphasis: { split: `never-split` },
+        },
+      });
+      const text = '**bold *and italic* end**. After formatting.';
+      const chunks = splitter.splitText(text);
+
+      // Arrange
+      // Should split after the period following the nested formatting
+      expect(chunks.length).toBe(2);
+      expect(chunks[0]).toBe('**bold *and italic* end**.');
+      expect(chunks[1]).toBe('After formatting.');
+    });
+
+    it(`should correctly map positions when escape sequences are present`, () => {
+      /**
+       * Escape sequences add characters to markdown but not to plain text.
+       * Position mapping should account for this.
+       */
+      const splitter = new TextSplitter({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+      });
+      // The asterisk gets escaped in markdown as \*
+      const text = 'Not bold \\* here. After escape.';
+      const chunks = splitter.splitText(text);
+
+      // Arrange
+      // Should still find sentence boundary correctly despite escape
+      expect(chunks.length).toBeGreaterThanOrEqual(1);
+      // The important thing is that splitting doesn't break mid-word
+      for (const chunk of chunks) {
+        expect(chunk).not.toMatch(/^\\s/); // shouldn't start with space
+      }
+    });
+  });
+
+  describe(`Boundary Scoring`, () => {
+    it(`should prefer boundary outside protected element over inside`, () => {
+      /**
+       * Text has sentence boundary inside link AND outside link.
+       * Should split at the outside boundary (higher score due to no penalty).
+       */
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+        rules: { link: { split: `allow-split` } },
+      });
+      const text = `Before here. [Link. More](url) After.`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks[0]).toBe(`Before here.`);
+    });
+
+    it(`should exclude boundaries with infinite penalty`, () => {
+      /**
+       * Boundaries inside never-split elements get penalty: Infinity,
+       * resulting in score -Infinity which excludes them from selection.
+       * The period inside [Link. More] is excluded, so split happens outside.
+       */
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+        rules: { link: { split: `never-split` } },
+      });
+      const text = `Start here. [Link. More](url) End here.`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks).toMatchInlineSnapshot(`
+          [
+            "Start here.",
+            "[Link. More](url) End here.",
+          ]
+        `);
+    });
+
+    it(`should select higher-weight boundary over lower-weight`, () => {
+      /**
+       * Given both a period (weight 100) and comma (weight 40) boundary,
+       * should prefer the period even if comma appears first.
+       */
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 30,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `First, second. Third part here.`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks[0]).toBe(`First, second.`);
+    });
+
+    it(`should favor more balanced split when weights are equal`, () => {
+      /**
+       * Two period boundaries with equal weight.
+       * Balance bonus should favor the more centered split.
+       * First period at pos 11, second at pos 23, third at end.
+       * Second boundary (pos 23) is more balanced (23 vs 12)
+       * than first boundary (pos 11) which gives (11 vs 24).
+       */
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 30,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `AAAAAAAAAA. BBBBBBBBBB. CCCCCCCCCC.`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks[0]).toBe(`AAAAAAAAAA. BBBBBBBBBB.`);
+      expect(chunks[1]).toBe(`CCCCCCCCCC.`);
+    });
+
+    it(`should split consistently at sentence boundaries when available`, () => {
+      /**
+       * When sentence boundaries (periods) are available and fit size limits,
+       * they're consistently used as the preferred split points.
+       */
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 20,
+        maxOverflowRatio: 1.0,
+      });
+      const text = `alpha, beta. Gamma, delta. Epsilon.`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks).toMatchInlineSnapshot(`
+          [
+            "alpha, beta.",
+            "Gamma, delta.",
+            "Epsilon.",
+          ]
+        `);
     });
   });
 });

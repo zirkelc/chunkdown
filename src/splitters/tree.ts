@@ -46,9 +46,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
   splitText(text: string): string[] {
     const node = fromMarkdown(text);
     const chunks = this.splitNode(node);
-    return chunks
-      .map((chunk) => toMarkdown(chunk).trim())
-      .filter((chunk) => chunk.length > 0);
+    return chunks.map((chunk) => toMarkdown(chunk).trim()).filter((chunk) => chunk.length > 0);
   }
 
   splitNode(node: Root): Array<Nodes> {
@@ -90,10 +88,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
    * Main generator that splits hierarchical AST into chunks
    * All children are sections (including orphaned sections created by createHierarchicalAST)
    */
-  private *splitTree(
-    hierarchicalAST: HierarchicalRoot,
-    breadcrumbs: Heading[] = [],
-  ): Generator<HierarchicalNodes> {
+  private *splitTree(hierarchicalAST: HierarchicalRoot, breadcrumbs: Heading[] = []): Generator<HierarchicalNodes> {
     for (const section of hierarchicalAST.children) {
       const sectionSize = getSectionSize(section);
 
@@ -118,16 +113,11 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
    * Splits a hierarchical section, deciding whether to keep it together or break it down.
    * Uses hierarchical approach with merging optimization to maximize chunk utilization
    */
-  private *splitHierarchicalSection(
-    section: Section,
-    breadcrumbs: Heading[] = [],
-  ): Generator<HierarchicalNodes> {
+  private *splitHierarchicalSection(section: Section, breadcrumbs: Heading[] = []): Generator<HierarchicalNodes> {
     /**
      * Build breadcrumbs for this section's content
      */
-    const currentBreadcrumbs = section.heading
-      ? [...breadcrumbs, section.heading]
-      : breadcrumbs;
+    const currentBreadcrumbs = section.heading ? [...breadcrumbs, section.heading] : breadcrumbs;
 
     /**
      * Separate immediate content from nested sections
@@ -195,10 +185,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
       if (mergeCount > 0) {
         const mergedSection = createSection({
           ...parentSection,
-          children: [
-            ...parentSection.children,
-            ...nestedSections.slice(0, mergeCount),
-          ],
+          children: [...parentSection.children, ...nestedSections.slice(0, mergeCount)],
         });
 
         mergedSection.data = {
@@ -212,10 +199,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
          */
         const remainingSections = nestedSections.slice(mergeCount);
         if (remainingSections.length > 0) {
-          yield* this.mergeSiblingSections(
-            remainingSections,
-            currentBreadcrumbs,
-          );
+          yield* this.mergeSiblingSections(remainingSections, currentBreadcrumbs);
         }
         return;
       }
@@ -243,10 +227,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
    * - If chunk contains the section's heading → breadcrumbs = ancestors only
    * - If chunk does NOT contain the heading (content split from heading) → breadcrumbs = ancestors + section heading
    */
-  private *splitSection(
-    section: Section,
-    breadcrumbs: Heading[] = [],
-  ): Generator<HierarchicalNodes> {
+  private *splitSection(section: Section, breadcrumbs: Heading[] = []): Generator<HierarchicalNodes> {
     /**
      * Extract immediate content (non-section children)
      */
@@ -270,9 +251,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
     /**
      * Breadcrumbs for content-only chunks (when heading is split from content)
      */
-    const contentBreadcrumbs = section.heading
-      ? [...breadcrumbs, section.heading]
-      : breadcrumbs;
+    const contentBreadcrumbs = section.heading ? [...breadcrumbs, section.heading] : breadcrumbs;
 
     let currentItems: Nodes[] = [];
     let currentItemsSize = 0;
@@ -300,10 +279,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
           const tree = createTree(currentItems);
           tree.data = {
             ...tree.data,
-            breadcrumbs:
-              currentItems[0] === section.heading
-                ? breadcrumbs
-                : contentBreadcrumbs,
+            breadcrumbs: currentItems[0] === section.heading ? breadcrumbs : contentBreadcrumbs,
           };
           yield tree;
           currentItems = [];
@@ -326,10 +302,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
       const tree = createTree(currentItems);
       tree.data = {
         ...tree.data,
-        breadcrumbs:
-          currentItems[0] === section.heading
-            ? breadcrumbs
-            : contentBreadcrumbs,
+        breadcrumbs: currentItems[0] === section.heading ? breadcrumbs : contentBreadcrumbs,
       };
       yield tree;
     }
@@ -338,10 +311,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
   /**
    * Splits individual nodes, delegating to specialized splitters when needed
    */
-  private *splitSubNode(
-    node: Nodes,
-    breadcrumbs: Heading[] = [],
-  ): Generator<Nodes> {
+  private *splitSubNode(node: Nodes, breadcrumbs: Heading[] = []): Generator<Nodes> {
     const contentSize = getContentSize(node);
 
     if (contentSize <= this.maxAllowedSize) {
@@ -375,10 +345,7 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
    * Merges sibling sections by grouping consecutive sections that fit within allowed size
    * Groups siblings at the same hierarchical level to maximize chunk utilization
    */
-  private *mergeSiblingSections(
-    sections: Section[],
-    breadcrumbs: Heading[] = [],
-  ): Generator<HierarchicalNodes> {
+  private *mergeSiblingSections(sections: Section[], breadcrumbs: Heading[] = []): Generator<HierarchicalNodes> {
     let siblings: Section[] = [];
     let siblingsSize = 0;
     /**

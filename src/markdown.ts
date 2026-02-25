@@ -1,28 +1,10 @@
-import type {
-  Definition,
-  Heading,
-  Image,
-  ImageReference,
-  Link,
-  LinkReference,
-  Nodes,
-  Parent,
-  Root,
-} from 'mdast';
-import {
-  fromMarkdown as mdastFromMarkdown,
-  type Value,
-} from 'mdast-util-from-markdown';
+import type { Definition, Heading, Image, ImageReference, Link, LinkReference, Nodes, Parent, Root } from 'mdast';
+import { fromMarkdown as mdastFromMarkdown, type Value } from 'mdast-util-from-markdown';
 import { gfmFromMarkdown, gfmToMarkdown } from 'mdast-util-gfm';
 import { toMarkdown as mdastToMarkdown } from 'mdast-util-to-markdown';
 import { gfm } from 'micromark-extension-gfm';
 import { visit } from 'unist-util-visit';
-import type {
-  NodeRules,
-  NodeTransform,
-  SplitterOptions,
-  TransformContext,
-} from './types';
+import type { NodeRules, NodeTransform, SplitterOptions, TransformContext } from './types';
 
 export { toString } from 'mdast-util-to-string';
 
@@ -88,10 +70,7 @@ function applyTransformations(tree: Root, rules: NodeRules): Root {
   if (transformerMap.has('formatting')) {
     const formatting = transformerMap.get('formatting')!;
     transformerMap.set('strong', transformerMap.get('strong') ?? formatting);
-    transformerMap.set(
-      'emphasis',
-      transformerMap.get('emphasis') ?? formatting,
-    );
+    transformerMap.set('emphasis', transformerMap.get('emphasis') ?? formatting);
     transformerMap.set('delete', transformerMap.get('delete') ?? formatting);
     transformerMap.delete('formatting');
   }

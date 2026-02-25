@@ -124,12 +124,8 @@ describe('ListSplitter', () => {
 
     expect(chunks.length).toBe(3);
     expect(chunks[0]).toBe('1. First item\n   * Sub-item A\n   * Sub-item B');
-    expect(chunks[1]).toBe(
-      '2. Second item\n   1. Nested ordered item 1\n   2. Nested ordered item 2',
-    );
-    expect(chunks[2]).toBe(
-      '3. Third item\n   * Another sub-item\n     * Deeply nested item',
-    );
+    expect(chunks[1]).toBe('2. Second item\n   1. Nested ordered item 1\n   2. Nested ordered item 2');
+    expect(chunks[2]).toBe('3. Third item\n   * Another sub-item\n     * Deeply nested item');
   });
 
   describe('Rules', () => {

@@ -1,26 +1,60 @@
 import type { Nodes, Root } from 'mdast';
 import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
-import type { SplitterOptions } from '../types';
+import {
+  buildPositionMapping,
+  type PositionMapping,
+  plainToMarkdownPosition,
+} from '../utils/plaintext-markdown-mapping';
 import { AbstractNodeSplitter } from './base';
 
 /**
- * Represents a protected range in the text that should not be split
- * Contains the start and end positions and the type of the protected content
+ * Semantic weights for different boundary types.
+ * Higher weight = stronger boundary = preferred split point.
  */
-type ProtectedRange = {
-  start: number;
-  end: number;
-  type: string;
+const SEMANTIC_WEIGHTS = {
+  SENTENCE: 100,
+  CLAUSE: 70,
+  COMMA: 40,
+  DASH: 30,
+  FALLBACK: 10,
+} as const;
+
+/**
+ * Penalties applied when a boundary falls inside a markdown element.
+ * Higher penalty = less desirable split point.
+ */
+const MARKDOWN_PENALTIES: Record<string, number> = {
+  link: 50,
+  linkReference: 50,
+  image: 50,
+  imageReference: 50,
+  inlineCode: 50,
+  emphasis: 30,
+  strong: 30,
+  delete: 30,
 };
 
 /**
- * Text boundary with position, type, and priority information
+ * Represents a range in the text with an associated penalty for splitting.
+ * Protected ranges use `penalty: Infinity` to prevent splitting entirely.
+ */
+type PenalizedRange = {
+  start: number;
+  end: number;
+  type: string;
+  penalty: number;
+};
+
+/**
+ * Text boundary with position, type, weight and score information
  */
 type Boundary = {
-  position: number;
+  mdPosition: number;
+  plainPosition: number;
   type: string;
-  priority: number;
+  weight: number;
+  score: number;
 };
 
 /**
@@ -29,120 +63,122 @@ type Boundary = {
 type Pattern = {
   regex: RegExp;
   type: string;
-  priority: number;
+  weight: number;
 };
 
+/**
+ * Static patterns for semantic boundary detection.
+ * Patterns are matched against plain text (without markdown formatting).
+ */
+const PATTERNS: Array<Pattern> = [
+  /**
+   * Period followed by newline (strong sentence boundary)
+   * Example: "First sentence.\nSecond sentence." → splits after period
+   */
+  {
+    regex: /\.(?=\n)/g,
+    type: `period_newline`,
+    weight: SEMANTIC_WEIGHTS.SENTENCE,
+  },
+  /**
+   * Period/question/exclamation followed by whitespace+uppercase (sentence boundary)
+   * Example: "Hello world. The sun is shining" → splits after "world."
+   * Excludes list items like "1. Item", "a. Item", "i. Item" with negative lookbehind
+   */
+  {
+    regex: /(?<!^\s*(?:\d+|[a-zA-Z]+|[ivxlcdmIVXLCDM]+))[.?!]+\s+(?=[A-Z])/g,
+    type: `period_sentence`,
+    weight: SEMANTIC_WEIGHTS.SENTENCE,
+  },
+  /**
+   * Question marks or exclamation marks followed by space or end of string
+   * Example: "Really? Yes!" → splits after "?" and "!"
+   */
+  {
+    regex: /[?!]+(?=\s|$)/g,
+    type: `question_exclamation`,
+    weight: SEMANTIC_WEIGHTS.SENTENCE,
+  },
+  /**
+   * Colon or semicolon followed by space (major clause separators)
+   * Example: "Note: this is important; very important" → splits after ":" and ";"
+   */
+  {
+    regex: /[:;](?=\s)/g,
+    type: `colon_semicolon`,
+    weight: SEMANTIC_WEIGHTS.CLAUSE,
+  },
+  /**
+   * Complete bracket pairs (parentheses, square brackets, curly braces)
+   * Include optional trailing sentence-ending punctuation to prevent orphaning
+   * Example: "Hello (world). There" → splits after "." not after ")"
+   */
+  {
+    regex: /\([^)]*\)[.?!]?|\[[^\]]*\][.?!]?|\{[^}]*\}[.?!]?/g,
+    type: `bracket_pairs`,
+    weight: SEMANTIC_WEIGHTS.CLAUSE,
+  },
+  /**
+   * Complete quote pairs (various quote styles)
+   * Example: 'He said "hello".' → splits after closing quote
+   */
+  {
+    regex: /"[^"]*"|'[^']*'|`[^`]*`|´[^´]*´|'[^']*'|'[^']*'/g,
+    type: `quote_pairs`,
+    weight: SEMANTIC_WEIGHTS.CLAUSE,
+  },
+  /**
+   * Single linebreak (line boundaries within paragraphs)
+   * Example: "First line\nSecond line" → splits at linebreak
+   */
+  { regex: /\n/g, type: `line_break`, weight: SEMANTIC_WEIGHTS.CLAUSE },
+  /**
+   * Comma followed by space (minor clause separator)
+   * Example: "apples, oranges, bananas" → splits after each comma
+   */
+  { regex: /,(?=\s)/g, type: `comma`, weight: SEMANTIC_WEIGHTS.COMMA },
+  /**
+   * Em dash, en dash, or hyphen surrounded by spaces
+   * Example: "Paris – the city of lights – is beautiful" → splits at dashes
+   */
+  { regex: /\s[–—-]\s/g, type: `dashes`, weight: SEMANTIC_WEIGHTS.DASH },
+  /**
+   * ANY period as fallback (catches edge cases, but may split abbreviations)
+   * Example: "etc." or "End" → splits at period (use with caution)
+   */
+  { regex: /\./g, type: `period_fallback`, weight: SEMANTIC_WEIGHTS.FALLBACK },
+  /**
+   * One or more whitespace characters (lowest priority word separator)
+   * Example: "hello   world" → splits between words at spaces
+   */
+  { regex: /\s+/g, type: `whitespace`, weight: SEMANTIC_WEIGHTS.FALLBACK },
+];
+
 export class TextSplitter extends AbstractNodeSplitter {
-  private patterns: Array<Pattern>;
-
-  constructor(options: SplitterOptions) {
-    super(options);
-
-    let priority = 0;
-    this.patterns = [
-      // Period followed by newline (very strong sentence boundary)
-      // Example: "First sentence.\nSecond sentence." → splits after period
-      {
-        regex: /\.(?=\n)/g,
-        type: 'period_before_newline',
-        priority: priority++,
-      },
-      // Period followed by whitespace and uppercase letter (strong sentence boundary)
-      // Example: "Hello world. The sun is shining" → splits after "world."
-      // Excludes list items like "1. Item", "a. Item", "i. Item" with negative lookbehind
-      {
-        regex: /(?<!^\s*(?:\d+|[a-zA-Z]+|[ivxlcdmIVXLCDM]+))\.\s+(?=[A-Z])/g,
-        type: 'period_before_uppercase',
-        priority: priority++,
-      },
-
-      // Question marks or exclamation marks followed by space or end of string
-      // Example: "Really? Yes!" → splits after "?" and "!"
-      {
-        regex: /[?!]+(?=\s|$)/g,
-        type: 'question_exclamation',
-        priority: priority++,
-      },
-
-      // Period NOT followed by lowercase, another period, or digit (avoids abbreviations)
-      // Example: "End." but NOT "e.g. example" or "U.S.A." or "3.14"
-      // Excludes list items like "1. Item", "a. Item", "i. Item" with negative lookbehind
-      {
-        regex:
-          /(?<!^\s*(?:\d+|[a-zA-Z]+|[ivxlcdmIVXLCDM]+))\.(?!\s*[a-z])(?!\s*\.)(?!\s*\d)/g,
-        type: 'period_safe',
-        priority: priority++,
-      },
-
-      // Colon or semicolon followed by space (major clause separators)
-      // Example: "Note: this is important; very important" → splits after ":" and ";"
-      { regex: /[:;](?=\s)/g, type: 'colon_semicolon', priority: priority++ },
-
-      // Complete bracket pairs (parentheses, square brackets, curly braces)
-      // Example: "Hello (world) there" → splits after ")" regardless of what follows
-      {
-        regex: /\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g,
-        type: 'bracket_pairs',
-        priority: priority++,
-      },
-
-      // Complete quote pairs (various quote styles)
-      // Example: 'He said "hello".' → splits after closing quote regardless of what follows
-      {
-        regex: /"[^"]*"|'[^']*'|`[^`]*`|´[^´]*´|'[^']*'|'[^']*'/g,
-        type: 'quote_pairs',
-        priority: priority++,
-      },
-
-      // Single linebreak (line boundaries within paragraphs)
-      // Example: "First line\nSecond line" → splits at linebreak
-      { regex: /\n/g, type: 'line_break', priority: priority++ },
-
-      // Comma followed by space (minor clause separator)
-      // Example: "apples, oranges, bananas" → splits after each comma
-      { regex: /,(?=\s)/g, type: 'comma', priority: priority++ },
-
-      // Em dash, en dash, or hyphen surrounded by spaces
-      // Example: "Paris – the city of lights – is beautiful" → splits at dashes
-      { regex: /\s[–—-]\s/g, type: 'dashes', priority: priority++ },
-
-      // Ellipsis (three or more consecutive periods)
-      // Example: "Wait... what happened..." → splits at "..."
-      { regex: /\.{3,}/g, type: 'ellipsis', priority: priority++ },
-
-      // ANY period as fallback (catches edge cases, but may split abbreviations)
-      // Example: "etc." or "End" → splits at period (use with caution)
-      { regex: /\./g, type: 'period_fallback', priority: priority++ },
-
-      // One or more whitespace characters (lowest priority word separator)
-      // Example: "hello   world" → splits between words at spaces
-      { regex: /\s+/g, type: 'whitespace', priority: priority++ },
-    ];
-  }
-
   splitText(text: string): string[] {
     const ast = fromMarkdown(text);
     const chunks = this.splitNode(ast);
-    return chunks
-      .map((chunk) => toMarkdown(chunk).trim())
-      .filter((chunk) => chunk.length > 0);
+    return chunks.map((chunk) => toMarkdown(chunk).trim()).filter((chunk) => chunk.length > 0);
   }
 
   splitNode(node: Nodes): Nodes[] {
-    const text = toMarkdown(node);
-    // Parse the markdown text to get correct position offsets for this text
-    // the original node has offsets relative to its source document, not to this text
-    const ast = fromMarkdown(text);
-    const protectedRanges = this.extractProtectedRangesFromAST(ast);
-    const boundaries = this.extractSemanticBoundaries(text, protectedRanges);
+    const markdown = toMarkdown(node);
+    /**
+     * Parse the markdown text to get correct position offsets for this text.
+     * The original node has offsets relative to its source document, not to this text.
+     */
+    const ast = fromMarkdown(markdown);
+    const ranges = this.extractPenalizedRanges(ast);
+    /**
+     * Build position mapping for plain text pattern matching.
+     * This enables matching on clean text without markdown formatting pollution.
+     */
+    const mapping = buildPositionMapping(ast, markdown);
+    const boundaries = this.extractSemanticBoundaries(mapping, ranges);
 
     const nodes: Nodes[] = [];
 
-    for (const textChunk of this.splitRecursive(
-      text,
-      boundaries,
-      protectedRanges,
-    )) {
+    for (const textChunk of this.splitRecursive(markdown, boundaries, ranges)) {
       // HACK: We use 'html' node type to preserve the markdown text as-is.
       // The chunks are already valid markdown (from toMarkdown above), so we need
       // a node type that passes through unchanged during serialization. The 'html'
@@ -168,30 +204,28 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Extract protected ranges from markdown AST nodes
-   * Uses mdast position information to identify constructs that should never be split
+   * Extract penalized ranges from markdown AST nodes.
+   * Uses mdast position information to identify constructs with split penalties.
+   * Protected ranges (that should never be split) use `penalty: Infinity`.
    *
    * @param ast - Parsed mdast AST with position information
-   * @returns Array of protected ranges that must stay together
+   * @returns Array of penalized ranges, merged and sorted by start position
    */
-  protected extractProtectedRangesFromAST(ast: Nodes): ProtectedRange[] {
-    const ranges: ProtectedRange[] = [];
+  protected extractPenalizedRanges(ast: Nodes): PenalizedRange[] {
+    const ranges: PenalizedRange[] = [];
 
     /**
-     * Recursively traverse AST nodes to find inline constructs that need protection
+     * Recursively traverse AST nodes to find constructs with split penalties
      */
     const traverse = (node: Nodes): void => {
       /**
-       * Only protect nodes that have position information
+       * Only process nodes that have position information
        */
-      if (
-        !node.position?.start?.offset ||
-        node.position?.end?.offset === undefined
-      ) {
+      if (node.position?.start?.offset === undefined || node.position?.end?.offset === undefined) {
         /**
          * Still traverse children even if this node lacks position info
          */
-        if ('children' in node && Array.isArray(node.children)) {
+        if (`children` in node && Array.isArray(node.children)) {
           node.children.forEach(traverse);
         }
         return;
@@ -201,78 +235,77 @@ export class TextSplitter extends AbstractNodeSplitter {
       const end = node.position.end.offset;
 
       /**
-       * Protect inline markdown constructs that should never be split
+       * Protected range (via rules) receive penalty: Infinity to exclude from splits.
+       * Otherwise, apply penalties for markdown constructs based on type.
+       * Using else-if ensures exactly one range per node (no duplicates).
        */
-      switch (node.type) {
-        case 'link':
-        case 'linkReference':
-        case 'image':
-        case 'imageReference':
-        case 'inlineCode':
-        case 'emphasis':
-        case 'strong':
-        case 'delete':
-        case 'heading':
-          if (!this.canSplitNode(node)) {
-            ranges.push({ start, end, type: node.type });
-          }
-          break;
+      if (!this.canSplitNode(node)) {
+        ranges.push({ start, end, type: node.type, penalty: Infinity });
+      } else {
+        const penalty = MARKDOWN_PENALTIES[node.type];
+        if (penalty !== undefined) {
+          ranges.push({ start, end, type: node.type, penalty });
+        }
       }
 
       /**
        * Recursively traverse children
        */
-      if ('children' in node && Array.isArray(node.children)) {
+      if (`children` in node && Array.isArray(node.children)) {
         node.children.forEach(traverse);
       }
     };
 
-    // Start traversal from the root
+    /**
+     * Start traversal from the root
+     */
     traverse(ast);
 
     /**
-     * Sort by start position and merge only truly overlapping ranges
+     * Merge overlapping ranges, using max penalty
      */
-    const sortedRanges = ranges.sort((a, b) => a.start - b.start);
-    const mergedRanges: ProtectedRange[] = [];
+    if (ranges.length === 0) return [];
 
-    for (const range of sortedRanges) {
-      const lastMerged = mergedRanges[mergedRanges.length - 1];
+    const sorted = ranges.sort((a, b) => a.start - b.start);
+    const merged: PenalizedRange[] = [];
 
-      if (lastMerged && range.start < lastMerged.end) {
+    for (const range of sorted) {
+      const last = merged[merged.length - 1];
+      if (last && range.start < last.end) {
         /**
-         * Only merge truly overlapping ranges (not adjacent ones)
+         * Overlapping range - extend and take max penalty
          */
-        lastMerged.end = Math.max(lastMerged.end, range.end);
-        lastMerged.type = `${lastMerged.type}+${range.type}`;
+        last.end = Math.max(last.end, range.end);
+        last.penalty = Math.max(last.penalty, range.penalty);
+        last.type = `${last.type}+${range.type}`;
       } else {
         /**
-         * Non-overlapping range - add it as separate range
+         * Non-overlapping range - add as new entry
          */
-        mergedRanges.push(range);
+        merged.push({ ...range });
       }
     }
 
-    return mergedRanges;
+    return merged;
   }
 
   /**
-   * Adjust protected ranges for a substring operation
-   * When working with substrings, the protected ranges need to be recalculated
+   * Adjust penalized ranges for a substring operation.
+   * When working with substrings, the ranges need to be recalculated.
    *
-   * @param protectedRanges - Original protected ranges
+   * @param ranges - Original penalized ranges
    * @param substringStart - Start position of the substring in the original text
    * @param substringEnd - End position of the substring in the original text
-   * @returns Adjusted protected ranges for the substring
+   * @returns Adjusted penalized ranges for the substring
    */
-  protected adjustProtectedRangesForSubstring(
-    protectedRanges: ProtectedRange[],
+  protected adjustRangesForSubstring(
+    ranges: PenalizedRange[],
     substringStart: number,
     substringEnd: number,
-  ): ProtectedRange[] {
-    const adjustedRanges: ProtectedRange[] = [];
+  ): PenalizedRange[] {
+    const adjustedRanges: PenalizedRange[] = [];
 
-    for (const range of protectedRanges) {
+    for (const range of ranges) {
       /**
        * Only include ranges that intersect with the substring
        */
@@ -280,13 +313,11 @@ export class TextSplitter extends AbstractNodeSplitter {
         /**
          * Adjust the range positions relative to the substring
          */
-        const adjustedRange = {
+        const adjustedRange: PenalizedRange = {
           start: Math.max(0, range.start - substringStart),
-          end: Math.min(
-            substringEnd - substringStart,
-            range.end - substringStart,
-          ),
+          end: Math.min(substringEnd - substringStart, range.end - substringStart),
           type: range.type,
+          penalty: range.penalty,
         };
 
         /**
@@ -302,107 +333,98 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Find all semantic boundaries with text-based pattern matching
-   * Since structural boundaries are handled by hierarchical AST processing,
-   * this function only identifies semantic text boundaries for fine-grained splitting
-   *
-   * @param text - The text to analyze
-   * @param protectedRanges - Ranges that should not be split
-   * @returns Array of boundaries sorted by priority (desc), then position (asc)
+   * Score a boundary based on its weight and any penalized range penalties.
+   * Returns weight minus the maximum penalty from overlapping ranges.
+   * A score of -Infinity means the boundary is protected and should not be used.
    */
-  protected extractSemanticBoundaries(
-    text: string,
-    protectedRanges: ProtectedRange[],
-  ): Boundary[] {
+  protected scoreBoundary(position: number, weight: number, ranges: PenalizedRange[]): number {
+    let maxPenalty = 0;
+    for (const range of ranges) {
+      if (position > range.start && position < range.end) {
+        maxPenalty = Math.max(maxPenalty, range.penalty);
+      }
+    }
+    return weight - maxPenalty;
+  }
+
+  /**
+   * Calculate a balance bonus (0-20) based on how evenly a split divides the text.
+   * Perfectly balanced splits get maximum bonus.
+   */
+  protected calculateBalanceBonus(firstSize: number, secondSize: number): number {
+    const total = firstSize + secondSize;
+    if (total === 0) return 0;
+    const ratio = Math.min(firstSize, secondSize) / total;
+    return Math.round(ratio * 40);
+  }
+
+  /**
+   * Find all semantic boundaries using plain text pattern matching.
+   * Patterns are matched against the plain text (without markdown formatting),
+   * then positions are mapped back to markdown coordinates.
+   *
+   * This approach avoids formatting characters (`**`, `[](...)`) from polluting
+   * natural language boundary detection.
+   *
+   * Boundaries inside protected ranges (penalty: Infinity) are filtered out
+   * via scoring — they receive score -Infinity and are excluded.
+   *
+   * @param mapping - Position mapping from plain text to markdown
+   * @param ranges - Penalized ranges in markdown coordinates
+   * @returns Array of boundaries in markdown coordinates, sorted by score descending
+   */
+  protected extractSemanticBoundaries(mapping: PositionMapping, ranges: PenalizedRange[]): Boundary[] {
     const boundaries: Boundary[] = [];
+    const { plain } = mapping;
 
     /**
-     * Find all semantic boundaries for each pattern
+     * Find all semantic boundaries for each pattern on plain text
      */
-    for (const pattern of this.patterns) {
+    for (const pattern of PATTERNS) {
       /**
-       * Reset lastIndex to ensure the regex starts from the beginning
-       * This is important because the regex objects are reused across calls
+       * Reset lastIndex to ensure the regex starts from the beginning.
+       * This is important because the regex objects are reused across calls.
        */
       pattern.regex.lastIndex = 0;
 
       let match: RegExpExecArray | null;
       // biome-ignore lint/suspicious/noAssignInExpressions: regex.exec assignment in while condition
-      while ((match = pattern.regex.exec(text)) !== null) {
-        const position = match.index + match[0].length;
+      while ((match = pattern.regex.exec(plain)) !== null) {
+        /**
+         * Position in plain text (after the match)
+         */
+        const plainPosition = match.index + match[0].length;
 
         /**
-         * Check if boundary is within a protected range using binary search
+         * Map the plain text position to markdown position
          */
-        const isProtected = this.isPositionProtected(position, protectedRanges);
+        const mdPosition = plainToMarkdownPosition(plainPosition, mapping);
 
         /**
-         * Only add boundary if not protected
+         * Score the boundary — protected ranges yield -Infinity score
          */
-        if (!isProtected) {
+        const score = this.scoreBoundary(mdPosition, pattern.weight, ranges);
+
+        /**
+         * Only add boundary if score is finite (not protected)
+         */
+        if (Number.isFinite(score)) {
           boundaries.push({
-            position,
+            mdPosition: mdPosition,
+            plainPosition,
             type: pattern.type,
-            priority: pattern.priority,
+            weight: pattern.weight,
+            score,
           });
         }
       }
     }
 
     /**
-     * Sort by priority (ascending), then by position (ascending)
-     * This gives us the highest priority boundaries first, in positional order
+     * Sort by score (descending), then by position (ascending).
+     * Higher scores are preferred split points.
      */
-    return boundaries.sort((a, b) =>
-      a.priority !== b.priority
-        ? a.priority - b.priority
-        : a.position - b.position,
-    );
-  }
-
-  /**
-   * Check if a position falls within any protected range using binary search
-   * Protected ranges are sorted by start position, so we can use binary search
-   *
-   * @param position - Position to check
-   * @param protectedRanges - Sorted array of protected ranges
-   * @returns True if position is within any protected range
-   */
-  private isPositionProtected(
-    position: number,
-    protectedRanges: ProtectedRange[],
-  ): boolean {
-    /**
-     * For small arrays, linear search is faster
-     */
-    if (protectedRanges.length < 10) {
-      return protectedRanges.some(
-        (range) => position > range.start && position < range.end,
-      );
-    }
-
-    /**
-     * Binary search for larger arrays
-     */
-    let left = 0;
-    let right = protectedRanges.length - 1;
-
-    while (left <= right) {
-      const mid = Math.floor((left + right) / 2);
-      const range = protectedRanges[mid];
-
-      if (position > range.start && position < range.end) {
-        return true;
-      }
-
-      if (position <= range.start) {
-        right = mid - 1;
-      } else {
-        left = mid + 1;
-      }
-    }
-
-    return false;
+    return boundaries.sort((a, b) => (a.score !== b.score ? b.score - a.score : a.mdPosition - b.mdPosition));
   }
 
   /**
@@ -418,25 +440,25 @@ export class TextSplitter extends AbstractNodeSplitter {
     substringEnd: number,
   ): Boundary[] {
     return boundaries
-      .filter((b) => b.position > substringStart && b.position <= substringEnd)
-      .map((b) => ({ ...b, position: b.position - substringStart }));
+      .filter((b) => b.mdPosition > substringStart && b.mdPosition <= substringEnd)
+      .map((b) => ({ ...b, mdPosition: b.mdPosition - substringStart }));
   }
 
   /**
-   * Recursively split text using boundary priority hierarchy
-   * Iterates through distinct priority levels (each semantic boundary type has unique priority)
-   * Each recursive call uses only boundaries with lower or equal priority than current level
+   * Recursively split text using boundary scoring system.
+   * Evaluates all boundaries with combined score (semantic + balance bonus),
+   * selects the best one, then filters remaining boundaries by weight.
    *
    * @param text - The text to split
-   * @param boundaries - Available boundaries sorted by priority desc, position asc
-   * @param protectedRanges - Pre-computed protected ranges from AST
+   * @param boundaries - Available boundaries sorted by score descending
+   * @param ranges - Pre-computed penalized ranges from AST
    * @param originalOffset - Offset of this text in the original document
    * @returns Generator yielding text chunks
    */
   private *splitRecursive(
     text: string,
     boundaries: Boundary[],
-    protectedRanges: ProtectedRange[],
+    ranges: PenalizedRange[],
     originalOffset: number = 0,
   ): Generator<string> {
     const textSize = getContentSize(text);
@@ -457,150 +479,99 @@ export class TextSplitter extends AbstractNodeSplitter {
       return;
     }
 
-    for (const boundary of boundaries) {
-      /**
-       * Get all boundaries at this priority level (should be same type)
-       */
-      const currentBoundaries = boundaries.filter(
-        (b) => b.priority === boundary.priority,
-      );
+    /**
+     * Get valid boundaries within current text bounds
+     */
+    const validBoundaries = boundaries.filter((b) => b.mdPosition > 0 && b.mdPosition < text.length);
 
-      /**
-       * Get positions within current text bounds (exclude start and end positions)
-       */
-      const validPositions = currentBoundaries
-        .map((b) => b.position)
-        .filter((pos) => pos > 0 && pos < text.length)
-        .sort((a, b) => a - b);
-
-      if (validPositions.length === 0) continue;
-
-      /**
-       * Generalized boundary selection strategy:
-       * Length=1 => [0], Length=2 => [0,1], Length=3 => [1], Length=4 => [1,2], etc.
-       */
-      const mid = Math.floor(validPositions.length / 2);
-      const middlePositions =
-        validPositions.length % 2 === 1
-          ? [mid] // Odd length: try exact middle
-          : [mid - 1, mid]; // Even length: try both middle positions
-
-      /**
-       * Evaluate all middle position candidates to find the best one
-       */
-      const positionCandidates = middlePositions
-        .map((index) => {
-          const position = validPositions[index];
-          const firstPart = text.substring(0, position);
-          const secondPart = text.substring(position);
-          const firstPartSize = getContentSize(firstPart);
-          const secondPartSize = getContentSize(secondPart);
-          const bothWithinLimits =
-            firstPartSize <= this.maxAllowedSize &&
-            secondPartSize <= this.maxAllowedSize;
-          const distance = Math.abs(firstPartSize - secondPartSize);
-
-          return {
-            position,
-            firstPart,
-            secondPart,
-            firstPartSize,
-            secondPartSize,
-            bothWithinLimits,
-            distance,
-          };
-        })
-        .sort((a, b) => {
-          /**
-           * Primary: bothWithinLimits
-           */
-          if (a.bothWithinLimits && !b.bothWithinLimits) return -1;
-          if (!a.bothWithinLimits && b.bothWithinLimits) return 1;
-
-          /**
-           * Secondary: distance (smaller is better)
-           */
-          return a.distance - b.distance;
-        });
-
-      /**
-       * Pick the best candidate from the position candidates
-       */
-      const { position, firstPart, secondPart, firstPartSize, secondPartSize } =
-        positionCandidates[0];
-
-      /**
-       * Calculate actual positions for boundary adjustments
-       */
-      const firstPartActualStart = 0;
-      const firstPartActualEnd = position;
-      const secondPartActualStart = position;
-      const secondPartActualEnd = text.length;
-
-      /**
-       * Priority is ascending, so lower or equal priority boundaries for next level
-       */
-      const lowerPriorityBoundaries = boundaries.filter(
-        (b) => b.priority >= boundary.priority,
-      );
-
-      /**
-       * Recursively process first part if needed
-       */
-      if (firstPartSize <= this.maxAllowedSize) {
-        yield firstPart;
-      } else {
-        const firstPartRanges = this.adjustProtectedRangesForSubstring(
-          protectedRanges,
-          originalOffset,
-          originalOffset + position,
-        );
-        const firstPartBoundaries = this.adjustBoundariesForSubstring(
-          lowerPriorityBoundaries,
-          firstPartActualStart,
-          firstPartActualEnd,
-        );
-        yield* this.splitRecursive(
-          firstPart,
-          firstPartBoundaries,
-          firstPartRanges,
-          originalOffset,
-        );
-      }
-
-      /**
-       * Recursively process second part if needed
-       */
-      if (secondPartSize <= this.maxAllowedSize) {
-        yield secondPart;
-      } else {
-        const secondPartRanges = this.adjustProtectedRangesForSubstring(
-          protectedRanges,
-          originalOffset + position,
-          originalOffset + text.length,
-        );
-        const secondPartBoundaries = this.adjustBoundariesForSubstring(
-          lowerPriorityBoundaries,
-          secondPartActualStart,
-          secondPartActualEnd,
-        );
-        yield* this.splitRecursive(
-          secondPart,
-          secondPartBoundaries,
-          secondPartRanges,
-          originalOffset + secondPartActualStart,
-        );
-      }
-
-      /**
-       * Return after yielding chunks from this valid split
-       */
+    if (validBoundaries.length === 0) {
+      yield text;
       return;
     }
 
     /**
-     * Yield text as single chunk
+     * Evaluate all boundaries with combined score including balance bonus
      */
-    yield text;
+    const scoredBoundaries = validBoundaries
+      .map((b) => {
+        const firstPart = text.substring(0, b.mdPosition);
+        const secondPart = text.substring(b.mdPosition);
+        const firstPartSize = getContentSize(firstPart);
+        const secondPartSize = getContentSize(secondPart);
+        const balanceBonus = this.calculateBalanceBonus(firstPartSize, secondPartSize);
+        const combinedScore = b.score + balanceBonus;
+        const bothWithinLimits = firstPartSize <= this.maxAllowedSize && secondPartSize <= this.maxAllowedSize;
+
+        return {
+          boundary: b,
+          position: b.mdPosition,
+          firstPart,
+          secondPart,
+          firstPartSize,
+          secondPartSize,
+          combinedScore,
+          bothWithinLimits,
+        };
+      })
+      .sort((a, b) => b.combinedScore - a.combinedScore);
+
+    /**
+     * Select the best boundary
+     */
+    const selected = scoredBoundaries[0];
+    const { boundary, position, firstPart, secondPart, firstPartSize, secondPartSize } = selected;
+
+    /**
+     * Filter remaining boundaries to only those with weight <= selected weight
+     * This prevents using weaker boundaries in recursive calls
+     */
+    const lowerWeightBoundaries = boundaries.filter((b) => b.weight <= boundary.weight);
+
+    /**
+     * Calculate actual positions for boundary adjustments
+     */
+    const firstPartActualStart = 0;
+    const firstPartActualEnd = position;
+    const secondPartActualStart = position;
+    const secondPartActualEnd = text.length;
+
+    /**
+     * Recursively process first part if needed
+     */
+    if (firstPartSize <= this.maxAllowedSize) {
+      yield firstPart;
+    } else {
+      const firstPartRanges = this.adjustRangesForSubstring(ranges, originalOffset, originalOffset + position);
+      const firstPartBoundaries = this.adjustBoundariesForSubstring(
+        lowerWeightBoundaries,
+        firstPartActualStart,
+        firstPartActualEnd,
+      );
+      yield* this.splitRecursive(firstPart, firstPartBoundaries, firstPartRanges, originalOffset);
+    }
+
+    /**
+     * Recursively process second part if needed
+     */
+    if (secondPartSize <= this.maxAllowedSize) {
+      yield secondPart;
+    } else {
+      const secondPartRanges = this.adjustRangesForSubstring(
+        ranges,
+        originalOffset + position,
+        originalOffset + text.length,
+      );
+      const secondPartBoundaries = this.adjustBoundariesForSubstring(
+        lowerWeightBoundaries,
+        secondPartActualStart,
+        secondPartActualEnd,
+      );
+      yield* this.splitRecursive(
+        secondPart,
+        secondPartBoundaries,
+        secondPartRanges,
+        originalOffset + secondPartActualStart,
+      );
+    }
   }
 }

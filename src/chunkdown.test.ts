@@ -235,6 +235,10 @@ Third sentence.
       const text = `This text is thirty char long. This text is thirty char long.`; // 61 chars
       const { chunks } = splitter.split(text);
 
+      /**
+       * New scoring system finds optimal split at sentence boundary.
+       * Two equal 30-char chunks instead of three smaller ones.
+       */
       expect(chunks.length).toBe(2);
       chunks.forEach((chunk) => {
         expect(getContentSize(chunk.text)).toBeLessThanOrEqual(30); // Within 1.5x limit
@@ -268,9 +272,7 @@ Third sentence.
         const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(1);
-        expect(chunks[0].text).toBe(
-          `Check [documentation](${url}) for more details.`,
-        );
+        expect(chunks[0].text).toBe(`Check [documentation](${url}) for more details.`);
       });
 
       it('should split links if they exceed raw size limit', () => {
@@ -307,9 +309,7 @@ Third sentence.
         const { chunks } = splitter.split(text);
 
         expect(chunks.length).toBe(1);
-        expect(chunks[0].text).toBe(
-          `Check ![architecture](${url}) for more details.`,
-        );
+        expect(chunks[0].text).toBe(`Check ![architecture](${url}) for more details.`);
       });
 
       it('should split images if they exceed raw size limit', () => {
@@ -563,31 +563,31 @@ Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) fo
           const { chunks } = splitter.split(text);
 
           expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
-          [
-            "# AI SDK Core",
-            "Large Language Models (LLMs) are advanced programs that can understand, create, and engage with human language on a large scale.",
-            "They are trained on vast amounts of written material to recognize patterns in language and predict what might come next in a given piece of text.",
-            "AI SDK Core **simplifies working with LLMs by offering a standardized way of integrating them into your app** - so you can focus on building great AI applications for your users,",
-            "not waste time on technical details.",
-            "For example, here's how you can generate text with various models using the AI SDK:
+            [
+              "# AI SDK Core",
+              "Large Language Models (LLMs) are advanced programs that can understand, create, and engage with human language on a large scale.",
+              "They are trained on vast amounts of written material to recognize patterns in language and predict what might come next in a given piece of text.",
+              "AI SDK Core **simplifies working with LLMs by offering a standardized way of integrating them into your app** -",
+              "so you can focus on building great AI applications for your users, not waste time on technical details.",
+              "For example, here's how you can generate text with various models using the AI SDK:
 
-          <PreviewSwitchProviders />",
-            "## AI SDK Core Functions",
-            "AI SDK Core has various functions designed for [text generation](./generating-text), [structured data generation](./generating-structured-data), and [tool usage](./tools-and-tool-calling).",
-            "These functions take a standardized approach to setting up [prompts](./prompts) and [settings](./settings), making it easier to work with different models.",
-            "* [\`generateText\`](/docs/ai-sdk-core/generating-text): Generates text and [tool calls](./tools-and-tool-calling).",
-            "This function is ideal for non-interactive use cases such as automation tasks where you need to write text (e.g. drafting email or summarizing web pages) and for agents that use tools.",
-            "* [\`streamText\`](/docs/ai-sdk-core/generating-text): Stream text and tool calls.
-            You can use the \`streamText\` function for interactive use cases such as [chat bots](/docs/ai-sdk-ui/chatbot) and [content streaming](/docs/ai-sdk-ui/completion).",
-            "* [\`generateObject\`](/docs/ai-sdk-core/generating-structured-data): Generates a typed, structured object that matches a [Zod](https://zod.dev/) schema.",
-            "You can use this function to force the language model to return structured data, e.g. for information extraction, synthetic data generation, or classification tasks.",
-            "* [\`streamObject\`](/docs/ai-sdk-core/generating-structured-data): Stream a structured object that matches a Zod schema.
-            You can use this function to [stream generated UIs](/docs/ai-sdk-ui/object-generation).",
-            "## API Reference
+            <PreviewSwitchProviders />",
+              "## AI SDK Core Functions",
+              "AI SDK Core has various functions designed for [text generation](./generating-text), [structured data generation](./generating-structured-data), and [tool usage](./tools-and-tool-calling).",
+              "These functions take a standardized approach to setting up [prompts](./prompts) and [settings](./settings), making it easier to work with different models.",
+              "* [\`generateText\`](/docs/ai-sdk-core/generating-text): Generates text and [tool calls](./tools-and-tool-calling).",
+              "This function is ideal for non-interactive use cases such as automation tasks where you need to write text (e.g. drafting email or summarizing web pages) and for agents that use tools.",
+              "* [\`streamText\`](/docs/ai-sdk-core/generating-text): Stream text and tool calls.
+              You can use the \`streamText\` function for interactive use cases such as [chat bots](/docs/ai-sdk-ui/chatbot) and [content streaming](/docs/ai-sdk-ui/completion).",
+              "* [\`generateObject\`](/docs/ai-sdk-core/generating-structured-data): Generates a typed, structured object that matches a [Zod](https://zod.dev/) schema.",
+              "You can use this function to force the language model to return structured data, e.g. for information extraction, synthetic data generation, or classification tasks.",
+              "* [\`streamObject\`](/docs/ai-sdk-core/generating-structured-data): Stream a structured object that matches a Zod schema.
+              You can use this function to [stream generated UIs](/docs/ai-sdk-ui/object-generation).",
+              "## API Reference
 
-          Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.",
-          ]
-        `);
+            Please check out the [AI SDK Core API Reference](/docs/reference/ai-sdk-core) for more details on each function.",
+            ]
+          `);
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
@@ -1367,20 +1367,18 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
           const { chunks } = splitter.split(text);
 
           expect(chunks.map((c) => c.text)).toMatchInlineSnapshot(`
-          [
-            "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation:",
-            "[\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***) is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
-            "Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[\\[2\\]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions.",
-            "When using a pack, they can carry about 25 to 30% of their body weight for 8 to 13 [km](https://en.wikipedia.org/wiki/Kilometre "Kilometre") (5–8 [miles](https://en.wikipedia.org/wiki/Mile "Mile")).",
-            "[\\[3\\]](https://en.wikipedia.org/wiki/Llama#cite_note-OK_State-3) The name *llama* (also historically spelled "lama" or "glama") was adopted by [European settlers](https://en.wikipedia.org/wiki/European_colonization_of_the_Americas "European colonization of the Americas") from [native Peruvians](https://en.wikipedia.org/wiki/Indigenous_people_in_Peru "Indigenous people in Peru").[\\[4\\]](https://en.wikipedia.org/wiki/Llama#cite_note-4)",
-          ]
-        `);
+            [
+              "The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "Help:IPA/English"); Spanish pronunciation: [\\[ˈʎama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish") or [\\[ˈʝama\\]](https://en.wikipedia.org/wiki/Help:IPA/Spanish "Help:IPA/Spanish")) (***Lama glama***)",
+              "is a domesticated [South American](https://en.wikipedia.org/wiki/South_America "South America") [camelid](https://en.wikipedia.org/wiki/Camelid "Camelid"), widely used as a [meat](https://en.wikipedia.org/wiki/List_of_meat_animals "List of meat animals") and [pack animal](https://en.wikipedia.org/wiki/Pack_animal "Pack animal") by [Andean cultures](https://en.wikipedia.org/wiki/Inca_empire "Inca empire") since the [pre-Columbian era](https://en.wikipedia.org/wiki/Pre-Columbian_era "Pre-Columbian era").",
+              "Llamas are social animals and live with others as a [herd](https://en.wikipedia.org/wiki/Herd "Herd"). Their [wool](https://en.wikipedia.org/wiki/Wool "Wool") is soft and contains only a small amount of [lanolin](https://en.wikipedia.org/wiki/Lanolin "Lanolin").[\\[2\\]](https://en.wikipedia.org/wiki/Llama#cite_note-2) Llamas can learn simple tasks after a few repetitions.",
+              "When using a pack, they can carry about 25 to 30% of their body weight for 8 to 13 [km](https://en.wikipedia.org/wiki/Kilometre "Kilometre") (5–8 [miles](https://en.wikipedia.org/wiki/Mile "Mile")).",
+              "[\\[3\\]](https://en.wikipedia.org/wiki/Llama#cite_note-OK_State-3) The name *llama* (also historically spelled "lama" or "glama") was adopted by [European settlers](https://en.wikipedia.org/wiki/European_colonization_of_the_Americas "European colonization of the Americas") from [native Peruvians](https://en.wikipedia.org/wiki/Indigenous_people_in_Peru "Indigenous people in Peru").[\\[4\\]](https://en.wikipedia.org/wiki/Llama#cite_note-4)",
+            ]
+          `);
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(
-              chunkSize * maxOverflowRatio,
-            );
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(chunkSize * maxOverflowRatio);
           });
 
           // Verify links and images are never broken
@@ -1410,9 +1408,7 @@ Llamas are social animals and live with others as a [herd](https://en.wikipedia
 
           // Verify overflow stays within bounds
           chunks.forEach((chunk) => {
-            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(
-              chunkSize * maxOverflowRatio,
-            );
+            expect(getContentSize(chunk.text)).toBeLessThanOrEqual(chunkSize * maxOverflowRatio);
           });
 
           // Verify links and images are never broken

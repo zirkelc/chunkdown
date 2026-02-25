@@ -1,14 +1,14 @@
 <div align='center'>
 
 # chunkdown 🧩
+
 > Create chunks worth embedding
 
 <a href="https://www.npmjs.com/package/chunkdown" alt="chunkdown"><img src="https://img.shields.io/npm/dt/chunkdown?label=chunkdown"></a> <a href="https://github.com/zirkelc/chunkdown/actions/workflows/ci.yml" alt="CI"><img src="https://img.shields.io/github/actions/workflow/status/zirkelc/chunkdown/ci.yml?branch=main"></a>
 
-
 </div>
 
-Chunkdown is a tree-based markdown text splitter to create semantically meaningful chunks for RAG applications. 
+Chunkdown is a tree-based markdown text splitter to create semantically meaningful chunks for RAG applications.
 Unlike traditional splitters that use simple character or regex-based methods, this library leverages markdown's hierarchical structure for optimal chunking.
 Chunkdown is built around a few core ideas that guide its design:
 
@@ -60,7 +60,6 @@ Preserving a complete semantic unit like a section, paragraph, sentence, etc., i
 <img width="1425" height="673" alt="image" src="https://github.com/user-attachments/assets/61ddadaa-9d05-427f-8650-17dea5af7e10" />
 
 [Comparison of chunk size 200 with 1.5x overflow ratio: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=LSBbYGdlbmVyYXRlVGV4dGBdKC9kb2NzL2FpLXNkay1jb3JlL2dlbmVyYXRpbmctdGV4dCk6IEdlbmVyYXRlcyB0ZXh0IGFuZCBbdG9vbCBjYWxsc10oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KICBUaGlzIGZ1bmN0aW9uIGlzIGlkZWFsIGZvciBub24taW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgYXV0b21hdGlvbiB0YXNrcyB3aGVyZSB5b3UgbmVlZCB0byB3cml0ZSB0ZXh0IChlLmcuIGRyYWZ0aW5nIGVtYWlsIG9yIHN1bW1hcml6aW5nIHdlYiBwYWdlcykgYW5kIGZvciBhZ2VudHMgdGhhdCB1c2UgdG9vbHMuCi0gW2BzdHJlYW1UZXh0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy10ZXh0KTogU3RyZWFtIHRleHQgYW5kIHRvb2wgY2FsbHMuCiAgWW91IGNhbiB1c2UgdGhlIGBzdHJlYW1UZXh0YCBmdW5jdGlvbiBmb3IgaW50ZXJhY3RpdmUgdXNlIGNhc2VzIHN1Y2ggYXMgW2NoYXQgYm90c10oL2RvY3MvYWktc2RrLXVpL2NoYXRib3QpIGFuZCBbY29udGVudCBzdHJlYW1pbmddKC9kb2NzL2FpLXNkay11aS9jb21wbGV0aW9uKS4KLSBbYGdlbmVyYXRlT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBHZW5lcmF0ZXMgYSB0eXBlZCwgc3RydWN0dXJlZCBvYmplY3QgdGhhdCBtYXRjaGVzIGEgW1pvZF0oaHR0cHM6Ly96b2QuZGV2Lykgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gZm9yY2UgdGhlIGxhbmd1YWdlIG1vZGVsIHRvIHJldHVybiBzdHJ1Y3R1cmVkIGRhdGEsIGUuZy4gZm9yIGluZm9ybWF0aW9uIGV4dHJhY3Rpb24sIHN5bnRoZXRpYyBkYXRhIGdlbmVyYXRpb24sIG9yIGNsYXNzaWZpY2F0aW9uIHRhc2tzLgotIFtgc3RyZWFtT2JqZWN0YF0oL2RvY3MvYWktc2RrLWNvcmUvZ2VuZXJhdGluZy1zdHJ1Y3R1cmVkLWRhdGEpOiBTdHJlYW0gYSBzdHJ1Y3R1cmVkIG9iamVjdCB0aGF0IG1hdGNoZXMgYSBab2Qgc2NoZW1hLgogIFlvdSBjYW4gdXNlIHRoaXMgZnVuY3Rpb24gdG8gW3N0cmVhbSBnZW5lcmF0ZWQgVUlzXSgvZG9jcy9haS1zZGstdWkvb2JqZWN0LWdlbmVyYXRpb24pLg%3D%3D&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A200%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
-
 
 ### Installation
 
@@ -170,7 +169,7 @@ const { chunks } = splitter.split(text);
 
 #### Links and Images
 
-By default, links and images are never split to avoid breaking their semantic meaning. 
+By default, links and images are never split to avoid breaking their semantic meaning.
 
 ```typescript
 import { chunkdown } from 'chunkdown';
@@ -190,8 +189,8 @@ const { chunks } = splitter.split(text);
 const splitter2 = chunkdown({
   chunkSize: 50,
   rules: {
-    formatting: { split: 'allow-split' }
-  }
+    formatting: { split: 'allow-split' },
+  },
 });
 
 const { chunks: chunks2 } = splitter2.split(text);
@@ -226,8 +225,8 @@ const { chunks } = splitter.split(text);
 const splitter2 = chunkdown({
   chunkSize: 100,
   rules: {
-    link: { style: 'preserve' }
-  }
+    link: { style: 'preserve' },
+  },
 });
 
 const { chunks: chunks2 } = splitter2.split(text);
@@ -239,7 +238,7 @@ const { chunks: chunks2 } = splitter2.split(text);
 
 #### Formatting
 
-Unlike links and images, formatting elements like **bold**, *italic*, and ~~strikethrough~~ will be splitted if needed.
+Unlike links and images, formatting elements like **bold**, _italic_, and ~~strikethrough~~ will be splitted if needed.
 
 ```typescript
 import { chunkdown } from 'chunkdown';
@@ -261,8 +260,8 @@ const { chunks } = splitter.split(text);
 const splitter2 = chunkdown({
   chunkSize: 30,
   rules: {
-    formatting: { split: 'never-split' }
-  }
+    formatting: { split: 'never-split' },
+  },
 });
 
 const { chunks: chunks2 } = splitter2.split(text);
@@ -283,7 +282,7 @@ import { chunkdown } from 'chunkdown';
 
 const splitter = chunkdown({
   chunkSize: 100,
-  maxOverflowRatio: 1.0
+  maxOverflowRatio: 1.0,
 });
 
 const text = `
@@ -342,8 +341,6 @@ const { chunks } = splitter.split(text);
 // - list item 1 → * list item 1 (starting with "*")
 ```
 
-
-
 #### Transformation
 
 Transform functions allow you to modify or filter nodes during preprocessing. This is useful for cleaning up content before chunking, such as truncating long URLs or removing unwanted elements.
@@ -362,13 +359,13 @@ const splitter = chunkdown({
         if (node.url.length > 50) {
           return {
             ...node,
-            url: node.url.substring(0, 47) + '...'
+            url: node.url.substring(0, 47) + '...',
           };
         }
         return undefined;
-      }
-    }
-  }
+      },
+    },
+  },
 });
 
 const text = `Check out our [website](https://example.com/with/a/very/long/url/that/increases/the/chunk/size/significantly).`;
@@ -400,12 +397,12 @@ const splitter = chunkdown({
       transform: (node) => {
         // Remove images with data URLs
         if (node.url.startsWith('data:')) {
-          return null;  // Remove the entire image node
+          return null; // Remove the entire image node
         }
         return undefined; // Keep regular images
-      }
-    }
-  }
+      },
+    },
+  },
 });
 
 const text = `
@@ -416,7 +413,7 @@ const text = `
 Check our [website](https://example.com) for more info.
 `;
 const { chunks } = splitter.split(text);
-// chunks[0].text: 
+// chunks[0].text:
 // # Article
 //
 // Check our [website](https://example.com) for more info.
@@ -433,22 +430,25 @@ Creates a new markdown splitter instance.
 An object with the following methods and properties:
 
 **Methods:**
+
 - `split(text: string): SplitterResult`: Splits markdown text into chunks
 
 **Properties (readonly):**
+
 - `chunkSize: number`: The configured target chunk size
 - `maxOverflowRatio: number`: The configured maximum overflow ratio
 - `maxRawSize: number | undefined`: The configured maximum raw size (if set)
 
 #### Options
 
-##### `chunkSize: number` 
+##### `chunkSize: number`
 
 The target content size for each chunk, counting only content characters, not raw markdown.
 
 ##### `maxOverflowRatio?: number` (optional)
 
 The maximum overflow ratio for preserving semantic units:
+
 - `1.0`: strict chunk size, no overflow allowed (default)
 - `>1.0`: allow overflow of up to `chunkSize * maxOverflowRatio`
 
@@ -457,12 +457,13 @@ The maximum overflow ratio for preserving semantic units:
 Configure splitting behavior for specific markdown node types. Rules allow fine-grained control over when and how different markdown elements can be split during chunking.
 
 **Supported node types:**
+
 - `link`: Link elements `[text](url)`
 - `image`: Image elements `![alt](url)`
 - `table`: Table elements
 - `list`: List elements (ordered and unordered)
 - `blockquote`: Blockquote elements
-- `code`: Fenced code blocks `` ```code``` ``
+- `code`: Fenced code blocks ` ```code``` `
 - `inlineCode`: Inline code `` `code` ``
 - `formatting`: Formatting elements (combines `strong`, `emphasis`, `delete`)
 - `strong`: Bold text `**bold**` (overrides `formatting` if specified)
@@ -470,9 +471,9 @@ Configure splitting behavior for specific markdown node types. Rules allow fine-
 - `delete`: Strikethrough text `~~deleted~~` (overrides `formatting` if specified)
 
 > [!NOTE]
-> The `formatting` rule applies to all formatting elements (`strong`, `emphasis`, `delete`) unless you override them individually. 
+> The `formatting` rule applies to all formatting elements (`strong`, `emphasis`, `delete`) unless you override them individually.
 
-##### Split 
+##### Split
 
 Each node type can have a `split` rule:
 
@@ -510,37 +511,37 @@ import { chunkdown, defaultNodeRules } from 'chunkdown';
 chunkdown({
   chunkSize: 500,
   rules: {
-    link: { split: 'never-split' }
-  }
+    link: { split: 'never-split' },
+  },
 });
 
 // Split lists only if they exceed 200 characters
 chunkdown({
   chunkSize: 500,
   rules: {
-    list: { split: { rule: 'size-split', size: 200 } }
-  }
+    list: { split: { rule: 'size-split', size: 200 } },
+  },
 });
 
 // Never split formatting by default, but allow splitting bold text
 chunkdown({
   chunkSize: 500,
   rules: {
-    formatting: { split: 'never-split' },  // Applies to strong, emphasis, delete
-    strong: { split: 'allow-split' }       // Override: allow splitting bold text
-  }
+    formatting: { split: 'never-split' }, // Applies to strong, emphasis, delete
+    strong: { split: 'allow-split' }, // Override: allow splitting bold text
+  },
 });
 
 // Extend default rules
 chunkdown({
   chunkSize: 500,
   rules: {
-    ...defaultNodeRules,  // Include defaults for other elements
+    ...defaultNodeRules, // Include defaults for other elements
     link: { split: 'never-split' },
     table: { split: { rule: 'allow-split' } },
     list: { split: { rule: 'size-split', size: 150 } },
-    blockquote: { split: { rule: 'size-split', size: 300 } }
-  }
+    blockquote: { split: { rule: 'size-split', size: 300 } },
+  },
 });
 
 // Normalize links to inline-style, preserve images in reference-style
@@ -548,8 +549,8 @@ chunkdown({
   chunkSize: 500,
   rules: {
     link: { style: 'inline' },
-    image: { style: 'preserve' }
-  }
+    image: { style: 'preserve' },
+  },
 });
 
 // Remove data URLs and truncate long links
@@ -563,7 +564,7 @@ chunkdown({
           return null;
         }
         return undefined;
-      }
+      },
     },
     link: {
       transform: (node) => {
@@ -572,9 +573,9 @@ chunkdown({
           return { ...node, url: node.url.substring(0, 100) + '...' };
         }
         return undefined;
-      }
-    }
-  }
+      },
+    },
+  },
 });
 ```
 
@@ -584,13 +585,13 @@ By default, links and images are set to never split and normalize to inline styl
 
 ```typescript
 const defaultNodeRules: NodeRules = {
-  link: { 
-    split: 'never-split', 
-    style: 'inline' 
+  link: {
+    split: 'never-split',
+    style: 'inline',
   },
-  image: { 
-    split: 'never-split', 
-    style: 'inline'
+  image: {
+    split: 'never-split',
+    style: 'inline',
   },
 };
 ```
@@ -603,12 +604,12 @@ import { chunkdown, defaultNodeRules } from 'chunkdown';
 chunkdown({
   chunkSize: 500,
   rules: {
-    ...defaultNodeRules,  // Include defaults for other elements
+    ...defaultNodeRules, // Include defaults for other elements
     link: { split: 'never-split' },
     table: { split: { rule: 'allow-split' } },
     list: { split: { rule: 'size-split', size: 150 } },
-    blockquote: { split: { rule: 'size-split', size: 300 } }
-  }
+    blockquote: { split: { rule: 'size-split', size: 300 } },
+  },
 });
 ```
 
@@ -642,34 +643,35 @@ The chunk visualizer hosted at [chunks.zirkelc.dev](https://chunks.zirkelc.dev/)
 ## Future Improvements
 
 ### Normalize Broken Markdown Formatting
+
 Splitting markdown text into multiple chunks often breaks formatting, because the start and end delimiters end up in different chunks. This broken formatting provides no real semantic meaning but adds unnecessary noise:
 
 ```ts
-import { chunkdown } from "chunkdown";
+import { chunkdown } from 'chunkdown';
 
 const text = `**This is a very long bold text that might be split into two chunks**`;
 
 const splitter = chunkdown({
   chunkSize: 50,
-  maxOverflowRatio: 1.0
+  maxOverflowRatio: 1.0,
 });
 
 const chunks = splitter.splitText(text, {
-  breakMode: 'keep'
+  breakMode: 'keep',
 });
 // Keep broken markdown:
 // - **This is a very long bold text that
 // - might be split into two chunks**
 
 const chunks = splitter.splitText(text, {
-  breakMode: 'remove'
+  breakMode: 'remove',
 });
 // Remove broken markdown:
 // - This is a very long bold text that
 // - might be split into two chunks
 
 const chunks = splitter.splitText(text, {
-  breakMode: 'extend'
+  breakMode: 'extend',
 });
 // Extend broken markdown:
 // - **This is a very long bold text that**
@@ -678,7 +680,7 @@ const chunks = splitter.splitText(text, {
 
 ### Return Chunk Start and End Positions
 
-Currently, the splitter returns the chunks as array of strings. That means the original position of each chunk in the source text is lost. 
+Currently, the splitter returns the chunks as array of strings. That means the original position of each chunk in the source text is lost.
 In a typical RAG setup, the source document and each chunk is stored with it's embedding in a database. This duplicates lots of text since each chunk contains parts of the original document.
 
 Chunkdown could return the start and end positions of each chunk in the original text, allowing to store only the original document and reference the chunk positions when needed.
@@ -694,17 +696,15 @@ const chunks = splitter.splitDocument(document);
 // ]
 
 await db.insert(documentTable).values({
-  text: document
+  text: document,
 });
 
-await db
-  .insert(chunkTable)
-  .values(chunks.map(chunk => ({
+await db.insert(chunkTable).values(
+  chunks.map((chunk) => ({
     start: chunk.start, // start position in original document
     end: chunk.end, // end position in original document
     text: null, // chunk text not stored separately
     embedding: await embed(chunk.text),
-  })));
+  })),
+);
 ```
-
-
