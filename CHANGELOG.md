@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.1](https://github.com/zirkelc/chunkdown/compare/v3.2.0...v3.2.1) (2026-03-24)
+
+
+### Bug Fixes
+
+* optimize performance of text splitter for plain text matching ([195a909](https://github.com/zirkelc/chunkdown/commit/195a909b79e89e1a6afcb8b0716c9d64505132ba))
+
 ## [3.2.0](https://github.com/zirkelc/chunkdown/compare/v3.1.0...v3.2.0) (2026-02-25)
 
 
