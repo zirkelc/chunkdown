@@ -1,6 +1,6 @@
 {
   "name": "chunkdown",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "A tree-based markdown text splitter that understands document structure to create semantically meaningful chunks for RAG applications",
   "keywords": [
     "chunk",
