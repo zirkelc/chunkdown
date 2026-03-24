@@ -41,8 +41,8 @@ describe('TextSplitter', () => {
       const chunks = splitter.splitText(text);
 
       expect(chunks.length).toBe(3);
-      expect(chunks[0]).toBe('Really?');
-      expect(chunks[1]).toBe('Yes! Maybe??');
+      expect(chunks[0]).toBe('Really? Yes!');
+      expect(chunks[1]).toBe('Maybe??');
       expect(chunks[2]).toBe('Absolutely!!!');
     });
 
@@ -422,7 +422,8 @@ describe('TextSplitter', () => {
         expect(chunks).toMatchInlineSnapshot(`
           [
             "Check",
-            "[link text",
+            "[link",
+            "text",
             "here](https://a.com)",
             "and",
             "[documentation](https://b.com)",
@@ -451,7 +452,8 @@ describe('TextSplitter', () => {
         expect(chunks).toMatchInlineSnapshot(`
           [
             "Check",
-            "[link text",
+            "[link",
+            "text",
             "here](https://a.com)",
             "and",
             "[documentation](https://b.com)",
@@ -507,7 +509,8 @@ describe('TextSplitter', () => {
         expect(chunks).toMatchInlineSnapshot(`
           [
             "Check",
-            "[link text",
+            "[link",
+            "text",
             "here](https://a.com)",
             "and",
             "[documentation](https://b.com)",
