@@ -1,4 +1,4 @@
-export { chunkdown } from './chunkdown';
+export { chunkdown, defaultNodeRules } from './chunkdown';
 export type {
   Breadcrumb,
   Chunk,
