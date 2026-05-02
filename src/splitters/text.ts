@@ -587,11 +587,7 @@ export class TextSplitter extends AbstractNodeSplitter {
       yield firstPart;
     } else {
       const firstPartRanges = this.adjustRangesForSubstring(ranges, originalOffset, originalOffset + position);
-      const firstPartBoundaries = this.adjustBoundariesForSubstring(
-        lowerWeightBoundaries,
-        0,
-        position,
-      );
+      const firstPartBoundaries = this.adjustBoundariesForSubstring(lowerWeightBoundaries, 0, position);
       yield* this.splitRecursive(firstPart, firstPartBoundaries, firstPartRanges, originalOffset, firstPartSize);
     }
 
