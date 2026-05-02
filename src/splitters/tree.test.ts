@@ -579,4 +579,77 @@ Paragraph under Heading 2`;
       expect(chunks[1].data?.breadcrumbs?.[0].depth).toBe(1);
     });
   });
+
+  describe('Heading Rules', () => {
+    const longHeading = `# This is an unusually long section heading that describes a complex topic with multiple clauses and easily exceeds the configured chunk size limit`;
+    const text = `${longHeading}
+
+Following paragraph.`;
+
+    it('should keep oversized heading whole when rule is never-split', () => {
+      // Arrange
+      const splitter = new TreeSplitter({
+        chunkSize: 50,
+        maxOverflowRatio: 1.2,
+        rules: { heading: { split: 'never-split' } },
+      });
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks[0].startsWith('# ')).toBe(true);
+      expect(chunks[0]).toContain(longHeading);
+    });
+
+    it('should split oversized heading by default (allow-split)', () => {
+      // Arrange
+      const splitter = new TreeSplitter({
+        chunkSize: 50,
+        maxOverflowRatio: 1.2,
+      });
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks.length).toBeGreaterThan(1);
+      chunks.forEach((chunk) => {
+        expect(getContentSize(chunk)).toBeLessThanOrEqual(60);
+      });
+      expect(chunks[0].startsWith('# ')).toBe(true);
+    });
+
+    it('should split heading when size-split threshold is exceeded', () => {
+      // Arrange
+      const splitter = new TreeSplitter({
+        chunkSize: 50,
+        maxOverflowRatio: 1.2,
+        rules: { heading: { split: { rule: 'size-split', size: 80 } } },
+      });
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks.length).toBeGreaterThan(1);
+      expect(chunks[0].startsWith('# ')).toBe(true);
+    });
+
+    it('should keep heading whole when size-split threshold is not exceeded', () => {
+      // Arrange
+      const splitter = new TreeSplitter({
+        chunkSize: 50,
+        maxOverflowRatio: 1.2,
+        rules: { heading: { split: { rule: 'size-split', size: 10_000 } } },
+      });
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks[0].startsWith('# ')).toBe(true);
+      expect(chunks[0]).toContain(longHeading);
+    });
+  });
 });

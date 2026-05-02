@@ -3,6 +3,7 @@ import type {
   Code,
   Delete,
   Emphasis,
+  Heading,
   Image,
   InlineCode,
   Link,
@@ -31,6 +32,7 @@ type NodeTypes = {
   blockquote: Blockquote;
   code: Code;
   inlineCode: InlineCode;
+  heading: Heading;
 };
 
 /**

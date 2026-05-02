@@ -257,11 +257,19 @@ export class TreeSplitter extends AbstractNodeSplitter<Root> {
     let currentItemsSize = 0;
 
     /**
-     * Start with heading if it exists
+     * Start with heading if it exists.
+     * If the heading itself exceeds maxAllowedSize and is allowed to split,
+     * route it through splitSubNode so the text splitter can break it down.
+     * Otherwise accumulate it normally for grouping with content.
      */
     if (section.heading) {
-      currentItems.push(section.heading);
-      currentItemsSize = getContentSize(section.heading);
+      const headingSize = getContentSize(section.heading);
+      if (headingSize > this.maxAllowedSize && this.canSplitNode(section.heading)) {
+        yield* this.splitSubNode(section.heading, breadcrumbs);
+      } else {
+        currentItems.push(section.heading);
+        currentItemsSize = headingSize;
+      }
     }
 
     for (const item of contentItems) {

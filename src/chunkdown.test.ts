@@ -258,6 +258,27 @@ Third sentence.
         expect(getContentSize(chunk.text)).toBeLessThanOrEqual(20);
       });
     });
+
+    it('should split a heading whose content exceeds maxAllowedSize', () => {
+      // Arrange
+      const splitter = chunkdown({
+        chunkSize: 50,
+        maxOverflowRatio: 1.2,
+      });
+      const text = `# This is an unusually long section heading that describes a complex topic with multiple clauses and easily exceeds the configured chunk size limit
+
+Following paragraph.`;
+
+      // Act
+      const { chunks } = splitter.split(text);
+
+      // Assert
+      expect(chunks.length).toBeGreaterThan(1);
+      chunks.forEach((chunk) => {
+        expect(getContentSize(chunk.text)).toBeLessThanOrEqual(60); // 50 * 1.2
+      });
+      expect(chunks[0].text.startsWith('# ')).toBe(true);
+    });
   });
 
   describe('Default Rules', () => {
