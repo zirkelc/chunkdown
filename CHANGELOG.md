@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.0](https://github.com/zirkelc/chunkdown/compare/v3.3.0...v3.4.0) (2026-05-02)
+
+
+### Features
+
+* export defaultNodeRules ([9470dc8](https://github.com/zirkelc/chunkdown/commit/9470dc884878622944747a0e933fdb1e11e719d4))
+
 ## [3.3.0](https://github.com/zirkelc/chunkdown/compare/v3.2.1...v3.3.0) (2026-05-02)
 
 
