@@ -13,6 +13,8 @@ import type { Breadcrumb, Chunk, NodeRules, SplitterOptions, SplitterResult } fr
  * - Images
  *   - Never split
  *   - Normalize to inline style
+ * - Words
+ *   - Never split (treat words as atomic units)
  */
 export const defaultNodeRules: NodeRules = {
   link: {
@@ -22,6 +24,9 @@ export const defaultNodeRules: NodeRules = {
   image: {
     split: 'never-split',
     style: 'inline',
+  },
+  word: {
+    split: 'never-split',
   },
 };
 

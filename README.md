@@ -39,7 +39,7 @@ The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "He
 
 #### Words as Atomic Unit
 
-Words are the smallest meaningful unit of information for embedding purposes. While tokenizers may split words further, for practical RAG applications, breaking words mid-way creates meaningless chunks. Therefore, words are treated as indivisible atoms that cannot be split.
+Words are the smallest meaningful unit of information for embedding purposes. While tokenizers may split words further, for practical RAG applications, breaking words mid-way creates meaningless chunks. Therefore, words are treated as indivisible atoms that cannot be split by default.
 
 <img width="1424" height="673" alt="image" src="https://github.com/user-attachments/assets/97ef70e8-4fa0-4d0a-961d-ed9dea80388c" />
 
@@ -469,6 +469,8 @@ Configure splitting behavior for specific markdown node types. Rules allow fine-
 - `strong`: Bold text `**bold**` (overrides `formatting` if specified)
 - `emphasis`: Italic text `*italic*` (overrides `formatting` if specified)
 - `delete`: Strikethrough text `~~deleted~~` (overrides `formatting` if specified)
+- `heading`: Heading elements (`# Heading`, `## Subheading`, etc.)
+- `word`: Runs of non-whitespace characters inside text (e.g. long URLs, compound identifiers)
 
 > [!NOTE]
 > The `formatting` rule applies to all formatting elements (`strong`, `emphasis`, `delete`) unless you override them individually.
@@ -532,6 +534,23 @@ chunkdown({
   },
 });
 
+// Allow splitting long words (default: never-split). Useful when content
+// contains URLs, identifiers, or compound tokens that exceed the chunk size.
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    word: { split: 'allow-split' },
+  },
+});
+
+// Only split words longer than 100 characters
+chunkdown({
+  chunkSize: 500,
+  rules: {
+    word: { split: { rule: 'size-split', size: 100 } },
+  },
+});
+
 // Extend default rules
 chunkdown({
   chunkSize: 500,
@@ -581,7 +600,7 @@ chunkdown({
 
 **Default rules:**
 
-By default, links and images are set to never split and normalize to inline style:
+By default, links and images are set to never split and normalize to inline style. Words are also never split by default, treating them as atomic units:
 
 ```typescript
 const defaultNodeRules: NodeRules = {
@@ -592,6 +611,9 @@ const defaultNodeRules: NodeRules = {
   image: {
     split: 'never-split',
     style: 'inline',
+  },
+  word: {
+    split: 'never-split',
   },
 };
 ```

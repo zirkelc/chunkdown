@@ -13,6 +13,7 @@ import type {
   Root,
   Strong,
   Table,
+  Text,
 } from 'mdast';
 
 type Formatting = Strong | Emphasis | Delete;
@@ -33,6 +34,12 @@ type NodeTypes = {
   code: Code;
   inlineCode: InlineCode;
   heading: Heading;
+  /**
+   * Words are runs of non-whitespace characters inside text. There is no mdast
+   * `Word` node, but the rule controls whether the text splitter is allowed to
+   * break inside a word. Mapped to `Text` for type compatibility only.
+   */
+  word: Text;
 };
 
 /**

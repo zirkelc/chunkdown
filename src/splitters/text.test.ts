@@ -782,6 +782,117 @@ describe('TextSplitter', () => {
         const codeChunk = chunks.find((chunk) => chunk.includes('`long inline code example here`'));
         expect(codeChunk).toBeDefined();
       });
+
+
+  describe('Word', () => {
+    const longWord = `pneumonoultramicroscopicsilicovolcanoconiosis`; // 45 chars
+
+    it('should keep long words whole by default', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 10,
+        maxOverflowRatio: 1.5,
+      });
+
+      // Act
+      const chunks = splitter.splitText(longWord);
+
+      // Assert
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toBe(longWord);
+    });
+
+    it('should split long words when rule is allow-split', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 10,
+        maxOverflowRatio: 1.5,
+        rules: { word: { split: 'allow-split' } },
+      });
+
+      // Act
+      const chunks = splitter.splitText(longWord);
+
+      // Assert
+      expect(chunks.length).toBeGreaterThan(1);
+      chunks.forEach((chunk) => {
+        expect(chunk.length).toBeLessThanOrEqual(15);
+      });
+      expect(chunks.join('')).toBe(longWord);
+    });
+
+    it('should split words exceeding size-split threshold', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 10,
+        maxOverflowRatio: 1.5,
+        rules: { word: { split: { rule: 'size-split', size: 30 } } },
+      });
+
+      // Act
+      const chunks = splitter.splitText(longWord);
+
+      // Assert
+      expect(chunks.length).toBeGreaterThan(1);
+      expect(chunks.join('')).toBe(longWord);
+    });
+
+    it('should keep words below size-split threshold whole', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 10,
+        maxOverflowRatio: 1.5,
+        rules: { word: { split: { rule: 'size-split', size: 100 } } },
+      });
+
+      // Act
+      const chunks = splitter.splitText(longWord);
+
+      // Assert
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toBe(longWord);
+    });
+
+    it('should prefer punctuation separators over arbitrary character splits', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 12,
+        maxOverflowRatio: 1.0,
+        rules: { word: { split: 'allow-split' } },
+      });
+      const text = `aaaa-bbbb-cccc-dddd`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks.length).toBeGreaterThan(1);
+      // Each split point should land after a hyphen
+      for (let i = 0; i < chunks.length - 1; i++) {
+        expect(chunks[i].endsWith('-')).toBe(true);
+      }
+    });
+
+    it('should not break words at character level when whitespace is available', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 10,
+        maxOverflowRatio: 1.5,
+        rules: { word: { split: 'allow-split' } },
+      });
+      const text = `hello world goodbye sun`;
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      // Whitespace boundary weight (10) > word punct (5) > character (1),
+      // so splits should land at spaces rather than mid-word.
+      chunks.forEach((chunk) => {
+        expect(chunk.split(/\s+/).every((token) => /^[a-z]+$/.test(token))).toBe(true);
+      });
+    });
+  });
     });
 
     describe('Regression: Split links should not produce escaped markdown', () => {

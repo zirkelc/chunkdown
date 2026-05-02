@@ -18,7 +18,15 @@ const SEMANTIC_WEIGHTS = {
   COMMA: 40,
   DASH: 30,
   FALLBACK: 10,
+  WORD_PUNCT: 5,
+  CHARACTER: 1,
 } as const;
+
+/**
+ * Punctuation characters used as preferred split points inside words
+ * (e.g. URLs, paths, kebab/snake identifiers).
+ */
+const WORD_PUNCT_CHARS = /[-/._:]/;
 
 /**
  * Penalties applied when a boundary falls inside a markdown element.
@@ -416,6 +424,58 @@ export class TextSplitter extends AbstractNodeSplitter {
             plainPosition,
             type: pattern.type,
             weight: pattern.weight,
+            score,
+          });
+        }
+      }
+    }
+
+    /**
+     * If the `word` rule allows in-word splitting, emit additional boundaries
+     * inside oversized tokens. Punctuation positions get a small bonus over
+     * pure character positions so URLs/paths split at separators first.
+     *
+     * Eligibility per word length (`L`):
+     *  - `allow-split`: any word (`L > 0`) gets WORD_PUNCT; CHARACTER added
+     *    when `L > maxAllowedSize` (only case char-level fallback is needed).
+     *  - `size-split { size: N }`: words with `L > N` get WORD_PUNCT;
+     *    CHARACTER added when `L > max(N, maxAllowedSize)`.
+     *  - `never-split` / unset: skipped entirely.
+     */
+    const wordRule = this.splitRules.word;
+    if (wordRule && (wordRule.rule === 'allow-split' || wordRule.rule === 'size-split')) {
+      const punctThreshold = wordRule.rule === 'size-split' ? wordRule.size : 0;
+      const charThreshold = Math.max(punctThreshold, this.maxAllowedSize);
+
+      const wordRegex = /\S+/g;
+      let wordMatch: RegExpExecArray | null;
+      while ((wordMatch = wordRegex.exec(plain)) !== null) {
+        const word = wordMatch[0];
+        if (word.length <= punctThreshold) continue;
+
+        const wordStart = wordMatch.index;
+        const allowChar = word.length > charThreshold;
+
+        for (let i = 1; i < word.length; i++) {
+          const isPunct = WORD_PUNCT_CHARS.test(word[i - 1]);
+
+          /**
+           * Skip pure character positions when char-level splitting is not
+           * required for this word (i.e. the word fits without it).
+           */
+          if (!isPunct && !allowChar) continue;
+
+          const weight = isPunct ? SEMANTIC_WEIGHTS.WORD_PUNCT : SEMANTIC_WEIGHTS.CHARACTER;
+          const plainPosition = wordStart + i;
+          const mdPosition = plainToMarkdownPosition(plainPosition, mapping);
+          const score = this.scoreBoundary(mdPosition, weight, ranges);
+          if (!Number.isFinite(score)) continue;
+
+          boundaries.push({
+            mdPosition,
+            plainPosition,
+            type: isPunct ? `word_punct` : `character`,
+            weight,
             score,
           });
         }

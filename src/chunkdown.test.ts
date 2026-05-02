@@ -389,6 +389,47 @@ Following paragraph.`;
           expect(chunk.text.length).toBeLessThanOrEqual(20);
         });
       });
+
+      it('should split long words when word rule is allow-split', () => {
+        // Arrange
+        const splitter = chunkdown({
+          chunkSize: 15,
+          maxOverflowRatio: 1.0,
+          rules: { word: { split: 'allow-split' } },
+        });
+        const text = `supercalifragilisticexpialidocious`;
+
+        // Act
+        const { chunks } = splitter.split(text);
+
+        // Assert
+        expect(chunks.length).toBeGreaterThan(1);
+        chunks.forEach((chunk) => {
+          expect(chunk.text.length).toBeLessThanOrEqual(15);
+        });
+        expect(chunks.map((c) => c.text).join('')).toBe(text);
+      });
+
+      it('should split words exceeding size-split threshold', () => {
+        // Arrange
+        const splitter = chunkdown({
+          chunkSize: 20,
+          maxOverflowRatio: 1.0,
+          rules: { word: { split: { rule: 'size-split', size: 25 } } },
+        });
+        const longWord = `supercalifragilisticexpialidocious`; // 34 chars > 25
+        const shortWord = `antidisestablish`; // 16 chars < 25
+        const text = `${longWord} ${shortWord}`;
+
+        // Act
+        const { chunks } = splitter.split(text);
+
+        // Assert
+        const longInChunks = chunks.find((c) => c.text.includes('supercali'));
+        const shortInChunks = chunks.find((c) => c.text === shortWord);
+        expect(longInChunks?.text).not.toBe(longWord); // long word was split
+        expect(shortInChunks?.text).toBe(shortWord); // short word preserved
+      });
     });
 
     describe('Normalization', () => {
