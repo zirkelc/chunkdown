@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.3.0](https://github.com/zirkelc/chunkdown/compare/v3.2.1...v3.3.0) (2026-05-02)
+
+
+### Features
+
+* add word rule for in-word splitting ([bb298cc](https://github.com/zirkelc/chunkdown/commit/bb298cc29208fd135c5eeefd90c8e33923b6a349))
+
+
+### Bug Fixes
+
+* format ([f6da2b4](https://github.com/zirkelc/chunkdown/commit/f6da2b4878250a6c952bcf0fc47c750c682aae89))
+* split oversized headings instead of emitting verbatim ([e231620](https://github.com/zirkelc/chunkdown/commit/e23162031b9151aa03113b2e44e1b29dee365da7))
+
 ## [3.2.1](https://github.com/zirkelc/chunkdown/compare/v3.2.0...v3.2.1) (2026-03-24)
 
 
