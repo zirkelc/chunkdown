@@ -41,6 +41,9 @@ The **llama** ([/ˈlɑːmə/](https://en.wikipedia.org/wiki/Help:IPA/English "He
 
 Words are the smallest meaningful unit of information for embedding purposes. While tokenizers may split words further, for practical RAG applications, breaking words mid-way creates meaningless chunks. Therefore, words are treated as indivisible atoms that cannot be split by default.
 
+> [!NOTE]
+> This rule can be overriden to allow splitting words if needed.
+
 <img width="1424" height="673" alt="image" src="https://github.com/user-attachments/assets/97ef70e8-4fa0-4d0a-961d-ed9dea80388c" />
 
 [Comparison of chunk size 1: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=TGFyZ2UgTGFuZ3VhZ2UgTW9kZWxzIChMTE1zKSBhcmUgYWR2YW5jZWQgcHJvZ3JhbXMgdGhhdCBjYW4gdW5kZXJzdGFuZCwgY3JlYXRlLCBhbmQgZW5nYWdlIHdpdGggaHVtYW4gbGFuZ3VhZ2Ugb24gYSBsYXJnZSBzY2FsZS4KVGhleSBhcmUgdHJhaW5lZCBvbiB2YXN0IGFtb3VudHMgb2Ygd3JpdHRlbiBtYXRlcmlhbCB0byByZWNvZ25pemUgcGF0dGVybnMgaW4gbGFuZ3VhZ2UgYW5kIHByZWRpY3Qgd2hhdCBtaWdodCBjb21lIG5leHQgaW4gYSBnaXZlbiBwaWVjZSBvZiB0ZXh0Lg%3D%3D&chunkSize=1&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&maxOverflow=1&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A1%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
@@ -49,6 +52,9 @@ Words are the smallest meaningful unit of information for embedding purposes. Wh
 
 Semantic elements like links, images, inline code, and certain formatting elements should ideally always remain intact. Breaking a long link like `[structured data generation](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data)` into `[structured` and `data generation](https://ai-sdk.dev/docs/ai-sdk-core/generating-structured-data` destroys meaning. The splitter preserves these constructs and splits around them.
 
+> [!NOTE]
+> The splitting behavior for each semantic element can be customized.
+
 <img width="1427" height="283" alt="image" src="https://github.com/user-attachments/assets/6b2399f2-a8b8-48dd-a870-3caa902500a6" />
 
 [Comparison of chunk size 100: Chunkdown (left) / LangChain Markdown Splitter (right)](https://chunks.zirkelc.dev/?text=QUkgU0RLIENvcmUgaGFzIHZhcmlvdXMgZnVuY3Rpb25zIGRlc2lnbmVkIGZvciBbdGV4dCBnZW5lcmF0aW9uXSguL2dlbmVyYXRpbmctdGV4dCksIFtzdHJ1Y3R1cmVkIGRhdGEgZ2VuZXJhdGlvbl0oLi9nZW5lcmF0aW5nLXN0cnVjdHVyZWQtZGF0YSksIGFuZCBbdG9vbCB1c2FnZV0oLi90b29scy1hbmQtdG9vbC1jYWxsaW5nKS4KVGhlc2UgZnVuY3Rpb25zIHRha2UgYSBzdGFuZGFyZGl6ZWQgYXBwcm9hY2ggdG8gc2V0dGluZyB1cCBbcHJvbXB0c10oLi9wcm9tcHRzKSBhbmQgW3NldHRpbmdzXSguL3NldHRpbmdzKSwgbWFraW5nIGl0IGVhc2llciB0byB3b3JrIHdpdGggZGlmZmVyZW50IG1vZGVscy4%3D&chunkSize=100&sectionOrder=input%2Cchunks%2Cpanel-1764331988127&maxOverflow=1&comparison=%255B%257B%2522id%2522%253A%2522panel-1764331988127%2522%252C%2522library%2522%253A%2522langchain%2522%252C%2522chunkdownAlgorithm%2522%253A%2522markdown%2522%252C%2522langchainAlgorithm%2522%253A%2522markdown%2522%252C%2522mastraAlgorithm%2522%253A%2522recursive%2522%252C%2522chunkSize%2522%253A100%252C%2522maxOverflowRatio%2522%253A1.5%257D%255D)
@@ -56,6 +62,9 @@ Semantic elements like links, images, inline code, and certain formatting elemen
 #### Allow Controlled Overflow
 
 Preserving a complete semantic unit like a section, paragraph, sentence, etc., is often more important than adhering to a strict chunk size. The splitter allows a controlled overflow (via `maxOverflowRatio`) of the chunk size if it avoids splitting a complete unit, e.g. a list item.
+
+> [!NOTE]
+> Setting the `maxOverflowRatio` to `0` disables overflow.
 
 <img width="1425" height="673" alt="image" src="https://github.com/user-attachments/assets/61ddadaa-9d05-427f-8650-17dea5af7e10" />
 
