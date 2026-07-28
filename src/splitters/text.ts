@@ -196,7 +196,7 @@ export class TextSplitter extends AbstractNodeSplitter {
     let ranges: PenalizedRange[];
     let mapping: PositionMapping;
 
-    const simple = this.analyzeSimpleLine(markdown);
+    const simple = this.analyzeCodeNode(node, markdown) ?? this.analyzeSimpleLine(markdown);
     if (simple !== undefined) {
       ({ ranges, mapping } = simple);
     } else {
@@ -242,6 +242,50 @@ export class TextSplitter extends AbstractNodeSplitter {
     }
 
     return nodes;
+  }
+
+  /**
+   * Analyze a serialized code block, producing the same penalized ranges and
+   * position mapping a re-parse would, without parsing. The serialization of
+   * a code node is a single code block again: no penalized ranges (code has
+   * no markdown penalty, and a protected code node bails to the parse path
+   * to keep its protection range exact), and one segment covering the code
+   * value, which starts right after the first line (the opening fence).
+   */
+  protected analyzeCodeNode(
+    node: Nodes,
+    markdown: string,
+  ): { ranges: PenalizedRange[]; mapping: PositionMapping } | undefined {
+    if (node.type !== 'code') return undefined;
+    if (!this.canSplitNode(node)) return undefined;
+
+    const value = node.value;
+    const firstNewline = markdown.indexOf('\n');
+
+    const segments: PositionMapping['segments'] = [];
+    if (firstNewline >= 0 && value.length > 0) {
+      const codeStart = firstNewline + 1;
+
+      /**
+       * The serialized fence must contain the value verbatim at this offset;
+       * anything else (e.g. an indented layout) falls back to the parse.
+       */
+      if (markdown.startsWith(value, codeStart)) {
+        segments.push({
+          plainStart: 0,
+          plainEnd: value.length,
+          mdStart: codeStart,
+          mdEnd: codeStart + value.length,
+        });
+      } else {
+        return undefined;
+      }
+    }
+
+    return {
+      ranges: [],
+      mapping: { plain: segments.length > 0 ? value : '', markdown, segments },
+    };
   }
 
   /**
