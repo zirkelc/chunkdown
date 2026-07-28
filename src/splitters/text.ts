@@ -76,24 +76,24 @@ type Pattern = {
 
 /**
  * Characters (and CR/tab) that can change how a line tokenizes at a
- * structural level (escapes, code spans, autolinks/html, line semantics).
+ * structural level (escapes, autolinks/html, line semantics).
  */
-const NOT_SIMPLE_STRUCTURE = /[\\`<\t\r]/;
+const NOT_SIMPLE_STRUCTURE = /[\\<\t\r]/;
 
 /**
  * Content that cannot appear in the plain-text parts of a simple line:
- * formatting and block markers, brackets outside well-formed links, character
- * references, and autolink-literal candidates (which would become link nodes
- * with their own penalties and segments).
+ * formatting and block markers, backticks and brackets outside well-formed
+ * constructs, character references, and autolink-literal candidates (which
+ * would become link nodes with their own penalties and segments).
  */
-const SIMPLE_TEXT_BAIL = /[*_~>#|&+=[\]]|@|:\/\/|www\./i;
+const SIMPLE_TEXT_BAIL = /[*_~>#|&+=[\]`]|@|:\/\/|www\./i;
 
 /**
  * A well-formed inline link or image on a single line: a label without
- * brackets, carets or newlines, a destination without parentheses, spaces or
- * newlines, and an optional quoted title.
+ * brackets, backticks, carets or newlines, a destination without
+ * parentheses, spaces or newlines, and an optional quoted title.
  */
-const INLINE_LINK = /(!?)\[([^[\]^\n]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
+const INLINE_LINK = /(!?)\[([^[\]^\n`]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
 
 /**
  * Static patterns for semantic boundary detection.
@@ -346,23 +346,97 @@ export class TextSplitter extends AbstractNodeSplitter {
     let plainOffset = 0;
     let lastEnd = 0;
 
-    INLINE_LINK.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    // biome-ignore lint/suspicious/noAssignInExpressions: regex.exec assignment in while condition
-    while ((match = INLINE_LINK.exec(line)) !== null) {
-      const text = line.slice(lastEnd, match.index);
-      if (SIMPLE_TEXT_BAIL.test(text)) return undefined;
-
+    /**
+     * Emit the plain-text run before a construct (or the final tail)
+     */
+    const flushText = (until: number): boolean => {
+      const text = line.slice(lastEnd, until);
+      if (SIMPLE_TEXT_BAIL.test(text)) return false;
       if (text.length > 0) {
         segments.push({
           plainStart: plainOffset,
           plainEnd: plainOffset + text.length,
           mdStart: lastEnd,
-          mdEnd: match.index,
+          mdEnd: until,
         });
         plainParts.push(text);
         plainOffset += text.length;
       }
+      return true;
+    };
+
+    /**
+     * Scan constructs left to right, mirroring parser precedence: whichever
+     * of the next code span or next link starts first wins. Link matches
+     * never contain backticks in their label, so a match starting before the
+     * next backtick is a real link even when its destination or title holds
+     * literal backticks.
+     */
+    INLINE_LINK.lastIndex = 0;
+    let linkMatch: RegExpExecArray | null = INLINE_LINK.exec(line);
+
+    while (true) {
+      const nextBacktick = line.indexOf('`', lastEnd);
+
+      /**
+       * Refresh a stale link match that starts inside consumed text
+       */
+      if (linkMatch !== null && linkMatch.index < lastEnd) {
+        INLINE_LINK.lastIndex = lastEnd;
+        linkMatch = INLINE_LINK.exec(line);
+      }
+
+      const codeFirst = nextBacktick !== -1 && (linkMatch === null || nextBacktick < linkMatch.index);
+
+      if (codeFirst) {
+        /**
+         * Single-backtick code span: double or unmatched backticks and spans
+         * with line endings are not mirrored exactly, so they bail
+         */
+        const open = nextBacktick;
+        if (line.charCodeAt(open + 1) === 96 /* ` */) return undefined;
+        const close = line.indexOf('`', open + 1);
+        if (close === -1) return undefined;
+        if (line.charCodeAt(close + 1) === 96 /* ` */) return undefined;
+
+        const content = line.slice(open + 1, close);
+        if (content.includes('\n')) return undefined;
+
+        let value = content;
+        if (content.charCodeAt(0) === 32 && content.charCodeAt(content.length - 1) === 32 && content.trim().length > 0) {
+          value = content.slice(1, -1);
+        }
+
+        if (!flushText(open)) return undefined;
+
+        const nodeEnd = close + 1;
+        const valueOffset = line.slice(open, nodeEnd).indexOf(value);
+        segments.push({
+          plainStart: plainOffset,
+          plainEnd: plainOffset + value.length,
+          mdStart: open + valueOffset,
+          mdEnd: open + valueOffset + value.length,
+          nodeStart: open,
+          nodeEnd,
+        });
+        plainParts.push(value);
+        plainOffset += value.length;
+
+        ranges.push({
+          start: open,
+          end: nodeEnd,
+          type: 'inlineCode',
+          penalty: this.inlineNodePenalty('inlineCode', value.length),
+        });
+
+        lastEnd = nodeEnd;
+        continue;
+      }
+
+      if (linkMatch === null) break;
+
+      const match = linkMatch;
+      if (!flushText(match.index)) return undefined;
 
       const isImage = match[1].length > 0;
       const label = match[2];
@@ -389,20 +463,11 @@ export class TextSplitter extends AbstractNodeSplitter {
       ranges.push({ start: nodeStart, end: nodeEnd, type, penalty: this.inlineNodePenalty(type, label.length) });
 
       lastEnd = nodeEnd;
+      INLINE_LINK.lastIndex = lastEnd;
+      linkMatch = INLINE_LINK.exec(line);
     }
 
-    const tail = line.slice(lastEnd);
-    if (SIMPLE_TEXT_BAIL.test(tail)) return undefined;
-
-    if (tail.length > 0) {
-      segments.push({
-        plainStart: plainOffset,
-        plainEnd: plainOffset + tail.length,
-        mdStart: lastEnd,
-        mdEnd: line.length,
-      });
-      plainParts.push(tail);
-    }
+    if (!flushText(line.length)) return undefined;
 
     return {
       ranges,
@@ -411,11 +476,11 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Penalty a link or image range would receive from range extraction:
-   * infinite when its split rule protects it at this content size, the
-   * regular markdown penalty otherwise.
+   * Penalty a link, image or inline code range would receive from range
+   * extraction: infinite when its split rule protects it at this content
+   * size, the regular markdown penalty otherwise.
    */
-  private inlineNodePenalty(type: 'link' | 'image', contentSize: number): number {
+  private inlineNodePenalty(type: 'link' | 'image' | 'inlineCode', contentSize: number): number {
     const rule = this.splitRules[type];
     if (rule) {
       if (rule.rule === 'never-split') return Infinity;
