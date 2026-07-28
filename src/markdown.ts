@@ -35,6 +35,18 @@ const fromMarkdownOptions = {
   ],
 };
 
+/**
+ * Options for the size-measuring parse variant. Identical to the regular
+ * options except that tree transforms are dropped. The only gfm transform is
+ * the autolink-literal one, which rewrites plain text into link nodes whose
+ * text content equals the matched text, so skipping it cannot change the
+ * extracted plain text — it only saves its expensive regex scans.
+ */
+const sizingFromMarkdownOptions = {
+  extensions: fromMarkdownOptions.extensions,
+  mdastExtensions: [gfmFromMarkdown().map((extension) => ({ ...extension, transforms: [] }))],
+};
+
 const toMarkdownOptions = {
   // Always use resource links [text](url) instead of autolinks <url>
   resourceLink: true,
@@ -49,6 +61,15 @@ const toMarkdownOptions = {
 
 export const fromMarkdown = (value: Value): Root => {
   return mdastFromMarkdown(value, fromMarkdownOptions);
+};
+
+/**
+ * Parse markdown only to measure its plain-text content size.
+ * Produces the same plain text as the regular parse but skips work that
+ * cannot affect it.
+ */
+export const fromMarkdownForSizing = (value: Value): Root => {
+  return mdastFromMarkdown(value, sizingFromMarkdownOptions);
 };
 
 export const toMarkdown = (tree: Nodes): string => {

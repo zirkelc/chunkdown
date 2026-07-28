@@ -1,6 +1,6 @@
 import type { Nodes } from 'mdast';
 import { isSection, type Section } from './ast';
-import { fromMarkdown, toMarkdown, toString } from './markdown';
+import { fromMarkdownForSizing, toMarkdown, toString } from './markdown';
 
 /**
  * Calculate the content size of markdown content or AST node
@@ -14,7 +14,7 @@ export const getContentSize = (input: string | Nodes): number => {
 
   // If input is a string, parse it first
   if (typeof input === 'string') {
-    const ast = fromMarkdown(input);
+    const ast = fromMarkdownForSizing(input);
     return getContentSize(ast);
   }
 
