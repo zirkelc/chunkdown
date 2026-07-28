@@ -548,27 +548,24 @@ export class TextSplitter extends AbstractNodeSplitter {
      * Evaluate all boundaries with combined score including balance bonus.
      * Uses pre-computed plainPosition for O(1) size approximation per boundary
      * instead of parsing markdown for each candidate.
+     * A single pass keeping the first strictly-highest score selects the same
+     * boundary a stable sort by score descending would put first.
      */
-    const scoredBoundaries = validBoundaries
-      .map((b) => {
-        const firstPartSize = b.plainPosition;
-        const secondPartSize = totalPlainLength - b.plainPosition;
-        const balanceBonus = this.calculateBalanceBonus(firstPartSize, secondPartSize);
-        const combinedScore = b.score + balanceBonus;
-
-        return {
-          boundary: b,
-          position: b.mdPosition,
-          combinedScore,
-        };
-      })
-      .sort((a, b) => b.combinedScore - a.combinedScore);
+    let boundary = validBoundaries[0];
+    let bestScore = -Infinity;
+    for (const b of validBoundaries) {
+      const balanceBonus = this.calculateBalanceBonus(b.plainPosition, totalPlainLength - b.plainPosition);
+      const combinedScore = b.score + balanceBonus;
+      if (combinedScore > bestScore) {
+        bestScore = combinedScore;
+        boundary = b;
+      }
+    }
 
     /**
-     * Select the best boundary, then compute exact sizes via getContentSize
+     * Compute exact sizes for the selected boundary via getContentSize
      */
-    const selected = scoredBoundaries[0];
-    const { boundary, position } = selected;
+    const position = boundary.mdPosition;
     const firstPart = text.substring(0, position);
     const secondPart = text.substring(position);
     const firstPartSize = getContentSize(firstPart);
