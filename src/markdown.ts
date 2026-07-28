@@ -176,11 +176,28 @@ function normalizeReferences(tree: Root, rules: NodeRules): Root {
   // Collect all definitions into a map
   const definitions = new Map<string, Definition>();
 
-  visit(tree, 'definition', (node) => {
-    // Identifiers are case-insensitive per CommonMark spec
-    const id = node.identifier.toLowerCase();
-    definitions.set(id, node);
-  });
+  /**
+   * Definitions are flow content, so only containers that hold flow content
+   * need to be descended into; inline-bearing nodes (paragraphs, headings,
+   * tables) cannot contain them and are skipped entirely.
+   */
+  const collectDefinitions = (parent: Parent): void => {
+    for (const node of parent.children) {
+      if (node.type === 'definition') {
+        // Identifiers are case-insensitive per CommonMark spec
+        const id = node.identifier.toLowerCase();
+        definitions.set(id, node);
+      } else if (
+        node.type === 'blockquote' ||
+        node.type === 'list' ||
+        node.type === 'listItem' ||
+        node.type === 'footnoteDefinition'
+      ) {
+        collectDefinitions(node);
+      }
+    }
+  };
+  collectDefinitions(tree);
 
   if (definitions.size === 0) {
     // If no definitions found, nothing to normalize
