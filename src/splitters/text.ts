@@ -96,6 +96,12 @@ const SIMPLE_TEXT_BAIL = /[*_~>#|&+=[\]`]|@|:\/\/|www\./i;
 const INLINE_LINK = /(!?)\[([^[\]^\n`]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
 
 /**
+ * Unicode punctuation and symbols, the classes emphasis flanking rules treat
+ * as punctuation.
+ */
+const PUNCTUATION = /[\p{P}\p{S}]/u;
+
+/**
  * Static patterns for semantic boundary detection.
  * Patterns are matched against plain text (without markdown formatting).
  */
@@ -367,16 +373,17 @@ export class TextSplitter extends AbstractNodeSplitter {
 
     /**
      * Scan constructs left to right, mirroring parser precedence: whichever
-     * of the next code span or next link starts first wins. Link matches
-     * never contain backticks in their label, so a match starting before the
-     * next backtick is a real link even when its destination or title holds
-     * literal backticks.
+     * of the next code span, emphasis run or link starts first wins. Link
+     * matches never contain backticks in their label, so a match starting
+     * before the next backtick is a real link even when its destination or
+     * title holds literal backticks.
      */
     INLINE_LINK.lastIndex = 0;
     let linkMatch: RegExpExecArray | null = INLINE_LINK.exec(line);
 
     while (true) {
       const nextBacktick = line.indexOf('`', lastEnd);
+      const nextAsterisk = line.indexOf('*', lastEnd);
 
       /**
        * Refresh a stale link match that starts inside consumed text
@@ -386,7 +393,76 @@ export class TextSplitter extends AbstractNodeSplitter {
         linkMatch = INLINE_LINK.exec(line);
       }
 
-      const codeFirst = nextBacktick !== -1 && (linkMatch === null || nextBacktick < linkMatch.index);
+      const linkPosition = linkMatch === null ? -1 : linkMatch.index;
+      const codeFirst =
+        nextBacktick !== -1 &&
+        (linkPosition === -1 || nextBacktick < linkPosition) &&
+        (nextAsterisk === -1 || nextBacktick < nextAsterisk);
+      const emphasisFirst =
+        !codeFirst && nextAsterisk !== -1 && (linkPosition === -1 || nextAsterisk < linkPosition);
+
+      if (emphasisFirst) {
+        /**
+         * Asterisk emphasis with plain inner content: a pure opener run of
+         * one or two asterisks (boundary before, content after — such a run
+         * cannot also close), matched by a pure closer run of the same
+         * length. Equal-length pairs sum to 2 or 4, so the rule-of-three
+         * pairing restriction never applies. Anything else bails.
+         */
+        const open = nextAsterisk;
+        let openEnd = open;
+        while (openEnd < line.length && line.charCodeAt(openEnd) === 42 /* * */) openEnd++;
+        const markerLength = openEnd - open;
+        if (markerLength > 2) return undefined;
+
+        const before = open === 0 ? undefined : line[open - 1];
+        const afterOpen = openEnd >= line.length ? undefined : line[openEnd];
+        const beforeIsBoundary = before === undefined || before === ' ' || before === '\n' || PUNCTUATION.test(before);
+        const afterOpenIsBoundary =
+          afterOpen === undefined || afterOpen === ' ' || afterOpen === '\n' || PUNCTUATION.test(afterOpen);
+        if (!beforeIsBoundary || afterOpenIsBoundary) return undefined;
+
+        const close = line.indexOf('*', openEnd);
+        if (close === -1) return undefined;
+        let closeEnd = close;
+        while (closeEnd < line.length && line.charCodeAt(closeEnd) === 42 /* * */) closeEnd++;
+        if (closeEnd - close !== markerLength) return undefined;
+
+        const beforeClose = line[close - 1];
+        const afterClose = closeEnd >= line.length ? undefined : line[closeEnd];
+        const beforeCloseIsBoundary =
+          beforeClose === ' ' || beforeClose === '\n' || PUNCTUATION.test(beforeClose);
+        const afterCloseIsBoundary =
+          afterClose === undefined || afterClose === ' ' || afterClose === '\n' || PUNCTUATION.test(afterClose);
+        if (beforeCloseIsBoundary || !afterCloseIsBoundary) return undefined;
+
+        const inner = line.slice(openEnd, close);
+        if (SIMPLE_TEXT_BAIL.test(inner)) return undefined;
+
+        if (!flushText(open)) return undefined;
+
+        segments.push({
+          plainStart: plainOffset,
+          plainEnd: plainOffset + inner.length,
+          mdStart: openEnd,
+          mdEnd: close,
+          nodeStart: open,
+          nodeEnd: closeEnd,
+        });
+        plainParts.push(inner);
+        plainOffset += inner.length;
+
+        const type = markerLength === 2 ? 'strong' : 'emphasis';
+        ranges.push({
+          start: open,
+          end: closeEnd,
+          type,
+          penalty: this.inlineNodePenalty(type, inner.length),
+        });
+
+        lastEnd = closeEnd;
+        continue;
+      }
 
       if (codeFirst) {
         /**
@@ -476,12 +552,16 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Penalty a link, image or inline code range would receive from range
-   * extraction: infinite when its split rule protects it at this content
-   * size, the regular markdown penalty otherwise.
+   * Penalty a link, image, inline code or formatting range would receive
+   * from range extraction: infinite when its split rule protects it at this
+   * content size, the regular markdown penalty otherwise. Formatting nodes
+   * fall back to the shared formatting rule.
    */
-  private inlineNodePenalty(type: 'link' | 'image' | 'inlineCode', contentSize: number): number {
-    const rule = this.splitRules[type];
+  private inlineNodePenalty(type: 'link' | 'image' | 'inlineCode' | 'strong' | 'emphasis', contentSize: number): number {
+    let rule = this.splitRules[type];
+    if (!rule && (type === 'strong' || type === 'emphasis')) {
+      rule = this.splitRules.formatting;
+    }
     if (rule) {
       if (rule.rule === 'never-split') return Infinity;
       if (rule.rule === 'size-split' && contentSize <= rule.size) return Infinity;
