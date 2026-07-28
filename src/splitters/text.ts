@@ -225,7 +225,7 @@ export class TextSplitter extends AbstractNodeSplitter {
 
     const totalPlainLength = mapping.plain.length;
 
-    for (const textChunk of this.splitRecursive(markdown, boundaries, ranges, 0, totalPlainLength)) {
+    for (const textChunk of this.splitRecursive(markdown, boundaries, 0, markdown.length, 0, totalPlainLength, Infinity)) {
       // HACK: We use 'html' node type to preserve the markdown text as-is.
       // The chunks are already valid markdown (from toMarkdown above), so we need
       // a node type that passes through unchanged during serialization. The 'html'
@@ -656,49 +656,6 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Adjust penalized ranges for a substring operation.
-   * When working with substrings, the ranges need to be recalculated.
-   *
-   * @param ranges - Original penalized ranges
-   * @param substringStart - Start position of the substring in the original text
-   * @param substringEnd - End position of the substring in the original text
-   * @returns Adjusted penalized ranges for the substring
-   */
-  protected adjustRangesForSubstring(
-    ranges: PenalizedRange[],
-    substringStart: number,
-    substringEnd: number,
-  ): PenalizedRange[] {
-    const adjustedRanges: PenalizedRange[] = [];
-
-    for (const range of ranges) {
-      /**
-       * Only include ranges that intersect with the substring
-       */
-      if (range.end > substringStart && range.start < substringEnd) {
-        /**
-         * Adjust the range positions relative to the substring
-         */
-        const adjustedRange: PenalizedRange = {
-          start: Math.max(0, range.start - substringStart),
-          end: Math.min(substringEnd - substringStart, range.end - substringStart),
-          type: range.type,
-          penalty: range.penalty,
-        };
-
-        /**
-         * Only include valid ranges (where start < end)
-         */
-        if (adjustedRange.start < adjustedRange.end) {
-          adjustedRanges.push(adjustedRange);
-        }
-      }
-    }
-
-    return adjustedRanges;
-  }
-
-  /**
    * Score a boundary based on its weight and any penalized range penalties.
    * Returns weight minus the maximum penalty from overlapping ranges.
    * A score of -Infinity means the boundary is protected and should not be used.
@@ -846,71 +803,48 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Adjust boundary positions for a substring operation.
-   * Adjusts both markdown and plain text positions so boundaries
-   * are relative to the substring rather than the original text.
-   */
-  protected adjustBoundariesForSubstring(
-    boundaries: Boundary[],
-    substringStart: number,
-    substringEnd: number,
-    plainOffset: number = 0,
-  ): Boundary[] {
-    return boundaries
-      .filter((b) => b.mdPosition > substringStart && b.mdPosition <= substringEnd)
-      .map((b) => ({ ...b, mdPosition: b.mdPosition - substringStart, plainPosition: b.plainPosition - plainOffset }));
-  }
-
-  /**
    * Recursively split text using boundary scoring system.
    * Uses pre-computed plain text positions for O(1) balance bonus calculation
    * per boundary, then computes exact content sizes only for the selected boundary.
    * This avoids expensive markdown re-parsing for every candidate.
+   *
+   * Boundaries stay in whole-text coordinates throughout the recursion; each
+   * level works on a window `[mdStart, mdEnd)` with `plainStart` as its plain
+   * text origin, and `maxWeight` caps the boundary strength to those at most
+   * as strong as the ancestors' selections.
    */
   private *splitRecursive(
     text: string,
     boundaries: Boundary[],
-    ranges: PenalizedRange[],
-    originalOffset: number = 0,
-    totalPlainLength: number = 0,
+    mdStart: number,
+    mdEnd: number,
+    plainStart: number,
+    totalPlainLength: number,
+    maxWeight: number,
   ): Generator<string> {
     /**
      * Fast path: use pre-computed plain text length to skip parsing
      */
     if (totalPlainLength <= this.maxAllowedSize) {
-      yield text;
+      yield text.substring(mdStart, mdEnd);
       return;
     }
 
     /**
-     * If no boundaries available, yield as single chunk (protected)
+     * Evaluate the boundaries inside this window with a combined score
+     * including balance bonus, keeping the first strictly-highest one (the
+     * list is sorted by score descending, then position; this matches what
+     * a stable sort by combined score would put first). The balance bonus
+     * never exceeds 20, so the scan can stop as soon as no later boundary
+     * can beat the current best.
      */
-    if (boundaries.length === 0) {
-      yield text;
-      return;
-    }
-
-    /**
-     * Get valid boundaries within current text bounds
-     */
-    const validBoundaries = boundaries.filter((b) => b.mdPosition > 0 && b.mdPosition < text.length);
-
-    if (validBoundaries.length === 0) {
-      yield text;
-      return;
-    }
-
-    /**
-     * Evaluate all boundaries with combined score including balance bonus.
-     * Uses pre-computed plainPosition for O(1) size approximation per boundary
-     * instead of parsing markdown for each candidate.
-     * A single pass keeping the first strictly-highest score selects the same
-     * boundary a stable sort by score descending would put first.
-     */
-    let boundary = validBoundaries[0];
+    let boundary: Boundary | undefined;
     let bestScore = -Infinity;
-    for (const b of validBoundaries) {
-      const balanceBonus = this.calculateBalanceBonus(b.plainPosition, totalPlainLength - b.plainPosition);
+    for (const b of boundaries) {
+      if (b.score + 20 <= bestScore) break;
+      if (b.weight > maxWeight || b.mdPosition <= mdStart || b.mdPosition >= mdEnd) continue;
+      const firstSize = b.plainPosition - plainStart;
+      const balanceBonus = this.calculateBalanceBonus(firstSize, totalPlainLength - firstSize);
       const combinedScore = b.score + balanceBonus;
       if (combinedScore > bestScore) {
         bestScore = combinedScore;
@@ -919,54 +853,44 @@ export class TextSplitter extends AbstractNodeSplitter {
     }
 
     /**
+     * If no boundary is available, yield as single chunk (protected)
+     */
+    if (boundary === undefined) {
+      yield text.substring(mdStart, mdEnd);
+      return;
+    }
+
+    /**
      * Compute exact sizes for the selected boundary via getContentSize
      */
     const position = boundary.mdPosition;
-    const firstPart = text.substring(0, position);
-    const secondPart = text.substring(position);
+    const firstPart = text.substring(mdStart, position);
+    const secondPart = text.substring(position, mdEnd);
     const firstPartSize = getContentSize(firstPart);
     const secondPartSize = getContentSize(secondPart);
 
     /**
-     * Filter remaining boundaries to only those with weight <= selected weight
-     * This prevents using weaker boundaries in recursive calls
-     */
-    const lowerWeightBoundaries = boundaries.filter((b) => b.weight <= boundary.weight);
-
-    /**
-     * Recursively process first part if needed
+     * Recursive calls only use boundaries at most as strong as the selected
+     * one, which prevents weaker boundaries from splitting before stronger
+     * ones deeper down
      */
     if (firstPartSize <= this.maxAllowedSize) {
       yield firstPart;
     } else {
-      const firstPartRanges = this.adjustRangesForSubstring(ranges, originalOffset, originalOffset + position);
-      const firstPartBoundaries = this.adjustBoundariesForSubstring(lowerWeightBoundaries, 0, position);
-      yield* this.splitRecursive(firstPart, firstPartBoundaries, firstPartRanges, originalOffset, firstPartSize);
+      yield* this.splitRecursive(text, boundaries, mdStart, position, plainStart, firstPartSize, boundary.weight);
     }
 
-    /**
-     * Recursively process second part if needed
-     */
     if (secondPartSize <= this.maxAllowedSize) {
       yield secondPart;
     } else {
-      const secondPartRanges = this.adjustRangesForSubstring(
-        ranges,
-        originalOffset + position,
-        originalOffset + text.length,
-      );
-      const secondPartBoundaries = this.adjustBoundariesForSubstring(
-        lowerWeightBoundaries,
-        position,
-        text.length,
-        boundary.plainPosition,
-      );
       yield* this.splitRecursive(
-        secondPart,
-        secondPartBoundaries,
-        secondPartRanges,
-        originalOffset + position,
+        text,
+        boundaries,
+        position,
+        mdEnd,
+        boundary.plainPosition,
         secondPartSize,
+        boundary.weight,
       );
     }
   }
