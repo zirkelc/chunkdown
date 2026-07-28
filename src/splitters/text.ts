@@ -55,12 +55,11 @@ type PenalizedRange = {
 };
 
 /**
- * Text boundary with position, type, weight and score information
+ * Text boundary with position, weight and score information
  */
 type Boundary = {
   mdPosition: number;
   plainPosition: number;
-  type: string;
   weight: number;
   score: number;
 };
@@ -735,7 +734,6 @@ export class TextSplitter extends AbstractNodeSplitter {
           boundaries.push({
             mdPosition: mdPosition,
             plainPosition,
-            type: pattern.type,
             weight: pattern.weight,
             score,
           });
@@ -787,7 +785,6 @@ export class TextSplitter extends AbstractNodeSplitter {
           boundaries.push({
             mdPosition,
             plainPosition,
-            type: isPunct ? `word_punct` : `character`,
             weight,
             score,
           });
