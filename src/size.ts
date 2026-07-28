@@ -3,39 +3,70 @@ import { isSection, type Section } from './ast';
 import { fromMarkdownForSizing, toMarkdown, toString } from './markdown';
 
 /**
- * Characters (and CR/tab) whose presence means the text may parse as
- * something other than plain paragraphs, so the fast sizer must not be used.
+ * Characters (and CR/tab) that can change how the text tokenizes at a
+ * structural level (escapes, code spans, autolinks/html, line semantics), so
+ * the fast sizer must not be used at all when any of them is present.
  * Conservative by design: any hit falls back to a real parse.
  */
-const NOT_PLAIN_PROSE = /[\\`*_[\]<>#~|&+=\t\r]/;
+const NOT_PLAIN_PROSE = /[\\`<\t\r]/;
+
+/**
+ * Characters that can open non-paragraph blocks or inline formatting.
+ * Checked after inline links are removed, so characters inside link
+ * destinations and titles (common in URLs) cannot cause a bail-out.
+ */
+const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_[\]>#~|&+=]/;
+
+/**
+ * A well-formed inline link or image on a single line: a label without
+ * brackets, carets or newlines, a destination without parentheses, spaces or
+ * newlines, and an optional quoted title. Only the label is text content;
+ * anything more complex is left in place and caught by the bracket check.
+ */
+const INLINE_LINK = /!?\[([^[\]^\n]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
 
 /**
  * Compute the plain-text content size of markdown that consists only of plain
- * paragraphs, without parsing. Returns undefined when the text might contain
- * any other construct.
+ * paragraphs and well-formed inline links, without parsing. Returns undefined
+ * when the text might contain any other construct.
  *
  * Mirrors what parsing and text extraction would produce for such input:
- * every line loses its leading and trailing spaces, consecutive lines of a
- * paragraph are joined by a newline unless the previous line ends in a hard
- * break (two or more trailing spaces, which contributes nothing), and
- * paragraph boundaries contribute nothing.
+ * inline link syntax contributes only its label text, every line loses its
+ * leading and trailing spaces, consecutive lines of a paragraph are joined by
+ * a newline unless the previous line ends in a hard break (two or more
+ * trailing spaces, which contributes nothing), and paragraph boundaries
+ * contribute nothing.
+ *
+ * Link removal never spans lines, so both texts have the same lines; leading
+ * and trailing spaces are measured on the original line (its prefix and
+ * suffix are shared with the processed line, and spaces inside a label are
+ * content, not line whitespace).
  */
 const sizePlainProse = (text: string): number | undefined => {
   if (NOT_PLAIN_PROSE.test(text)) return undefined;
+
+  let processed = text;
+  if (text.includes('[')) {
+    processed = text.replace(INLINE_LINK, '$1');
+  }
+  if (NOT_PLAIN_PROSE_AFTER_LINKS.test(processed)) return undefined;
 
   let size = 0;
   let previousLineBlank = true;
   let pendingJunction = 0;
 
   let lineStart = 0;
+  let processedLineStart = 0;
   const length = text.length;
 
   while (lineStart <= length) {
     let lineEnd = text.indexOf('\n', lineStart);
     if (lineEnd === -1) lineEnd = length;
+    let processedLineEnd = processed.indexOf('\n', processedLineStart);
+    if (processedLineEnd === -1) processedLineEnd = processed.length;
 
     /**
-     * Strip leading and trailing spaces of this line
+     * Measure leading and trailing spaces on the original line
      */
     let contentStart = lineStart;
     while (contentStart < lineEnd && text.charCodeAt(contentStart) === 32) contentStart++;
@@ -50,6 +81,7 @@ const sizePlainProse = (text: string): number | undefined => {
       pendingJunction = 0;
     } else {
       const leadingSpaces = contentStart - lineStart;
+      const trailingSpaces = lineEnd - contentEnd;
 
       /**
        * A paragraph-opening line with 4+ leading spaces would be indented
@@ -75,19 +107,27 @@ const sizePlainProse = (text: string): number | undefined => {
         if (afterDigits === 46 /* . */ || afterDigits === 41 /* ) */) return undefined;
       }
 
-      size += pendingJunction + (contentEnd - contentStart);
+      /**
+       * A line whose content disappears entirely with its link syntax (e.g.
+       * only links with empty labels) would look like a paragraph break here
+       * while the parser still sees a content line.
+       */
+      const lineSize = processedLineEnd - processedLineStart - leadingSpaces - trailingSpaces;
+      if (lineSize <= 0) return undefined;
+
+      size += pendingJunction + lineSize;
 
       /**
        * Junction to a potential next line: a soft break contributes one
        * newline character, a hard break (two or more trailing spaces)
        * contributes nothing.
        */
-      const trailingSpaces = lineEnd - contentEnd;
       pendingJunction = trailingSpaces >= 2 ? 0 : 1;
       previousLineBlank = false;
     }
 
     lineStart = lineEnd + 1;
+    processedLineStart = processedLineEnd + 1;
   }
 
   return size;
