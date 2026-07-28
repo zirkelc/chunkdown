@@ -26,6 +26,32 @@ const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_[\]>#~|&+=]/;
 const INLINE_LINK = /!?\[([^[\]^\n]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
 
 /**
+ * Compute the plain-text content size of markdown that is a single
+ * backtick-fenced code block, without parsing. Returns undefined when the
+ * text might be anything else.
+ *
+ * Recursive splitting frequently measures the leading part of a code block:
+ * an opening fence with no closing fence. When no other backtick appears
+ * (which also rules out an early closing fence) and line endings are plain,
+ * the parse yields one code node whose value is everything after the fence
+ * line minus a single trailing line ending.
+ */
+const sizeCodeFence = (text: string): number | undefined => {
+  if (!text.startsWith('```')) return undefined;
+  if (text.indexOf('`', 3) !== -1) return undefined;
+  if (text.includes('\r')) return undefined;
+
+  const firstNewline = text.indexOf('\n');
+  if (firstNewline === -1) return 0;
+
+  const contentLength = text.length - firstNewline - 1;
+  if (contentLength > 0 && text.charCodeAt(text.length - 1) === 10 /* \n */) {
+    return contentLength - 1;
+  }
+  return contentLength;
+};
+
+/**
  * Compute the plain-text content size of markdown that consists only of plain
  * paragraphs and well-formed inline links, without parsing. Returns undefined
  * when the text might contain any other construct.
@@ -145,8 +171,8 @@ export const getContentSize = (input: string | Nodes): number => {
 
   // If input is a string, size it directly when possible, else parse it first
   if (typeof input === 'string') {
-    const proseSize = sizePlainProse(input);
-    if (proseSize !== undefined) return proseSize;
+    const fastSize = sizeCodeFence(input) ?? sizePlainProse(input);
+    if (fastSize !== undefined) return fastSize;
 
     const ast = fromMarkdownForSizing(input);
     return getContentSize(ast);
