@@ -21,7 +21,14 @@ const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/;
  * URLs) cannot cause a bail-out — anything that survives the removal
  * genuinely sits in plain text.
  */
-const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_[\]<>#~|&+=`]/;
+const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_<>#~|&+=`]/;
+
+/**
+ * Bracket usage that could still resolve to a construct after well-formed
+ * inline links are removed: another link candidate, reference-style links,
+ * definitions, and footnotes. Brackets not part of these are literal text.
+ */
+const BRACKET_CONSTRUCT = /\]\(|\]\[|\]:|\[\^/;
 
 /**
  * Replace every backslash escape and every isolated single-backtick code
@@ -212,6 +219,7 @@ const sizePlainProse = (text: string): number | undefined => {
     processed = withoutEmphasis;
   }
   if (NOT_PLAIN_PROSE_AFTER_LINKS.test(processed)) return undefined;
+  if (BRACKET_CONSTRUCT.test(processed)) return undefined;
 
   let size = 0;
   let previousLineBlank = true;
