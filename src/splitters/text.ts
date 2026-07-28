@@ -50,7 +50,6 @@ const MARKDOWN_PENALTIES: Record<string, number> = {
 type PenalizedRange = {
   start: number;
   end: number;
-  type: string;
   penalty: number;
 };
 
@@ -455,7 +454,6 @@ export class TextSplitter extends AbstractNodeSplitter {
         ranges.push({
           start: open,
           end: closeEnd,
-          type,
           penalty: this.inlineNodePenalty(type, inner.length),
         });
 
@@ -500,7 +498,6 @@ export class TextSplitter extends AbstractNodeSplitter {
         ranges.push({
           start: open,
           end: nodeEnd,
-          type: 'inlineCode',
           penalty: this.inlineNodePenalty('inlineCode', value.length),
         });
 
@@ -535,7 +532,7 @@ export class TextSplitter extends AbstractNodeSplitter {
       }
 
       const type = isImage ? 'image' : 'link';
-      ranges.push({ start: nodeStart, end: nodeEnd, type, penalty: this.inlineNodePenalty(type, label.length) });
+      ranges.push({ start: nodeStart, end: nodeEnd, penalty: this.inlineNodePenalty(type, label.length) });
 
       lastEnd = nodeEnd;
       INLINE_LINK.lastIndex = lastEnd;
@@ -605,11 +602,11 @@ export class TextSplitter extends AbstractNodeSplitter {
        * Using else-if ensures exactly one range per node (no duplicates).
        */
       if (!this.canSplitNode(node)) {
-        ranges.push({ start, end, type: node.type, penalty: Infinity });
+        ranges.push({ start, end, penalty: Infinity });
       } else {
         const penalty = MARKDOWN_PENALTIES[node.type];
         if (penalty !== undefined) {
-          ranges.push({ start, end, type: node.type, penalty });
+          ranges.push({ start, end, penalty });
         }
       }
 
@@ -642,7 +639,6 @@ export class TextSplitter extends AbstractNodeSplitter {
          */
         last.end = Math.max(last.end, range.end);
         last.penalty = Math.max(last.penalty, range.penalty);
-        last.type = `${last.type}+${range.type}`;
       } else {
         /**
          * Non-overlapping range - add as new entry
