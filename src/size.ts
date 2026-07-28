@@ -4,18 +4,56 @@ import { fromMarkdownForSizing, toMarkdown, toString } from './markdown';
 
 /**
  * Characters (and CR/tab) that can change how the text tokenizes at a
- * structural level (escapes, code spans, autolinks/html, line semantics), so
- * the fast sizer must not be used at all when any of them is present.
+ * structural level (escapes, line semantics), so the fast sizer must not be
+ * used at all when any of them is present.
  * Conservative by design: any hit falls back to a real parse.
  */
-const NOT_PLAIN_PROSE = /[\\`<\t\r]/;
+const NOT_PLAIN_PROSE = /[\\\t\r]/;
 
 /**
- * Characters that can open non-paragraph blocks or inline formatting.
- * Checked after inline links are removed, so characters inside link
- * destinations and titles (common in URLs) cannot cause a bail-out.
+ * Characters that can open non-paragraph blocks, inline formatting,
+ * autolinks or html. Checked after code spans and inline links are removed,
+ * so characters inside code content, link destinations and titles (common in
+ * URLs) cannot cause a bail-out — anything that survives the removal
+ * genuinely sits in plain text.
  */
-const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_[\]>#~|&+=]/;
+const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_[\]<>#~|&+=`]/;
+
+/**
+ * Replace every isolated single-backtick code span with a placeholder of the
+ * span's text-content length, so later passes see neither the span's syntax
+ * nor its content characters. Returns undefined for any backtick usage this
+ * cannot mirror exactly (double backticks, unmatched backticks, spans with
+ * line endings).
+ *
+ * The content contributes its raw characters, minus one leading and one
+ * trailing space when it has both but is not all spaces.
+ */
+const replaceCodeSpans = (text: string): string | undefined => {
+  let result = '';
+  let position = 0;
+
+  while (true) {
+    const open = text.indexOf('`', position);
+    if (open === -1) return result + text.slice(position);
+    if (text.charCodeAt(open + 1) === 96 /* ` */) return undefined;
+
+    const close = text.indexOf('`', open + 1);
+    if (close === -1) return undefined;
+    if (text.charCodeAt(close + 1) === 96 /* ` */) return undefined;
+
+    const content = text.slice(open + 1, close);
+    if (content.includes('\n')) return undefined;
+
+    let valueLength = content.length;
+    if (content.charCodeAt(0) === 32 && content.charCodeAt(content.length - 1) === 32 && content.trim().length > 0) {
+      valueLength -= 2;
+    }
+
+    result += text.slice(position, open) + 'x'.repeat(valueLength);
+    position = close + 1;
+  }
+};
 
 /**
  * A well-formed inline link or image on a single line: a label without
@@ -57,23 +95,30 @@ const sizeCodeFence = (text: string): number | undefined => {
  * when the text might contain any other construct.
  *
  * Mirrors what parsing and text extraction would produce for such input:
- * inline link syntax contributes only its label text, every line loses its
- * leading and trailing spaces, consecutive lines of a paragraph are joined by
- * a newline unless the previous line ends in a hard break (two or more
- * trailing spaces, which contributes nothing), and paragraph boundaries
- * contribute nothing.
+ * code span syntax contributes its content, inline link syntax contributes
+ * only its label text, every line loses its leading and trailing spaces,
+ * consecutive lines of a paragraph are joined by a newline unless the
+ * previous line ends in a hard break (two or more trailing spaces, which
+ * contributes nothing), and paragraph boundaries contribute nothing.
  *
- * Link removal never spans lines, so both texts have the same lines; leading
- * and trailing spaces are measured on the original line (its prefix and
- * suffix are shared with the processed line, and spaces inside a label are
- * content, not line whitespace).
+ * Code spans are removed before links so that backticks inside labels and
+ * brackets inside code cannot form constructs the parser would not see.
+ * Neither removal spans lines, so all texts have the same lines; leading and
+ * trailing spaces are measured on the original line (its prefix and suffix
+ * are shared with the processed line, and spaces inside a label are content,
+ * not line whitespace).
  */
 const sizePlainProse = (text: string): number | undefined => {
   if (NOT_PLAIN_PROSE.test(text)) return undefined;
 
   let processed = text;
-  if (text.includes('[')) {
-    processed = text.replace(INLINE_LINK, '$1');
+  if (processed.includes('`')) {
+    const withoutCode = replaceCodeSpans(processed);
+    if (withoutCode === undefined) return undefined;
+    processed = withoutCode;
+  }
+  if (processed.includes('[')) {
+    processed = processed.replace(INLINE_LINK, '$1');
   }
   if (NOT_PLAIN_PROSE_AFTER_LINKS.test(processed)) return undefined;
 
