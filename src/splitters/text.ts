@@ -289,44 +289,55 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Analyze serialized markdown that is a single line of plain prose plus
-   * well-formed inline links or images, producing the same penalized ranges
-   * and position mapping a parse would, without parsing. Returns undefined
-   * whenever the line might contain anything else.
+   * Analyze serialized markdown that is a single paragraph of plain prose
+   * plus well-formed inline links or images, producing the same penalized
+   * ranges and position mapping a parse would, without parsing. Returns
+   * undefined whenever the text might contain anything else.
    *
-   * Such a line parses to one paragraph whose children are text nodes and
-   * link/image nodes: text between links maps one-to-one, a link contributes
-   * one segment for its label (carrying the enclosing node span) and one
-   * penalized range over the whole link, and empty labels contribute no
-   * segment.
+   * Such a paragraph parses to text nodes and link/image nodes: contiguous
+   * text (including soft line breaks) maps one-to-one as a single segment, a
+   * link contributes one segment for its label (carrying the enclosing node
+   * span) and one penalized range over the whole link, and empty labels
+   * contribute no segment. Spaces adjacent to a newline are bailed on
+   * because line-edge whitespace is stripped or turned into hard breaks by
+   * the parser; blank lines would end the paragraph.
    */
   protected analyzeSimpleLine(markdown: string): { ranges: PenalizedRange[]; mapping: PositionMapping } | undefined {
-    const newline = markdown.indexOf('\n');
-    if (newline !== -1 && newline !== markdown.length - 1) return undefined;
     if (NOT_SIMPLE_STRUCTURE.test(markdown)) return undefined;
 
-    const line = newline === -1 ? markdown : markdown.slice(0, -1);
+    const line = markdown.endsWith('\n') ? markdown.slice(0, -1) : markdown;
     if (line.length === 0) return undefined;
 
     /**
-     * Leading or trailing spaces change what the parser extracts
+     * Spaces or newlines at the paragraph or line edges change what the
+     * parser extracts (stripped whitespace, hard breaks, paragraph ends)
      */
     const first = line.charCodeAt(0);
-    if (first === 32 || line.charCodeAt(line.length - 1) === 32) return undefined;
+    const last = line.charCodeAt(line.length - 1);
+    if (first === 32 || first === 10 || last === 32 || last === 10) return undefined;
+    if (line.includes(' \n') || line.includes('\n ') || line.includes('\n\n')) return undefined;
 
     /**
-     * A dash or an ordered-list marker could open a list or thematic break
+     * A line whose content starts with a dash or an ordered-list marker
+     * could open a list, thematic break or setext underline, or interrupt
+     * the paragraph.
      */
-    if (first === 45 /* - */) return undefined;
-    if (first >= 48 && first <= 57 /* 0-9 */) {
-      let digitEnd = 0;
-      while (digitEnd < line.length) {
-        const code = line.charCodeAt(digitEnd);
-        if (code < 48 || code > 57) break;
-        digitEnd++;
+    let lineStart = 0;
+    while (lineStart !== -1 && lineStart < line.length) {
+      const start = line.charCodeAt(lineStart);
+      if (start === 45 /* - */) return undefined;
+      if (start >= 48 && start <= 57 /* 0-9 */) {
+        let digitEnd = lineStart;
+        while (digitEnd < line.length) {
+          const code = line.charCodeAt(digitEnd);
+          if (code < 48 || code > 57) break;
+          digitEnd++;
+        }
+        const afterDigits = line.charCodeAt(digitEnd);
+        if (afterDigits === 46 /* . */ || afterDigits === 41 /* ) */) return undefined;
       }
-      const afterDigits = line.charCodeAt(digitEnd);
-      if (afterDigits === 46 /* . */ || afterDigits === 41 /* ) */) return undefined;
+      const nextNewline = line.indexOf('\n', lineStart);
+      lineStart = nextNewline === -1 ? -1 : nextNewline + 1;
     }
 
     const ranges: PenalizedRange[] = [];
