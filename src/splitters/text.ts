@@ -75,6 +75,27 @@ type Pattern = {
 };
 
 /**
+ * Characters (and CR/tab) that can change how a line tokenizes at a
+ * structural level (escapes, code spans, autolinks/html, line semantics).
+ */
+const NOT_SIMPLE_STRUCTURE = /[\\`<\t\r]/;
+
+/**
+ * Content that cannot appear in the plain-text parts of a simple line:
+ * formatting and block markers, brackets outside well-formed links, character
+ * references, and autolink-literal candidates (which would become link nodes
+ * with their own penalties and segments).
+ */
+const SIMPLE_TEXT_BAIL = /[*_~>#|&+=[\]]|@|:\/\/|www\./i;
+
+/**
+ * A well-formed inline link or image on a single line: a label without
+ * brackets, carets or newlines, a destination without parentheses, spaces or
+ * newlines, and an optional quoted title.
+ */
+const INLINE_LINK = /(!?)\[([^[\]^\n]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
+
+/**
  * Static patterns for semantic boundary detection.
  * Patterns are matched against plain text (without markdown formatting).
  */
@@ -171,17 +192,27 @@ export class TextSplitter extends AbstractNodeSplitter {
 
   splitNode(node: Nodes): Nodes[] {
     const markdown = toMarkdown(node);
-    /**
-     * Parse the markdown text to get correct position offsets for this text.
-     * The original node has offsets relative to its source document, not to this text.
-     */
-    const ast = fromMarkdown(markdown);
-    const ranges = this.extractPenalizedRanges(ast);
-    /**
-     * Build position mapping for plain text pattern matching.
-     * This enables matching on clean text without markdown formatting pollution.
-     */
-    const mapping = buildPositionMapping(ast, markdown);
+
+    let ranges: PenalizedRange[];
+    let mapping: PositionMapping;
+
+    const simple = this.analyzeSimpleLine(markdown);
+    if (simple !== undefined) {
+      ({ ranges, mapping } = simple);
+    } else {
+      /**
+       * Parse the markdown text to get correct position offsets for this text.
+       * The original node has offsets relative to its source document, not to this text.
+       */
+      const ast = fromMarkdown(markdown);
+      ranges = this.extractPenalizedRanges(ast);
+      /**
+       * Build position mapping for plain text pattern matching.
+       * This enables matching on clean text without markdown formatting pollution.
+       */
+      mapping = buildPositionMapping(ast, markdown);
+    }
+
     const boundaries = this.extractSemanticBoundaries(mapping, ranges);
 
     const nodes: Nodes[] = [];
@@ -211,6 +242,131 @@ export class TextSplitter extends AbstractNodeSplitter {
     }
 
     return nodes;
+  }
+
+  /**
+   * Analyze serialized markdown that is a single line of plain prose plus
+   * well-formed inline links or images, producing the same penalized ranges
+   * and position mapping a parse would, without parsing. Returns undefined
+   * whenever the line might contain anything else.
+   *
+   * Such a line parses to one paragraph whose children are text nodes and
+   * link/image nodes: text between links maps one-to-one, a link contributes
+   * one segment for its label (carrying the enclosing node span) and one
+   * penalized range over the whole link, and empty labels contribute no
+   * segment.
+   */
+  protected analyzeSimpleLine(markdown: string): { ranges: PenalizedRange[]; mapping: PositionMapping } | undefined {
+    const newline = markdown.indexOf('\n');
+    if (newline !== -1 && newline !== markdown.length - 1) return undefined;
+    if (NOT_SIMPLE_STRUCTURE.test(markdown)) return undefined;
+
+    const line = newline === -1 ? markdown : markdown.slice(0, -1);
+    if (line.length === 0) return undefined;
+
+    /**
+     * Leading or trailing spaces change what the parser extracts
+     */
+    const first = line.charCodeAt(0);
+    if (first === 32 || line.charCodeAt(line.length - 1) === 32) return undefined;
+
+    /**
+     * A dash or an ordered-list marker could open a list or thematic break
+     */
+    if (first === 45 /* - */) return undefined;
+    if (first >= 48 && first <= 57 /* 0-9 */) {
+      let digitEnd = 0;
+      while (digitEnd < line.length) {
+        const code = line.charCodeAt(digitEnd);
+        if (code < 48 || code > 57) break;
+        digitEnd++;
+      }
+      const afterDigits = line.charCodeAt(digitEnd);
+      if (afterDigits === 46 /* . */ || afterDigits === 41 /* ) */) return undefined;
+    }
+
+    const ranges: PenalizedRange[] = [];
+    const segments: PositionMapping['segments'] = [];
+    const plainParts: string[] = [];
+    let plainOffset = 0;
+    let lastEnd = 0;
+
+    INLINE_LINK.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: regex.exec assignment in while condition
+    while ((match = INLINE_LINK.exec(line)) !== null) {
+      const text = line.slice(lastEnd, match.index);
+      if (SIMPLE_TEXT_BAIL.test(text)) return undefined;
+
+      if (text.length > 0) {
+        segments.push({
+          plainStart: plainOffset,
+          plainEnd: plainOffset + text.length,
+          mdStart: lastEnd,
+          mdEnd: match.index,
+        });
+        plainParts.push(text);
+        plainOffset += text.length;
+      }
+
+      const isImage = match[1].length > 0;
+      const label = match[2];
+      if (SIMPLE_TEXT_BAIL.test(label)) return undefined;
+
+      const nodeStart = match.index;
+      const nodeEnd = match.index + match[0].length;
+      const labelStart = nodeStart + (isImage ? 2 : 1);
+
+      if (label.length > 0) {
+        segments.push({
+          plainStart: plainOffset,
+          plainEnd: plainOffset + label.length,
+          mdStart: labelStart,
+          mdEnd: labelStart + label.length,
+          nodeStart,
+          nodeEnd,
+        });
+        plainParts.push(label);
+        plainOffset += label.length;
+      }
+
+      const type = isImage ? 'image' : 'link';
+      ranges.push({ start: nodeStart, end: nodeEnd, type, penalty: this.inlineNodePenalty(type, label.length) });
+
+      lastEnd = nodeEnd;
+    }
+
+    const tail = line.slice(lastEnd);
+    if (SIMPLE_TEXT_BAIL.test(tail)) return undefined;
+
+    if (tail.length > 0) {
+      segments.push({
+        plainStart: plainOffset,
+        plainEnd: plainOffset + tail.length,
+        mdStart: lastEnd,
+        mdEnd: line.length,
+      });
+      plainParts.push(tail);
+    }
+
+    return {
+      ranges,
+      mapping: { plain: plainParts.join(''), markdown, segments },
+    };
+  }
+
+  /**
+   * Penalty a link or image range would receive from range extraction:
+   * infinite when its split rule protects it at this content size, the
+   * regular markdown penalty otherwise.
+   */
+  private inlineNodePenalty(type: 'link' | 'image', contentSize: number): number {
+    const rule = this.splitRules[type];
+    if (rule) {
+      if (rule.rule === 'never-split') return Infinity;
+      if (rule.rule === 'size-split' && contentSize <= rule.size) return Infinity;
+    }
+    return MARKDOWN_PENALTIES[type];
   }
 
   /**
