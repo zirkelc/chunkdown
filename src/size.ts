@@ -64,6 +64,66 @@ const replaceCodeSpans = (text: string): string | undefined => {
 const INLINE_LINK = /!?\[([^[\]^\n]*)\]\(([^() \n]*)(?: +(?:"[^"\n]*"|'[^'\n]*'))?\)/g;
 
 /**
+ * Unicode punctuation and symbols, the classes emphasis flanking rules treat
+ * as punctuation.
+ */
+const PUNCTUATION = /[\p{P}\p{S}]/u;
+
+/**
+ * Remove asterisk emphasis markers whose interpretation is unambiguous.
+ * Returns undefined for any asterisk usage this cannot mirror exactly.
+ *
+ * Only runs of one or two asterisks are accepted, strictly alternating
+ * between a pure opener (preceded by start, whitespace or punctuation and
+ * followed by content — such a run cannot also close) and a pure closer of
+ * the same length (preceded by content and followed by end, whitespace or
+ * punctuation). Equal-length pairs sum to 2 or 4, so the rule-of-three
+ * pairing restriction never applies, and the markers simply vanish from the
+ * extracted text.
+ */
+const removeEmphasis = (text: string): string | undefined => {
+  let result = '';
+  let position = 0;
+  let openLength = 0;
+
+  while (true) {
+    const runStart = text.indexOf('*', position);
+    if (runStart === -1) break;
+
+    let runEnd = runStart;
+    while (runEnd < text.length && text.charCodeAt(runEnd) === 42 /* * */) runEnd++;
+    const runLength = runEnd - runStart;
+    if (runLength > 2) return undefined;
+
+    const previous = runStart === 0 ? undefined : text[runStart - 1];
+    const next = runEnd >= text.length ? undefined : text[runEnd];
+
+    const previousIsBoundary = previous === undefined || previous === ' ' || previous === '\n' || PUNCTUATION.test(previous);
+    const nextIsBoundary = next === undefined || next === ' ' || next === '\n' || PUNCTUATION.test(next);
+
+    if (openLength === 0) {
+      /**
+       * Expecting an opener: boundary before, content after
+       */
+      if (!previousIsBoundary || nextIsBoundary) return undefined;
+      openLength = runLength;
+    } else {
+      /**
+       * Expecting the matching closer: content before, boundary after
+       */
+      if (previousIsBoundary || !nextIsBoundary || runLength !== openLength) return undefined;
+      openLength = 0;
+    }
+
+    result += text.slice(position, runStart);
+    position = runEnd;
+  }
+
+  if (openLength !== 0) return undefined;
+  return result + text.slice(position);
+};
+
+/**
  * Compute the plain-text content size of markdown that is a single
  * backtick-fenced code block, without parsing. Returns undefined when the
  * text might be anything else.
@@ -119,6 +179,11 @@ const sizePlainProse = (text: string): number | undefined => {
   }
   if (processed.includes('[')) {
     processed = processed.replace(INLINE_LINK, '$1');
+  }
+  if (processed.includes('*')) {
+    const withoutEmphasis = removeEmphasis(processed);
+    if (withoutEmphasis === undefined) return undefined;
+    processed = withoutEmphasis;
   }
   if (NOT_PLAIN_PROSE_AFTER_LINKS.test(processed)) return undefined;
 
