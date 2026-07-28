@@ -1,0 +1,769 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`cs100-r1.0 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "2c91942a293525e0",
+  "chunks": 32,
+  "text": "21064a71970bb389",
+}
+`;
+
+exports[`cs100-r1.0 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "4beb6de0e6c0499a",
+  "chunks": 218,
+  "text": "e84bd48a6d241135",
+}
+`;
+
+exports[`cs100-r1.0 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "739ca9d4db06ea32",
+  "chunks": 733,
+  "text": "9c634c8ee9b2434c",
+}
+`;
+
+exports[`cs100-r1.0 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "eb543e8c4acf5120",
+  "chunks": 784,
+  "text": "c787321065f71b01",
+}
+`;
+
+exports[`cs100-r1.0 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "9cec03c9e5f859db",
+  "chunks": 181,
+  "text": "180adf0d847b10c8",
+}
+`;
+
+exports[`cs100-r1.0 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "829eea159c72a002",
+  "chunks": 409,
+  "text": "3836e51163716b7e",
+}
+`;
+
+exports[`cs100-r1.0 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "b2bfbb3d43491fb7",
+  "chunks": 2273,
+  "text": "69f604355132c01b",
+}
+`;
+
+exports[`cs100-r1.0 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "2827d932c0486136",
+  "chunks": 2419,
+  "text": "f6b1bb0a389f468f",
+}
+`;
+
+exports[`cs100-r1.0 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "d4c65d0241dbff61",
+  "chunks": 1388,
+  "text": "be2190b195f8bf0a",
+}
+`;
+
+exports[`cs100-r1.0 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "96395e9d3ab8fb40",
+  "chunks": 152,
+  "text": "9fdbbb586f686cc9",
+}
+`;
+
+exports[`cs100-r1.0 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "3d9bfbb45ae15874",
+  "chunks": 709,
+  "text": "e086c4c94ff34be4",
+}
+`;
+
+exports[`cs100-r1.0 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "3cd117ce7b5cd559",
+  "chunks": 843,
+  "text": "0de1b642f3c29fc3",
+}
+`;
+
+exports[`cs100-r1.5 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "6bd11c5480b66ba3",
+  "chunks": 22,
+  "text": "89253c10ea9fc579",
+}
+`;
+
+exports[`cs100-r1.5 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "532ef18ec144da33",
+  "chunks": 150,
+  "text": "2a7fb264cbc086e1",
+}
+`;
+
+exports[`cs100-r1.5 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "e5e54eb4e4cd393d",
+  "chunks": 513,
+  "text": "2765cc9ad2f3de68",
+}
+`;
+
+exports[`cs100-r1.5 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "c6d3a10b6133e5ee",
+  "chunks": 511,
+  "text": "3cb4e36037a49399",
+}
+`;
+
+exports[`cs100-r1.5 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "8058eea1237b50be",
+  "chunks": 124,
+  "text": "2c6b82f71335692a",
+}
+`;
+
+exports[`cs100-r1.5 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "a07ba6621ee8aa42",
+  "chunks": 276,
+  "text": "1b91bdef2c52e20b",
+}
+`;
+
+exports[`cs100-r1.5 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "5e94042b3e876e2b",
+  "chunks": 1475,
+  "text": "63a447a2d79bff8b",
+}
+`;
+
+exports[`cs100-r1.5 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "1207ad83f2ab01b1",
+  "chunks": 1588,
+  "text": "b6b2c2e92d4013fe",
+}
+`;
+
+exports[`cs100-r1.5 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "79135453c3658438",
+  "chunks": 1010,
+  "text": "47e6c631c37a1120",
+}
+`;
+
+exports[`cs100-r1.5 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "52a48a9d2098d886",
+  "chunks": 109,
+  "text": "bb027b8d9e67275b",
+}
+`;
+
+exports[`cs100-r1.5 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "f3cee6035af4fd8b",
+  "chunks": 462,
+  "text": "9a2d5bb002c81a17",
+}
+`;
+
+exports[`cs100-r1.5 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "7b518dcddd163848",
+  "chunks": 559,
+  "text": "192abbc899a97fba",
+}
+`;
+
+exports[`cs250-r1.0 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "6076cc0ec7d78622",
+  "chunks": 14,
+  "text": "e5046dca9ea027d7",
+}
+`;
+
+exports[`cs250-r1.0 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "8eea0ae709e16459",
+  "chunks": 96,
+  "text": "1c1c780408ae3fd2",
+}
+`;
+
+exports[`cs250-r1.0 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "18b7f97442522de1",
+  "chunks": 319,
+  "text": "53da0f31c58b695d",
+}
+`;
+
+exports[`cs250-r1.0 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "7207c7c7a77594b3",
+  "chunks": 307,
+  "text": "0da49628ecc9524a",
+}
+`;
+
+exports[`cs250-r1.0 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "3fd0510c098d87cb",
+  "chunks": 72,
+  "text": "219110760e0697b7",
+}
+`;
+
+exports[`cs250-r1.0 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "99976145faf23e17",
+  "chunks": 169,
+  "text": "3f576bf94d0b7914",
+}
+`;
+
+exports[`cs250-r1.0 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "bc1c1158faf8a894",
+  "chunks": 863,
+  "text": "443e301dc9063460",
+}
+`;
+
+exports[`cs250-r1.0 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "aeb944e01b214a2e",
+  "chunks": 911,
+  "text": "c1b00eafd949c38c",
+}
+`;
+
+exports[`cs250-r1.0 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "3cb2d15701251d16",
+  "chunks": 515,
+  "text": "467717e7d7a3b6f7",
+}
+`;
+
+exports[`cs250-r1.0 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "f810f9a06fa544da",
+  "chunks": 56,
+  "text": "8943bd4881964ad3",
+}
+`;
+
+exports[`cs250-r1.0 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "6c9673f642d01ce9",
+  "chunks": 280,
+  "text": "dc5cfae749b511d5",
+}
+`;
+
+exports[`cs250-r1.0 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "394b56b4b27cb42d",
+  "chunks": 342,
+  "text": "7646798636d59545",
+}
+`;
+
+exports[`cs250-r1.5 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "92795dbcd46f97e0",
+  "chunks": 8,
+  "text": "03b578ba0cdc93c6",
+}
+`;
+
+exports[`cs250-r1.5 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "4168d07e4bd0414d",
+  "chunks": 74,
+  "text": "6f564a783a119ddd",
+}
+`;
+
+exports[`cs250-r1.5 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "c1df180f62f863b5",
+  "chunks": 211,
+  "text": "fe6eb4e43f5457bc",
+}
+`;
+
+exports[`cs250-r1.5 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "6221930bcd5339d0",
+  "chunks": 196,
+  "text": "a767bed7f0cf52d4",
+}
+`;
+
+exports[`cs250-r1.5 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "db97f1d45c047ae9",
+  "chunks": 46,
+  "text": "af979f465dfe98cb",
+}
+`;
+
+exports[`cs250-r1.5 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "d2b709e23989fa71",
+  "chunks": 106,
+  "text": "710df23cd436cec9",
+}
+`;
+
+exports[`cs250-r1.5 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "acddfccc6d1e1d4a",
+  "chunks": 554,
+  "text": "14f73dbbe484bea2",
+}
+`;
+
+exports[`cs250-r1.5 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "7539bfcd3be81759",
+  "chunks": 579,
+  "text": "d9e647adaed281fd",
+}
+`;
+
+exports[`cs250-r1.5 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "9e52cf7e92e7316f",
+  "chunks": 346,
+  "text": "8165c6e6467628b0",
+}
+`;
+
+exports[`cs250-r1.5 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "75a18fa1aaf5d171",
+  "chunks": 40,
+  "text": "701bc28d4c0a27de",
+}
+`;
+
+exports[`cs250-r1.5 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "0081f5eeedd4dbe8",
+  "chunks": 186,
+  "text": "a86b5ff48816ce16",
+}
+`;
+
+exports[`cs250-r1.5 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "c56096f268535cd5",
+  "chunks": 220,
+  "text": "b03eafe483e4b2f0",
+}
+`;
+
+exports[`cs500-r1.0 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "92795dbcd46f97e0",
+  "chunks": 8,
+  "text": "745e0d969ca3eed5",
+}
+`;
+
+exports[`cs500-r1.0 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "e9c026b783e71478",
+  "chunks": 51,
+  "text": "a85cbcc293d306d9",
+}
+`;
+
+exports[`cs500-r1.0 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "8bdb41c69e840d6b",
+  "chunks": 164,
+  "text": "2823d6551bcd92a2",
+}
+`;
+
+exports[`cs500-r1.0 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "50593d6531b6cbd7",
+  "chunks": 148,
+  "text": "b7166224c4d98eb5",
+}
+`;
+
+exports[`cs500-r1.0 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "0f5db00a3cf72436",
+  "chunks": 37,
+  "text": "9db5ed2d2afac318",
+}
+`;
+
+exports[`cs500-r1.0 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "c4612022e02368ee",
+  "chunks": 80,
+  "text": "43f77ce68e84a00d",
+}
+`;
+
+exports[`cs500-r1.0 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "9a1b58bfb026f86a",
+  "chunks": 403,
+  "text": "f36d16140d857b04",
+}
+`;
+
+exports[`cs500-r1.0 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "9fe2749d25a4a7d9",
+  "chunks": 430,
+  "text": "14a539b444bbef28",
+}
+`;
+
+exports[`cs500-r1.0 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "2d91e69322eb66de",
+  "chunks": 262,
+  "text": "6322a3bcd6288d6c",
+}
+`;
+
+exports[`cs500-r1.0 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "11a44a3671651cf2",
+  "chunks": 31,
+  "text": "c0eafc1d4e8801f0",
+}
+`;
+
+exports[`cs500-r1.0 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "f2a10a359d5ac43d",
+  "chunks": 139,
+  "text": "1f728e65550d2a0f",
+}
+`;
+
+exports[`cs500-r1.0 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "d82272a0ab6d2ca8",
+  "chunks": 167,
+  "text": "137436d342e59bed",
+}
+`;
+
+exports[`cs500-r1.5 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "3860c587bed02e57",
+  "chunks": 6,
+  "text": "c5507e52511a53f1",
+}
+`;
+
+exports[`cs500-r1.5 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "f83003727f134625",
+  "chunks": 34,
+  "text": "394770bad380327a",
+}
+`;
+
+exports[`cs500-r1.5 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "f42c01dea0a5bf16",
+  "chunks": 111,
+  "text": "93dde82d7faf7d4c",
+}
+`;
+
+exports[`cs500-r1.5 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "2a00ca0ca4d5dbcb",
+  "chunks": 104,
+  "text": "bb2dcad3c24ae2f0",
+}
+`;
+
+exports[`cs500-r1.5 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "cf47aef17fea2918",
+  "chunks": 25,
+  "text": "76362ce2059aedd8",
+}
+`;
+
+exports[`cs500-r1.5 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "449e0e811004fbc4",
+  "chunks": 54,
+  "text": "af50b4c07b53ed9b",
+}
+`;
+
+exports[`cs500-r1.5 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "49bb90cc06cd3968",
+  "chunks": 263,
+  "text": "8460a0d3dfd3352a",
+}
+`;
+
+exports[`cs500-r1.5 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "b495b9ae0e5660d0",
+  "chunks": 274,
+  "text": "fbfaa6db0472f9e7",
+}
+`;
+
+exports[`cs500-r1.5 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "92ed5b039f63f2ec",
+  "chunks": 171,
+  "text": "c7b9f39855391dea",
+}
+`;
+
+exports[`cs500-r1.5 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "da985f9e9d4432b3",
+  "chunks": 20,
+  "text": "f9a3b818536a2a84",
+}
+`;
+
+exports[`cs500-r1.5 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "ecf93203f6f58c6a",
+  "chunks": 94,
+  "text": "499e2a898893e336",
+}
+`;
+
+exports[`cs500-r1.5 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "9c897ec375edae70",
+  "chunks": 112,
+  "text": "45d2a0895290465c",
+}
+`;
+
+exports[`cs1000-r1.0 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "7438d84c18938d33",
+  "chunks": 5,
+  "text": "773326ef69673a29",
+}
+`;
+
+exports[`cs1000-r1.0 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "e20323b2a9286103",
+  "chunks": 29,
+  "text": "15587fd8822e8a34",
+}
+`;
+
+exports[`cs1000-r1.0 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "6e101b628b81fb14",
+  "chunks": 80,
+  "text": "4659ba0e48f1c92d",
+}
+`;
+
+exports[`cs1000-r1.0 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "a05877d674cc21b7",
+  "chunks": 67,
+  "text": "cf499ab268a12d95",
+}
+`;
+
+exports[`cs1000-r1.0 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "1f489eb719aac0a7",
+  "chunks": 18,
+  "text": "2c3aeee6f83a402b",
+}
+`;
+
+exports[`cs1000-r1.0 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "2539b69a2e002409",
+  "chunks": 40,
+  "text": "0b598b8c4981e142",
+}
+`;
+
+exports[`cs1000-r1.0 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "7f96f3f6aacee5dc",
+  "chunks": 192,
+  "text": "aa5c89fdaa7412ef",
+}
+`;
+
+exports[`cs1000-r1.0 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "a98fb35a0ad03588",
+  "chunks": 202,
+  "text": "c47f980efe1b4876",
+}
+`;
+
+exports[`cs1000-r1.0 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "96195b27fe2d55f3",
+  "chunks": 129,
+  "text": "c69cb118f70c7665",
+}
+`;
+
+exports[`cs1000-r1.0 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "63fdacfb382a5bb4",
+  "chunks": 16,
+  "text": "b89ad0480eefed83",
+}
+`;
+
+exports[`cs1000-r1.0 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "9b90749812f6eaec",
+  "chunks": 65,
+  "text": "111dea7b0974f655",
+}
+`;
+
+exports[`cs1000-r1.0 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "625fcc430528a776",
+  "chunks": 82,
+  "text": "dd6bd7bbcb71ed0f",
+}
+`;
+
+exports[`cs1000-r1.5 > ai-sdk-overview 1`] = `
+{
+  "breadcrumbs": "aac58df467cc8192",
+  "chunks": 4,
+  "text": "d83f109edf1a3427",
+}
+`;
+
+exports[`cs1000-r1.5 > ai-sdk-prompts 1`] = `
+{
+  "breadcrumbs": "9f81b83d333eed88",
+  "chunks": 20,
+  "text": "04369ddf861ecb85",
+}
+`;
+
+exports[`cs1000-r1.5 > ai-sdk-tools 1`] = `
+{
+  "breadcrumbs": "84f25c95045222db",
+  "chunks": 52,
+  "text": "889192b35d940fce",
+}
+`;
+
+exports[`cs1000-r1.5 > flat-photosynthesis 1`] = `
+{
+  "breadcrumbs": "110a6b34e6ec7998",
+  "chunks": 48,
+  "text": "1dbd86f83258e9ea",
+}
+`;
+
+exports[`cs1000-r1.5 > flat-photosynthesis-small 1`] = `
+{
+  "breadcrumbs": "517d73fadace09fe",
+  "chunks": 11,
+  "text": "6663558fd046c74c",
+}
+`;
+
+exports[`cs1000-r1.5 > rust-book-ownership 1`] = `
+{
+  "breadcrumbs": "f5dd7aa6a0d28b31",
+  "chunks": 27,
+  "text": "57d70526c0bb78a5",
+}
+`;
+
+exports[`cs1000-r1.5 > spec-commonmark 1`] = `
+{
+  "breadcrumbs": "4ab8dcd262972caa",
+  "chunks": 132,
+  "text": "820da2b9982c934a",
+}
+`;
+
+exports[`cs1000-r1.5 > spec-gfm 1`] = `
+{
+  "breadcrumbs": "a73c7584ced749e4",
+  "chunks": 140,
+  "text": "bf59177ab2538db8",
+}
+`;
+
+exports[`cs1000-r1.5 > wikipedia-berlin 1`] = `
+{
+  "breadcrumbs": "c2f6233da1e5a84f",
+  "chunks": 80,
+  "text": "86c950f666c85306",
+}
+`;
+
+exports[`cs1000-r1.5 > wikipedia-markdown 1`] = `
+{
+  "breadcrumbs": "cc9a04a9f5aa6382",
+  "chunks": 12,
+  "text": "eda2d86c0c3c4014",
+}
+`;
+
+exports[`cs1000-r1.5 > wikipedia-python 1`] = `
+{
+  "breadcrumbs": "af997dc821bad638",
+  "chunks": 46,
+  "text": "7407db092e812f5d",
+}
+`;
+
+exports[`cs1000-r1.5 > wikipedia-transformer 1`] = `
+{
+  "breadcrumbs": "e2da611811cc1670",
+  "chunks": 57,
+  "text": "601f78fcc5d2afc6",
+}
+`;
