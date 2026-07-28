@@ -22,29 +22,37 @@ declare module 'mdast' {
   }
 }
 
-export const fromMarkdown = (value: Value): Root => {
-  return mdastFromMarkdown(value, {
-    extensions: [gfm()],
+/**
+ * Parser and serializer extensions are stateless configuration, so they are
+ * built once at module scope instead of on every call.
+ */
+const fromMarkdownOptions = {
+  extensions: [gfm()],
 
-    mdastExtensions: [
-      // https://github.com/syntax-tree/mdast-util-gfm-table
-      gfmFromMarkdown(),
-    ],
-  });
+  mdastExtensions: [
+    // https://github.com/syntax-tree/mdast-util-gfm-table
+    gfmFromMarkdown(),
+  ],
+};
+
+const toMarkdownOptions = {
+  // Always use resource links [text](url) instead of autolinks <url>
+  resourceLink: true,
+  extensions: [
+    // https://github.com/syntax-tree/mdast-util-gfm-table
+    gfmToMarkdown({
+      // Disable delimiter alignment in tables to save useless characters
+      tablePipeAlign: false,
+    }),
+  ],
+};
+
+export const fromMarkdown = (value: Value): Root => {
+  return mdastFromMarkdown(value, fromMarkdownOptions);
 };
 
 export const toMarkdown = (tree: Nodes): string => {
-  return mdastToMarkdown(tree, {
-    // Always use resource links [text](url) instead of autolinks <url>
-    resourceLink: true,
-    extensions: [
-      // https://github.com/syntax-tree/mdast-util-gfm-table
-      gfmToMarkdown({
-        // Disable delimiter alignment in tables to save useless characters
-        tablePipeAlign: false,
-      }),
-    ],
-  });
+  return mdastToMarkdown(tree, toMarkdownOptions);
 };
 
 /**
