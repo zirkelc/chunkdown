@@ -3,12 +3,16 @@ import { isSection, type Section } from './ast';
 import { fromMarkdownForSizing, toMarkdown, toString } from './markdown';
 
 /**
- * Characters (and CR/tab) that can change how the text tokenizes at a
- * structural level (escapes, line semantics), so the fast sizer must not be
+ * Characters that can change line semantics, so the fast sizer must not be
  * used at all when any of them is present.
  * Conservative by design: any hit falls back to a real parse.
  */
-const NOT_PLAIN_PROSE = /[\\\t\r]/;
+const NOT_PLAIN_PROSE = /[\t\r]/;
+
+/**
+ * ASCII punctuation, the set of characters a backslash escapes.
+ */
+const ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/;
 
 /**
  * Characters that can open non-paragraph blocks, inline formatting,
@@ -20,21 +24,43 @@ const NOT_PLAIN_PROSE = /[\\\t\r]/;
 const NOT_PLAIN_PROSE_AFTER_LINKS = /[*_[\]<>#~|&+=`]/;
 
 /**
- * Replace every isolated single-backtick code span with a placeholder of the
- * span's text-content length, so later passes see neither the span's syntax
- * nor its content characters. Returns undefined for any backtick usage this
- * cannot mirror exactly (double backticks, unmatched backticks, spans with
- * line endings).
+ * Replace every backslash escape and every isolated single-backtick code
+ * span with placeholders of their text-content length, so later passes see
+ * neither the syntax nor the content characters. The two are handled in one
+ * left-to-right pass because each can neutralize the other: an escaped
+ * backtick is literal, and a backslash inside a code span is content.
+ * Returns undefined for anything this cannot mirror exactly (hard breaks,
+ * double or unmatched backticks, spans with line endings).
  *
- * The content contributes its raw characters, minus one leading and one
- * trailing space when it has both but is not all spaces.
+ * An escaped ASCII punctuation character contributes one character, a
+ * backslash before anything else is itself literal, and code span content
+ * contributes its raw characters, minus one leading and one trailing space
+ * when it has both but is not all spaces.
  */
-const replaceCodeSpans = (text: string): string | undefined => {
+const replaceEscapesAndCodeSpans = (text: string): string | undefined => {
   let result = '';
   let position = 0;
 
   while (true) {
-    const open = text.indexOf('`', position);
+    const nextBackslash = text.indexOf('\\', position);
+    const nextBacktick = text.indexOf('`', position);
+
+    if (nextBackslash !== -1 && (nextBacktick === -1 || nextBackslash < nextBacktick)) {
+      const escaped = text[nextBackslash + 1];
+      if (escaped === undefined) {
+        /**
+         * A trailing backslash is literal
+         */
+        return result + text.slice(position);
+      }
+      if (escaped === '\n') return undefined;
+
+      result += text.slice(position, nextBackslash) + 'x';
+      position = nextBackslash + (ASCII_PUNCTUATION.test(escaped) ? 2 : 1);
+      continue;
+    }
+
+    const open = nextBacktick;
     if (open === -1) return result + text.slice(position);
     if (text.charCodeAt(open + 1) === 96 /* ` */) return undefined;
 
@@ -172,8 +198,8 @@ const sizePlainProse = (text: string): number | undefined => {
   if (NOT_PLAIN_PROSE.test(text)) return undefined;
 
   let processed = text;
-  if (processed.includes('`')) {
-    const withoutCode = replaceCodeSpans(processed);
+  if (processed.includes('`') || processed.includes('\\')) {
+    const withoutCode = replaceEscapesAndCodeSpans(processed);
     if (withoutCode === undefined) return undefined;
     processed = withoutCode;
   }
