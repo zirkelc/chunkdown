@@ -23,6 +23,13 @@ const SEMANTIC_WEIGHTS = {
 } as const;
 
 /**
+ * Upper bound of the balance bonus: a perfectly even split (ratio 0.5)
+ * scores the full bonus. The recursive scan's early exit relies on this cap,
+ * so the bonus formula is expressed in terms of it.
+ */
+const MAX_BALANCE_BONUS = 20;
+
+/**
  * Punctuation characters used as preferred split points inside words
  * (e.g. URLs, paths, kebab/snake identifiers).
  */
@@ -666,14 +673,14 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * Calculate a balance bonus (0-20) based on how evenly a split divides the text.
-   * Perfectly balanced splits get maximum bonus.
+   * Calculate a balance bonus (0 to the cap) based on how evenly a split
+   * divides the text. Perfectly balanced splits get maximum bonus.
    */
   protected calculateBalanceBonus(firstSize: number, secondSize: number): number {
     const total = firstSize + secondSize;
     if (total === 0) return 0;
     const ratio = Math.min(firstSize, secondSize) / total;
-    return Math.round(ratio * 40);
+    return Math.round(ratio * 2 * MAX_BALANCE_BONUS);
   }
 
   /**
@@ -828,13 +835,13 @@ export class TextSplitter extends AbstractNodeSplitter {
      * including balance bonus, keeping the first strictly-highest one (the
      * list is sorted by score descending, then position; this matches what
      * a stable sort by combined score would put first). The balance bonus
-     * never exceeds 20, so the scan can stop as soon as no later boundary
-     * can beat the current best.
+     * is capped, so the scan can stop as soon as no later boundary can beat
+     * the current best.
      */
     let boundary: Boundary | undefined;
     let bestScore = -Infinity;
     for (const b of boundaries) {
-      if (b.score + 20 <= bestScore) break;
+      if (b.score + MAX_BALANCE_BONUS <= bestScore) break;
       if (b.weight > maxWeight || b.mdPosition <= mdStart || b.mdPosition >= mdEnd) continue;
       const firstSize = b.plainPosition - plainStart;
       const balanceBonus = this.calculateBalanceBonus(firstSize, totalPlainLength - firstSize);
