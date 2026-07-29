@@ -146,7 +146,7 @@ const pct = (a: number, b: number) => {
 };
 
 const fixtureNames = [...new Set(rows.map((r) => r.fixture))];
-const header = ['fixture', `A ${labelA}`, `B ${labelB}`, 'delta'];
+const header = ['fixture', 'A (base)', 'B (pr)', 'delta'];
 const table: Array<Array<string>> = [];
 
 for (const name of fixtureNames) {
@@ -166,6 +166,8 @@ const line = (cells: Array<string>) => `| ${cells.map((c, i) => c.padEnd(widths[
 console.log(
   `\ninterleaved A/B, fastest of ${RUNS} runs per cell, milliseconds (summed over ${PRESETS.length} presets)\n`,
 );
+console.log(`- A: ${labelA}`);
+console.log(`- B: ${labelB}\n`);
 console.log(line(header));
 console.log(`|${widths.map((w) => '-'.repeat(w + 2)).join('|')}|`);
 for (const row of table) console.log(line(row));
@@ -178,10 +180,10 @@ const totalDelta = ((totalB - totalA) / totalA) * 100;
 
 let conclusion: string;
 if (totalDelta <= -NOISE_PERCENT) {
-  conclusion = `🟢 B is ${Math.abs(totalDelta).toFixed(1)}% faster than A`;
+  conclusion = `🟢 B (pr) is ${Math.abs(totalDelta).toFixed(1)}% faster than A (base)`;
 } else if (totalDelta >= NOISE_PERCENT) {
-  conclusion = `🔴 B is ${totalDelta.toFixed(1)}% slower than A`;
+  conclusion = `🔴 B (pr) is ${totalDelta.toFixed(1)}% slower than A (base)`;
 } else {
-  conclusion = `⚪ B is within noise of A (${pct(totalA, totalB)})`;
+  conclusion = `⚪ B (pr) is within noise of A (base) (${pct(totalA, totalB)})`;
 }
 console.log(`\n${conclusion}`);

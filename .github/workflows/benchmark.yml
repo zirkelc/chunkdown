@@ -53,6 +53,8 @@ jobs:
             echo
             echo "Interleaved A/B, fastest of 7 runs per cell, total milliseconds over all presets."
             echo
+            grep '^- ' bench.txt
+            echo
             grep '^|' bench.txt
             echo
             echo "**$(grep -E '^(🟢|🔴|⚪)' bench.txt)**"
