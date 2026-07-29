@@ -99,6 +99,65 @@ describe('Markdown', () => {
       expect(result.trim()).toBe('Visit [https://github.com](https://github.com) for more info');
     });
 
+    /**
+     * Parsing runs only the GFM autolink tokenizer; the additional
+     * autolink-literal tree transform is dropped for performance. These tests
+     * pin both sides of that decision: which literals still become links
+     * (tokenizer) and which no longer do (transform-only positions).
+     */
+    describe('autolink literals', () => {
+      const firstLinkUrl = (markdown: string): string | undefined => {
+        // Arrange + Act
+        const ast = fromMarkdown(markdown);
+        let url: string | undefined;
+        const walk = (node: { type: string; url?: string; children?: Array<unknown> }): void => {
+          if (url === undefined && node.type === 'link') url = node.url;
+          for (const child of node.children ?? []) {
+            walk(child as { type: string; children?: Array<unknown> });
+          }
+        };
+        walk(ast);
+        return url;
+      };
+
+      it('should autolink literals the tokenizer recognizes', () => {
+        // Assert
+        expect(firstLinkUrl('https://github.com at line start')).toBe('https://github.com');
+        expect(firstLinkUrl('Visit https://github.com mid-text')).toBe('https://github.com');
+        expect(firstLinkUrl('see www.example.com site')).toBe('http://www.example.com');
+        expect(firstLinkUrl('contact a@b.com by mail')).toBe('mailto:a@b.com');
+        expect(firstLinkUrl('(https://github.com) in parens')).toBe('https://github.com');
+        expect(firstLinkUrl('x,https://github.com after punctuation')).toBe('https://github.com');
+        expect(firstLinkUrl('*https://github.com* emphasized')).toBe('https://github.com');
+        expect(firstLinkUrl('> quoted https://github.com')).toBe('https://github.com');
+        expect(firstLinkUrl('| https://github.com |\n| --- |\n| a |')).toBe('https://github.com');
+      });
+
+      it('should not autolink literals directly after a literal bracket', () => {
+        // Assert
+        // Only the dropped transform caught a literal whose preceding
+        // character is an unmatched "[": those now stay plain text.
+        expect(firstLinkUrl('[https://github.com] in brackets')).toBe(undefined);
+        expect(firstLinkUrl('[www.example.com] in brackets')).toBe(undefined);
+        expect(firstLinkUrl('[a@b.com] in brackets')).toBe(undefined);
+        expect(firstLinkUrl('text[https://github.com glued to bracket')).toBe(undefined);
+      });
+
+      it('should keep unlinked literals as escaped text through a roundtrip', () => {
+        // Arrange
+        const text = '[https://github.com] in brackets';
+
+        // Act
+        const result = toMarkdown(fromMarkdown(text)).trim();
+
+        // Assert
+        // The serializer escapes the characters so the output cannot turn
+        // into a link reference or autolink when parsed again.
+        expect(result).toBe('\\[https\\://github.com] in brackets');
+        expect(toString(fromMarkdown(result))).toBe(text);
+      });
+    });
+
     it('should handle code blocks with language', () => {
       const markdown = `\`\`\`javascript
 console.log('hello');
@@ -532,6 +591,25 @@ describe('Normalization', () => {
       expect(result).toContain('missing');
     });
 
+    it('collects definitions nested in flow containers', () => {
+      // Definitions are collected by walking flow containers only; this pins
+      // that definitions inside blockquotes and lists are still found.
+      const text = '> [ref]: https://example.com\n\nCheck [link][ref].';
+      const options: SplitterOptions = {
+        chunkSize: 100,
+        maxOverflowRatio: 2,
+        rules: { link: { style: 'inline' } },
+      };
+      const result = markdown(text, options);
+
+      expect(result).toContain('[link](https://example.com)');
+
+      const listText = '- item\n\n  [ref2]: https://example.org\n\nSee [two][ref2].';
+      const listResult = markdown(listText, options);
+
+      expect(listResult).toContain('[two](https://example.org)');
+    });
+
     it('handles mixed inline and reference-style links', () => {
       const text = `Check [inline](https://inline.com) and [reference][ref].
 
@@ -684,5 +762,23 @@ describe('Transform', () => {
 
     expect(result).not.toContain('[site](https://tracking.com)');
     expect(result).toContain('![alt text](https://cdn.com/img.jpg)');
+  });
+});
+
+describe('parser extensions', () => {
+  it('should find the autolink-literal extension as the only gfm extension with transforms', async () => {
+    // Arrange
+    const { gfmFromMarkdown } = await import('mdast-util-gfm');
+
+    // Act
+    const withTransforms = gfmFromMarkdown().filter((extension) => (extension.transforms?.length ?? 0) > 0);
+
+    // Assert
+    // Parsing drops the autolink-literal transform: autolink detection is
+    // what the GFM tokenizer catches. This pins the assumption that no other
+    // gfm extension defines transforms; if an upgrade adds one, decide anew
+    // whether it should run.
+    expect(withTransforms.length).toBe(1);
+    expect(typeof withTransforms[0].enter?.literalAutolink).toBe('function');
   });
 });

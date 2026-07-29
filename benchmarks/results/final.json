@@ -1,0 +1,678 @@
+{
+  "runs": 9,
+  "measurements": [
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs100-r1.0",
+      "bytes": 2229,
+      "minMs": 1.9987090000000194,
+      "chunks": 32
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs100-r1.0",
+      "bytes": 17559,
+      "minMs": 11.210667,
+      "chunks": 218
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs100-r1.0",
+      "bytes": 53807,
+      "minMs": 42.123457999999914,
+      "chunks": 733
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs100-r1.0",
+      "bytes": 20190,
+      "minMs": 10.586125000000038,
+      "chunks": 181
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs100-r1.0",
+      "bytes": 82938,
+      "minMs": 50.67854199999988,
+      "chunks": 784
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs100-r1.0",
+      "bytes": 26686,
+      "minMs": 15.152624999999944,
+      "chunks": 409
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs100-r1.0",
+      "bytes": 206191,
+      "minMs": 125.55441599999995,
+      "chunks": 2273
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs100-r1.0",
+      "bytes": 216758,
+      "minMs": 140.66495899999973,
+      "chunks": 2419
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs100-r1.0",
+      "bytes": 128998,
+      "minMs": 76.41399999999976,
+      "chunks": 1388
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs100-r1.0",
+      "bytes": 13769,
+      "minMs": 9.58075000000008,
+      "chunks": 152
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs100-r1.0",
+      "bytes": 60454,
+      "minMs": 37.784208999999464,
+      "chunks": 709
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs100-r1.0",
+      "bytes": 63068,
+      "minMs": 30.12079100000028,
+      "chunks": 843
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs250-r1.0",
+      "bytes": 2229,
+      "minMs": 1.0399999999999636,
+      "chunks": 14
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs250-r1.0",
+      "bytes": 17559,
+      "minMs": 7.020125000000007,
+      "chunks": 96
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs250-r1.0",
+      "bytes": 53807,
+      "minMs": 28.53704199999993,
+      "chunks": 319
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs250-r1.0",
+      "bytes": 20190,
+      "minMs": 9.992833000000246,
+      "chunks": 72
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs250-r1.0",
+      "bytes": 82938,
+      "minMs": 46.31883300000027,
+      "chunks": 307
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs250-r1.0",
+      "bytes": 26686,
+      "minMs": 11.654999999999745,
+      "chunks": 169
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs250-r1.0",
+      "bytes": 206191,
+      "minMs": 106.83970899999986,
+      "chunks": 863
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs250-r1.0",
+      "bytes": 216758,
+      "minMs": 107.63674999999967,
+      "chunks": 911
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs250-r1.0",
+      "bytes": 128998,
+      "minMs": 72.85916700000053,
+      "chunks": 515
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs250-r1.0",
+      "bytes": 13769,
+      "minMs": 6.79620900000009,
+      "chunks": 56
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs250-r1.0",
+      "bytes": 60454,
+      "minMs": 33.04158300000017,
+      "chunks": 280
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs250-r1.0",
+      "bytes": 63068,
+      "minMs": 26.03095900000153,
+      "chunks": 342
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs500-r1.0",
+      "bytes": 2229,
+      "minMs": 0.9745000000002619,
+      "chunks": 8
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs500-r1.0",
+      "bytes": 17559,
+      "minMs": 5.33179200000086,
+      "chunks": 51
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs500-r1.0",
+      "bytes": 53807,
+      "minMs": 21.42333300000064,
+      "chunks": 164
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs500-r1.0",
+      "bytes": 20190,
+      "minMs": 8.959165999998731,
+      "chunks": 37
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs500-r1.0",
+      "bytes": 82938,
+      "minMs": 42.31720899999891,
+      "chunks": 148
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs500-r1.0",
+      "bytes": 26686,
+      "minMs": 10.453208000000814,
+      "chunks": 80
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs500-r1.0",
+      "bytes": 206191,
+      "minMs": 87.27199999999903,
+      "chunks": 403
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs500-r1.0",
+      "bytes": 216758,
+      "minMs": 93.1447500000013,
+      "chunks": 430
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs500-r1.0",
+      "bytes": 128998,
+      "minMs": 67.3262080000004,
+      "chunks": 262
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs500-r1.0",
+      "bytes": 13769,
+      "minMs": 5.542166000001089,
+      "chunks": 31
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs500-r1.0",
+      "bytes": 60454,
+      "minMs": 28.386207999999897,
+      "chunks": 139
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs500-r1.0",
+      "bytes": 63068,
+      "minMs": 23.30779199999961,
+      "chunks": 167
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs1000-r1.0",
+      "bytes": 2229,
+      "minMs": 1.0560000000004948,
+      "chunks": 5
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs1000-r1.0",
+      "bytes": 17559,
+      "minMs": 4.7164579999989655,
+      "chunks": 29
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs1000-r1.0",
+      "bytes": 53807,
+      "minMs": 17.715125000002445,
+      "chunks": 80
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs1000-r1.0",
+      "bytes": 20190,
+      "minMs": 7.589625000000524,
+      "chunks": 18
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs1000-r1.0",
+      "bytes": 82938,
+      "minMs": 38.709624999999505,
+      "chunks": 67
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs1000-r1.0",
+      "bytes": 26686,
+      "minMs": 8.67658400000073,
+      "chunks": 40
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs1000-r1.0",
+      "bytes": 206191,
+      "minMs": 83.95937499999854,
+      "chunks": 192
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs1000-r1.0",
+      "bytes": 216758,
+      "minMs": 87.92754200000127,
+      "chunks": 202
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs1000-r1.0",
+      "bytes": 128998,
+      "minMs": 56.38370899999791,
+      "chunks": 129
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs1000-r1.0",
+      "bytes": 13769,
+      "minMs": 5.682917000001908,
+      "chunks": 16
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs1000-r1.0",
+      "bytes": 60454,
+      "minMs": 25.267500000001746,
+      "chunks": 65
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs1000-r1.0",
+      "bytes": 63068,
+      "minMs": 20.537625000000844,
+      "chunks": 82
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs100-r1.5",
+      "bytes": 2229,
+      "minMs": 1.3608749999984866,
+      "chunks": 22
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs100-r1.5",
+      "bytes": 17559,
+      "minMs": 9.068082999998296,
+      "chunks": 150
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs100-r1.5",
+      "bytes": 53807,
+      "minMs": 34.51204200000211,
+      "chunks": 513
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs100-r1.5",
+      "bytes": 20190,
+      "minMs": 10.111417000000074,
+      "chunks": 124
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs100-r1.5",
+      "bytes": 82938,
+      "minMs": 46.198167000002286,
+      "chunks": 511
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs100-r1.5",
+      "bytes": 26686,
+      "minMs": 13.168000000001484,
+      "chunks": 276
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs100-r1.5",
+      "bytes": 206191,
+      "minMs": 113.89704100000017,
+      "chunks": 1475
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs100-r1.5",
+      "bytes": 216758,
+      "minMs": 122.28608399999939,
+      "chunks": 1588
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs100-r1.5",
+      "bytes": 128998,
+      "minMs": 79.18920900000012,
+      "chunks": 1010
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs100-r1.5",
+      "bytes": 13769,
+      "minMs": 8.146499999998923,
+      "chunks": 109
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs100-r1.5",
+      "bytes": 60454,
+      "minMs": 35.438750000001164,
+      "chunks": 462
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs100-r1.5",
+      "bytes": 63068,
+      "minMs": 28.06512500000099,
+      "chunks": 559
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs250-r1.5",
+      "bytes": 2229,
+      "minMs": 1.0037499999998545,
+      "chunks": 8
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs250-r1.5",
+      "bytes": 17559,
+      "minMs": 6.203457999999955,
+      "chunks": 74
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs250-r1.5",
+      "bytes": 53807,
+      "minMs": 22.791541999999026,
+      "chunks": 211
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs250-r1.5",
+      "bytes": 20190,
+      "minMs": 9.235917000001791,
+      "chunks": 46
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs250-r1.5",
+      "bytes": 82938,
+      "minMs": 44.56879200000185,
+      "chunks": 196
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs250-r1.5",
+      "bytes": 26686,
+      "minMs": 10.93895799999882,
+      "chunks": 106
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs250-r1.5",
+      "bytes": 206191,
+      "minMs": 94.03070899999875,
+      "chunks": 554
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs250-r1.5",
+      "bytes": 216758,
+      "minMs": 98.21399999999994,
+      "chunks": 579
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs250-r1.5",
+      "bytes": 128998,
+      "minMs": 71.03362500000003,
+      "chunks": 346
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs250-r1.5",
+      "bytes": 13769,
+      "minMs": 5.949709000000439,
+      "chunks": 40
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs250-r1.5",
+      "bytes": 60454,
+      "minMs": 30.66608300000007,
+      "chunks": 186
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs250-r1.5",
+      "bytes": 63068,
+      "minMs": 25.1182919999992,
+      "chunks": 220
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs500-r1.5",
+      "bytes": 2229,
+      "minMs": 1.0008749999979045,
+      "chunks": 6
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs500-r1.5",
+      "bytes": 17559,
+      "minMs": 4.779707999998209,
+      "chunks": 34
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs500-r1.5",
+      "bytes": 53807,
+      "minMs": 19.189667000002373,
+      "chunks": 111
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs500-r1.5",
+      "bytes": 20190,
+      "minMs": 8.818249999996624,
+      "chunks": 25
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs500-r1.5",
+      "bytes": 82938,
+      "minMs": 40.42341699999815,
+      "chunks": 104
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs500-r1.5",
+      "bytes": 26686,
+      "minMs": 10.34287499999482,
+      "chunks": 54
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs500-r1.5",
+      "bytes": 206191,
+      "minMs": 82.32879200000025,
+      "chunks": 263
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs500-r1.5",
+      "bytes": 216758,
+      "minMs": 93.3247080000001,
+      "chunks": 274
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs500-r1.5",
+      "bytes": 128998,
+      "minMs": 63.488290999994206,
+      "chunks": 171
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs500-r1.5",
+      "bytes": 13769,
+      "minMs": 5.699000000000524,
+      "chunks": 20
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs500-r1.5",
+      "bytes": 60454,
+      "minMs": 27.40283400000044,
+      "chunks": 94
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs500-r1.5",
+      "bytes": 63068,
+      "minMs": 22.676957999996375,
+      "chunks": 112
+    },
+    {
+      "fixture": "ai-sdk-overview",
+      "preset": "cs1000-r1.5",
+      "bytes": 2229,
+      "minMs": 0.9759999999951106,
+      "chunks": 4
+    },
+    {
+      "fixture": "ai-sdk-prompts",
+      "preset": "cs1000-r1.5",
+      "bytes": 17559,
+      "minMs": 4.104041999999026,
+      "chunks": 20
+    },
+    {
+      "fixture": "ai-sdk-tools",
+      "preset": "cs1000-r1.5",
+      "bytes": 53807,
+      "minMs": 16.839999999996508,
+      "chunks": 52
+    },
+    {
+      "fixture": "flat-photosynthesis-small",
+      "preset": "cs1000-r1.5",
+      "bytes": 20190,
+      "minMs": 7.5981250000040745,
+      "chunks": 11
+    },
+    {
+      "fixture": "flat-photosynthesis",
+      "preset": "cs1000-r1.5",
+      "bytes": 82938,
+      "minMs": 36.336167000001296,
+      "chunks": 48
+    },
+    {
+      "fixture": "rust-book-ownership",
+      "preset": "cs1000-r1.5",
+      "bytes": 26686,
+      "minMs": 8.296249999999418,
+      "chunks": 27
+    },
+    {
+      "fixture": "spec-commonmark",
+      "preset": "cs1000-r1.5",
+      "bytes": 206191,
+      "minMs": 80.25708299999678,
+      "chunks": 132
+    },
+    {
+      "fixture": "spec-gfm",
+      "preset": "cs1000-r1.5",
+      "bytes": 216758,
+      "minMs": 90.32816699999967,
+      "chunks": 140
+    },
+    {
+      "fixture": "wikipedia-berlin",
+      "preset": "cs1000-r1.5",
+      "bytes": 128998,
+      "minMs": 56.32012499999837,
+      "chunks": 80
+    },
+    {
+      "fixture": "wikipedia-markdown",
+      "preset": "cs1000-r1.5",
+      "bytes": 13769,
+      "minMs": 5.553166000005149,
+      "chunks": 12
+    },
+    {
+      "fixture": "wikipedia-python",
+      "preset": "cs1000-r1.5",
+      "bytes": 60454,
+      "minMs": 24.877250000005006,
+      "chunks": 46
+    },
+    {
+      "fixture": "wikipedia-transformer",
+      "preset": "cs1000-r1.5",
+      "bytes": 63068,
+      "minMs": 20.99879200000578,
+      "chunks": 57
+    }
+  ],
+  "totalMs": 3415.454547999997
+}

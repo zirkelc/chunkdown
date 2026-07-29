@@ -1,0 +1,39 @@
+commit	delta1	delta2	status	description
+418d751	-5.3%	-4.8%	keep	E1 hoist gfm parser/serializer extension construction to module scope in markdown.ts
+a517259	+0.1%		discard	E2 WeakMap cache for getContentSize(node) - no measurable win, toString on nodes is cheap
+4e37f70	-0.8%	-0.6%	keep	E3 linear first-max scan replaces map+sort in splitRecursive; kept under simplicity clause (removes sort+allocs, adds no complexity, both runs positive)
+acd2997	-3.4%	-3.2%	keep	E4 size-only parse variant skips toString-neutral autolink-literal transform
+76b794a	-0.8%	-0.4%	discard	E5 bypass toMarkdown for single-html-node chunks; second run below bar and it adds a special case
+efe6572	-6.7%	-6.6%	keep	E10 exact fast-path sizer for plain-prose strings avoids parse in getContentSize; verified on 26k corpus samples
+4d7e128	-0.1%		discard	E11 identity mapping fast path for single-line plain prose in TextSplitter.splitNode; eligible cases too rare among oversized nodes
+54d077f	-9.4%	-9.2%	keep	E13 fast sizer strips well-formed inline links before prose sizing; two-stage bail; 26k corpus samples verified
+971ad6f	-3.4%	-3.2%	keep	E14 fast mapping+ranges for single-line prose-with-links in TextSplitter.splitNode; 88k comparisons verified
+2ad8d41	-0.9%	-1.0%	keep	E15 fast mapping for code nodes in TextSplitter.splitNode skips re-parse; 4.5k code-node comparisons verified
+a55c10d	-0.8%	-0.8%	keep	E16 fast sizer for unclosed backtick code fences; 31k corpus samples incl fence cuts verified
+1fd39c7	-1.3%	-0.9%	keep	E17 fast line analysis extended to multi-line paragraphs (spec fixtures are hard-wrapped)
+54fb87f	+0.2%		discard	E22 lazy reuse of child TreeSplitter in list/table/blockquote splitters - construction cost not measurable
+eb5fbb3	-3.2%	-3.1%	keep	E18 inline-code-aware fast sizing via length-preserving placeholders; corpus verified
+a5dd2ba	-2.0%	-1.9%	keep	E19 fast line analysis supports inline code spans (left-to-right precedence scan); 132k comparisons verified
+597639b	-0.1%		discard	E20 balanced parens in fast-path link dests - no measurable effect
+fa927bc	-2.8%	-3.0%	keep	E21 fast sizer removes unambiguous asterisk emphasis (pure-role alternating runs); corpus verified
+6a289df	-1.8%	-1.9%	keep	E23 fast line analysis supports unambiguous asterisk emphasis; 176k comparisons verified
+154d913	-3.5%	-3.2%	keep	E24 fast sizer handles backslash escapes (combined escape+code-span scan); corpus verified
+680865c	+1.2%	+0.1%	discard	E25 escape support in fast line analysis - neutral after fixing per-char regex regression; too much complexity for no win
+74d759f	+0.2%		discard	E26 nested + underscore emphasis in fast sizer - no measurable win
+c8e028a	-0.6%		discard	E5R verbatim html chunk emit retest - still under the bar
+bf099be	-0.4%		discard	D4 WeakMap memo for getSectionSize - under the bar
+ad884f4	-0.2%	-0.4%	keep	D2 splitRecursive windows over absolute boundaries; removes dead ranges threading and two adjust helpers; kept under simplicity clause
+02cc62f	-1.1%	-1.5%	keep	D1 flow-only walk for definition collection replaces full-tree visit in normalizeReferences
+0454c1f	-0.4%		discard	D11 length-only node content measurement - under the bar, adds code
+a475b69	+0.4%		discard	D14 breadcrumb heading text cache - no win
+43b60b9	+0.3%		discard	D65 relaxed fence sizer (inline backticks allowed) - no win, spec code blocks rarely sized
+1dda8e5	-0.3%		discard	R2 direct code-node serialization in text splitter - under the bar
+4be4596	+0.0%	+0.7%/+0.2%	keep	R16 measure blockquote blocks directly (removes wrapper alloc); neutral, kept under simplicity clause
+aae7799	-2.2%	-3.1%	keep	R18 literal brackets allowed in fast sizer unless reference/footnote patterns remain
+04d1df3	+0.6%		discard	R17 intraword underscore placeholders in fast sizer - no win, slight overhead
+8ebad25	-0.3%		discard	R20 literal brackets in fast line analysis - under the bar
+b1b745f	-0.2%		discard	R14 tilde strikethrough in fast sizer - tiny bucket, under the bar
+48a5fed	-0.7%		discard	S1 combined fast emit for single html/code chunks - just under the bar
+5d964e9	-0.4%	-0.0%	keep	S3 drop unused type field from boundaries (dead code); kept under simplicity clause
+9041ce9	+0.2%	+0.0%	keep	S6 drop unused type field from penalized ranges (dead code); kept under simplicity clause
+57a1e4d	+0.1%		discard	S5 tilde strikethrough in fast line analysis - null, tiny bucket

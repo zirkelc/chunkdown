@@ -27,6 +27,75 @@ describe('getContentSize', () => {
     const ast = fromMarkdown('');
     expect(getContentSize(ast)).toBe(0);
   });
+
+  /**
+   * String inputs with simple shapes are sized by fast paths that mirror the
+   * parser's toString semantics without parsing. Each expected value below is
+   * the exact parser result; benchmarks/fast-paths.test.ts additionally proves
+   * fast-path/parser equivalence over the whole benchmark corpus.
+   */
+  describe('sizing fast paths', () => {
+    it('should size plain prose', () => {
+      expect(getContentSize('hello world')).toBe(11);
+      expect(getContentSize('Hello, world. This is plain prose with punctuation!')).toBe(51);
+      /** leading/trailing spaces on a line are trimmed by the parser */
+      expect(getContentSize('  leading and trailing  ')).toBe(20);
+    });
+
+    it('should size multi-line prose', () => {
+      /** soft break keeps the newline */
+      expect(getContentSize('line one\nline two')).toBe(17);
+      /** hard break (two trailing spaces) contributes nothing */
+      expect(getContentSize('a  \nb')).toBe(2);
+      /** blank line separates paragraphs, sized without the separator */
+      expect(getContentSize('one\n\ntwo')).toBe(6);
+    });
+
+    it('should size inline links by their label only', () => {
+      expect(getContentSize('a [link](https://example.com/some/long/path) b')).toBe(8);
+      expect(getContentSize('[a](b) and [c](d "title") end')).toBe(11);
+      /** images contribute their alt text */
+      expect(getContentSize('![alt](img.png) caption')).toBe(11);
+    });
+
+    it('should size code spans by their content', () => {
+      expect(getContentSize('use `code` here')).toBe(13);
+      /** one leading and trailing space inside a span is stripped */
+      expect(getContentSize('use ` spaced ` here')).toBe(15);
+      expect(getContentSize('double ``code`` span')).toBe(16);
+    });
+
+    it('should size emphasis by its content', () => {
+      expect(getContentSize('a **bold** and *italic* b')).toBe(19);
+      expect(getContentSize('intra**word**bold')).toBe(13);
+    });
+
+    it('should size backslash escapes as the escaped character', () => {
+      expect(getContentSize('escaped \\* asterisk')).toBe(18);
+      expect(getContentSize('formula W\\_Q times W\\_K done')).toBe(26);
+      expect(getContentSize('escaped dot 1\\. not a list')).toBe(25);
+    });
+
+    it('should size code fences by their body', () => {
+      expect(getContentSize('```js\nconst a = 1;\n```')).toBe(12);
+      expect(getContentSize('```\nline1\nline2\n```')).toBe(11);
+      /** unclosed fence: everything after the opening line is content */
+      expect(getContentSize('```js\nunclosed fence')).toBe(14);
+    });
+
+    it('should size literal brackets as text', () => {
+      expect(getContentSize('literal [update] bracket')).toBe(24);
+      expect(getContentSize('arr[0] and arr[1] indexing')).toBe(26);
+    });
+
+    it('should match the parser on inputs the fast paths bail on', () => {
+      /** footnote references and html force the parse fallback */
+      expect(getContentSize('[^foot] must bail to parser')).toBe(27);
+      expect(getContentSize('<div>html bails</div>')).toBe(21);
+      /** list-like line starts are ambiguous, so the fast path defers */
+      expect(getContentSize('text\n1990. year start')).toBe(21);
+    });
+  });
 });
 
 describe('getRawSize', () => {

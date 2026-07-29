@@ -47,8 +47,11 @@ export class BlockquoteSplitter extends AbstractNodeSplitter<Blockquote> {
     let subBlockquoteSize = 0;
 
     for (const block of blockquote.children) {
-      const blockNode = { ...blockquote, children: [block] };
-      const blockSize = getContentSize(blockNode);
+      /**
+       * The blockquote wrapper contributes no text of its own, so the block
+       * can be measured directly
+       */
+      const blockSize = getContentSize(block);
 
       /**
        * If the current sub-blockquote is too large, yield it and start a new sub-blockquote

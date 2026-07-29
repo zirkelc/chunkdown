@@ -22,29 +22,46 @@ declare module 'mdast' {
   }
 }
 
-export const fromMarkdown = (value: Value): Root => {
-  return mdastFromMarkdown(value, {
-    extensions: [gfm()],
+/**
+ * Parser and serializer extensions are stateless configuration, so they are
+ * built once at module scope instead of on every call.
+ *
+ * The autolink-literal tree transform is dropped (recognized by its
+ * literal-autolink handler): autolink detection is what the GFM tokenizer
+ * catches. The transform only adds rare edge-position autolinks, at the cost
+ * of re-scanning every text node with expensive regexes on every parse; a
+ * bare URL it would have caught stays plain text instead of becoming a
+ * protected link node. Transforms any other extension might define in a
+ * future version are kept.
+ */
+const fromMarkdownOptions = {
+  extensions: [gfm()],
 
-    mdastExtensions: [
-      // https://github.com/syntax-tree/mdast-util-gfm-table
-      gfmFromMarkdown(),
-    ],
-  });
+  mdastExtensions: [
+    gfmFromMarkdown().map((extension) =>
+      extension.enter?.literalAutolink ? { ...extension, transforms: [] } : extension,
+    ),
+  ],
+};
+
+const toMarkdownOptions = {
+  // Always use resource links [text](url) instead of autolinks <url>
+  resourceLink: true,
+  extensions: [
+    // https://github.com/syntax-tree/mdast-util-gfm-table
+    gfmToMarkdown({
+      // Disable delimiter alignment in tables to save useless characters
+      tablePipeAlign: false,
+    }),
+  ],
+};
+
+export const fromMarkdown = (value: Value): Root => {
+  return mdastFromMarkdown(value, fromMarkdownOptions);
 };
 
 export const toMarkdown = (tree: Nodes): string => {
-  return mdastToMarkdown(tree, {
-    // Always use resource links [text](url) instead of autolinks <url>
-    resourceLink: true,
-    extensions: [
-      // https://github.com/syntax-tree/mdast-util-gfm-table
-      gfmToMarkdown({
-        // Disable delimiter alignment in tables to save useless characters
-        tablePipeAlign: false,
-      }),
-    ],
-  });
+  return mdastToMarkdown(tree, toMarkdownOptions);
 };
 
 /**
@@ -147,11 +164,28 @@ function normalizeReferences(tree: Root, rules: NodeRules): Root {
   // Collect all definitions into a map
   const definitions = new Map<string, Definition>();
 
-  visit(tree, 'definition', (node) => {
-    // Identifiers are case-insensitive per CommonMark spec
-    const id = node.identifier.toLowerCase();
-    definitions.set(id, node);
-  });
+  /**
+   * Definitions are flow content, so only containers that hold flow content
+   * need to be descended into; inline-bearing nodes (paragraphs, headings,
+   * tables) cannot contain them and are skipped entirely.
+   */
+  const collectDefinitions = (parent: Parent): void => {
+    for (const node of parent.children) {
+      if (node.type === 'definition') {
+        // Identifiers are case-insensitive per CommonMark spec
+        const id = node.identifier.toLowerCase();
+        definitions.set(id, node);
+      } else if (
+        node.type === 'blockquote' ||
+        node.type === 'list' ||
+        node.type === 'listItem' ||
+        node.type === 'footnoteDefinition'
+      ) {
+        collectDefinitions(node);
+      }
+    }
+  };
+  collectDefinitions(tree);
 
   if (definitions.size === 0) {
     // If no definitions found, nothing to normalize
