@@ -1,6 +1,6 @@
 import type { Nodes } from 'mdast';
 import { isSection, type Section } from './ast';
-import { fromMarkdownForSizing, toMarkdown, toString } from './markdown';
+import { fromMarkdown, toMarkdown, toString } from './markdown';
 
 /**
  * Characters that can change line semantics, so the fast sizer must not be
@@ -318,7 +318,7 @@ export const getContentSize = (input: string | Nodes): number => {
     const fastSize = sizeCodeFence(input) ?? sizePlainProse(input);
     if (fastSize !== undefined) return fastSize;
 
-    const ast = fromMarkdownForSizing(input);
+    const ast = fromMarkdown(input);
     return getContentSize(ast);
   }
 

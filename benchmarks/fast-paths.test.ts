@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fromMarkdownForSizing, toString } from '../src/markdown';
+import { fromMarkdown, toString } from '../src/markdown';
 import { getContentSize } from '../src/size';
 import { loadFixtures } from './dataset';
 
@@ -45,7 +45,7 @@ describe('fast-path parser equivalence', () => {
     const mismatches: Array<{ input: string; actual: number; expected: number }> = [];
     for (const sample of samples) {
       const actual = getContentSize(sample);
-      const expected = toString(fromMarkdownForSizing(sample)).length;
+      const expected = toString(fromMarkdown(sample)).length;
       if (actual !== expected) {
         mismatches.push({ input: sample.slice(0, 120), actual, expected });
       }
@@ -153,7 +153,7 @@ describe('fast-path parser equivalence', () => {
     const mismatches: Array<{ input: string; actual: number; expected: number }> = [];
     for (const sample of samples) {
       const actual = getContentSize(sample);
-      const expected = toString(fromMarkdownForSizing(sample)).length;
+      const expected = toString(fromMarkdown(sample)).length;
       if (actual !== expected) {
         mismatches.push({ input: sample, actual, expected });
       }

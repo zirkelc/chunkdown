@@ -25,27 +25,18 @@ declare module 'mdast' {
 /**
  * Parser and serializer extensions are stateless configuration, so they are
  * built once at module scope instead of on every call.
+ *
+ * The autolink-literal tree transform is dropped (recognized by its
+ * literal-autolink handler): autolink detection is what the GFM tokenizer
+ * catches. The transform only adds rare edge-position autolinks, at the cost
+ * of re-scanning every text node with expensive regexes on every parse; a
+ * bare URL it would have caught stays plain text instead of becoming a
+ * protected link node. Transforms any other extension might define in a
+ * future version are kept.
  */
 const fromMarkdownOptions = {
   extensions: [gfm()],
 
-  mdastExtensions: [
-    // https://github.com/syntax-tree/mdast-util-gfm-table
-    gfmFromMarkdown(),
-  ],
-};
-
-/**
- * Options for the size-measuring parse variant. Identical to the regular
- * options except that the autolink-literal tree transform is dropped: it
- * rewrites plain text into link nodes whose text content equals the matched
- * text, so skipping it cannot change the extracted plain text — it only
- * saves its expensive regex scans. The extension is recognized by its
- * literal-autolink handler; transforms any other extension might define in a
- * future version are kept, so an upgrade can only cost speed, not exactness.
- */
-const sizingFromMarkdownOptions = {
-  extensions: fromMarkdownOptions.extensions,
   mdastExtensions: [
     gfmFromMarkdown().map((extension) =>
       extension.enter?.literalAutolink ? { ...extension, transforms: [] } : extension,
@@ -67,15 +58,6 @@ const toMarkdownOptions = {
 
 export const fromMarkdown = (value: Value): Root => {
   return mdastFromMarkdown(value, fromMarkdownOptions);
-};
-
-/**
- * Parse markdown only to measure its plain-text content size.
- * Produces the same plain text as the regular parse but skips work that
- * cannot affect it.
- */
-export const fromMarkdownForSizing = (value: Value): Root => {
-  return mdastFromMarkdown(value, sizingFromMarkdownOptions);
 };
 
 export const toMarkdown = (tree: Nodes): string => {

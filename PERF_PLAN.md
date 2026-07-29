@@ -379,3 +379,9 @@ splitter (E14 + E15 + E17 + E19 + E23, ~280 lines carrying ~9% combined) was
 removed in favour of the plain parse path; `text.ts` is back below its
 pre-run size. The sizing fast paths in `size.ts` (~26% combined) stay, with
 their parser-equivalence locked by `benchmarks/fast-paths.test.ts`.
+
+The autolink decision flagged under "Left worth trying / needs a decision" was
+taken on 2026-07-29: the main parse now also drops the autolink-literal tree
+transform (measured -9.2% at that point; 96 snapshots and all tests
+unchanged). Autolink detection is what the GFM tokenizer catches; the
+separate sizing parse variant collapsed back into `fromMarkdown`.
