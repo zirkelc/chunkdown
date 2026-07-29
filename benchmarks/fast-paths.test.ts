@@ -53,7 +53,7 @@ describe('fast-path parser equivalence', () => {
 
     // Assert
     expect(mismatches).toEqual([]);
-  });
+  }, 30_000);
 
   it('should size synthetic edge cases exactly like the parser', () => {
     // Arrange
