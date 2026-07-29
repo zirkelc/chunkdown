@@ -1,0 +1,82 @@
+name: Benchmark
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'benchmarks/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write # needed for benchmark comment
+
+jobs:
+  bench:
+    name: A/B Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The A/B harness exports the base revision via git archive, so the
+          # full history must be available, not just the merge commit.
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
+      - name: Run A/B benchmark
+        run: |
+          BASE=$(git rev-parse --short "${{ github.event.pull_request.base.sha }}")
+          pnpm bench:ab "$BASE" | tee bench.txt
+          {
+            echo '<!-- chunkdown-benchmark -->'
+            echo '## Benchmark'
+            echo
+            echo "Interleaved A/B, fastest of 7 runs per cell, total milliseconds over all presets."
+            echo "A = \`$BASE\` (base branch), B = this pull request. Deltas within roughly ±1% are noise."
+            echo
+            grep '^|' bench.txt
+            echo
+            echo "**$(grep '^B is ' bench.txt)**"
+          } > comment.md
+      - name: Create or update PR comment
+        # The default token is read-only for pull requests from forks, so the
+        # comment is only posted for branches of this repository.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const body = fs.readFileSync('comment.md', 'utf8');
+            const marker = '<!-- chunkdown-benchmark -->';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
