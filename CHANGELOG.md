@@ -1,5 +1,40 @@
 # Changelog
 
+## [3.5.0](https://github.com/zirkelc/chunkdown/compare/v3.4.0...v3.5.0) (2026-07-29)
+
+
+### Features
+
+* label A/B benchmark sides with branch and commit ([5623db7](https://github.com/zirkelc/chunkdown/commit/5623db75fd4cadf4ab7d80aa69f015bb08e3765f))
+
+
+### Bug Fixes
+
+* keep unknown gfm transforms in the sizing parse ([f56844b](https://github.com/zirkelc/chunkdown/commit/f56844b77b7632435e55fecbd28b64525d7895ed))
+
+
+### Performance Improvements
+
+* ~32% faster splitting via parse-free sizing fast paths ([39d16d2](https://github.com/zirkelc/chunkdown/commit/39d16d241f02ef9a7bc5f2c6d5a4593ae6f21e3c))
+* analyze code nodes without re-parsing in text splitter ([2ad8d41](https://github.com/zirkelc/chunkdown/commit/2ad8d41fc1bd986b2460dd42bd9ba0bfec882433))
+* analyze simple link-bearing lines without re-parsing in text splitter ([971ad6f](https://github.com/zirkelc/chunkdown/commit/971ad6fb65d89e733046698312c5e2f894b04e39))
+* build parser and serializer extensions once at module scope ([418d751](https://github.com/zirkelc/chunkdown/commit/418d751a5da15efa80836036389249f657545358))
+* collect link definitions with a flow-only walk ([02cc62f](https://github.com/zirkelc/chunkdown/commit/02cc62f7047275b653e1f66b9cce2e31d997ddbe))
+* drop the autolink-literal transform from parsing ([c45aae7](https://github.com/zirkelc/chunkdown/commit/c45aae7c97074d9ac0986a478b7c261a9ef7fb6b))
+* extend fast line analysis to multi-line paragraphs ([1fd39c7](https://github.com/zirkelc/chunkdown/commit/1fd39c76ab07a2f5e18319aecea37964e553614b))
+* fast line analysis supports inline code spans ([a5dd2ba](https://github.com/zirkelc/chunkdown/commit/a5dd2ba9f5e2c5c1e2e4ef6973b1658c459dae0d))
+* fast line analysis supports unambiguous asterisk emphasis ([6a289df](https://github.com/zirkelc/chunkdown/commit/6a289dfa04cf14daa7b469c8617ddaa5ee867a41))
+* select best split boundary with a linear scan instead of sorting ([4e37f70](https://github.com/zirkelc/chunkdown/commit/4e37f70aa5573320478cb1ab7917a24c8eaad21b))
+* size plain prose without parsing ([efe6572](https://github.com/zirkelc/chunkdown/commit/efe657297cb8dc1e1ffaa6d23f9ba45d5de492b9))
+* size prose with backslash escapes without parsing ([154d913](https://github.com/zirkelc/chunkdown/commit/154d913ec583acb5edba92ee9c3a5ed343480cb9))
+* size prose with inline code spans without parsing ([eb5fbb3](https://github.com/zirkelc/chunkdown/commit/eb5fbb3d3341c7b79525e7ca63ffb022717801c2))
+* size prose with literal brackets without parsing ([aae7799](https://github.com/zirkelc/chunkdown/commit/aae7799e300bd21c589b92f2966bec6c979d8bf0))
+* size prose with unambiguous asterisk emphasis without parsing ([fa927bc](https://github.com/zirkelc/chunkdown/commit/fa927bc9a316c659fab1ac0fa973d5c042754364))
+* size prose with well-formed inline links without parsing ([54d077f](https://github.com/zirkelc/chunkdown/commit/54d077f4b2a524c3815969fe40635913b2a071e4))
+* size unclosed backtick code fences without parsing ([a55c10d](https://github.com/zirkelc/chunkdown/commit/a55c10dc6e589be19ce983ec1e3c3433f1e250b9))
+* skip autolink-literal transform when parsing only for content size ([acd2997](https://github.com/zirkelc/chunkdown/commit/acd29976af73fc77d614c66563f955cf401197a0))
+* split recursion over boundary windows instead of adjusted copies ([ad884f4](https://github.com/zirkelc/chunkdown/commit/ad884f40f59b5d6a906ddd7442ff1050f3b28a4e))
+
 ## [3.4.0](https://github.com/zirkelc/chunkdown/compare/v3.3.0...v3.4.0) (2026-05-02)
 
 
