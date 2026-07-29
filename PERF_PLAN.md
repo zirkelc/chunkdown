@@ -371,3 +371,11 @@ text is normalized serializer output by definition.
 - The E9 idea (mapping-derived sizes instead of re-parsing halves in
   `splitRecursive`) remains the only large lever, and it is genuinely
   behaviour-changing.
+
+## Post-run decision (2026-07-29)
+
+After reviewing complexity per percent, the mapping fast path in the text
+splitter (E14 + E15 + E17 + E19 + E23, ~280 lines carrying ~9% combined) was
+removed in favour of the plain parse path; `text.ts` is back below its
+pre-run size. The sizing fast paths in `size.ts` (~26% combined) stay, with
+their parser-equivalence locked by `benchmarks/fast-paths.test.ts`.
