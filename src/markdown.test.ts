@@ -686,3 +686,21 @@ describe('Transform', () => {
     expect(result).toContain('![alt text](https://cdn.com/img.jpg)');
   });
 });
+
+describe('sizing parse variant', () => {
+  it('should find the autolink-literal extension as the only gfm extension with transforms', async () => {
+    // Arrange
+    const { gfmFromMarkdown } = await import('mdast-util-gfm');
+
+    // Act
+    const withTransforms = gfmFromMarkdown().filter((extension) => (extension.transforms?.length ?? 0) > 0);
+
+    // Assert
+    // The size-measuring parse drops the autolink-literal transform because it
+    // cannot change extracted plain text. This pins the assumption that no
+    // other gfm extension defines transforms; if an upgrade adds one, decide
+    // anew whether it is also neutral for plain-text extraction.
+    expect(withTransforms.length).toBe(1);
+    expect(typeof withTransforms[0].enter?.literalAutolink).toBe('function');
+  });
+});

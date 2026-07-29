@@ -37,14 +37,20 @@ const fromMarkdownOptions = {
 
 /**
  * Options for the size-measuring parse variant. Identical to the regular
- * options except that tree transforms are dropped. The only gfm transform is
- * the autolink-literal one, which rewrites plain text into link nodes whose
- * text content equals the matched text, so skipping it cannot change the
- * extracted plain text — it only saves its expensive regex scans.
+ * options except that the autolink-literal tree transform is dropped: it
+ * rewrites plain text into link nodes whose text content equals the matched
+ * text, so skipping it cannot change the extracted plain text — it only
+ * saves its expensive regex scans. The extension is recognized by its
+ * literal-autolink handler; transforms any other extension might define in a
+ * future version are kept, so an upgrade can only cost speed, not exactness.
  */
 const sizingFromMarkdownOptions = {
   extensions: fromMarkdownOptions.extensions,
-  mdastExtensions: [gfmFromMarkdown().map((extension) => ({ ...extension, transforms: [] }))],
+  mdastExtensions: [
+    gfmFromMarkdown().map((extension) =>
+      extension.enter?.literalAutolink ? { ...extension, transforms: [] } : extension,
+    ),
+  ],
 };
 
 const toMarkdownOptions = {
