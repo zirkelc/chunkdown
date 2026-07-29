@@ -34,19 +34,28 @@ jobs:
       - name: Install
         run: pnpm install
       - name: Run A/B benchmark
+        # Branch names are passed through the environment because head refs of
+        # fork pull requests are untrusted input for the shell script.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          BASE=$(git rev-parse --short "${{ github.event.pull_request.base.sha }}")
-          pnpm bench:ab "$BASE" | tee bench.txt
+          BASE=$(git rev-parse --short "$BASE_SHA")
+          HEAD=$(git rev-parse --short "$HEAD_SHA")
+          pnpm bench:ab "$BASE_SHA" \
+            --label-a="$BASE_REF@$BASE (base)" \
+            --label-b="$HEAD_REF@$HEAD (pr)" | tee bench.txt
           {
             echo '<!-- chunkdown-benchmark -->'
             echo '## Benchmark'
             echo
             echo "Interleaved A/B, fastest of 7 runs per cell, total milliseconds over all presets."
-            echo "A = \`$BASE\` (base branch), B = this pull request. Deltas within roughly ±1% are noise."
             echo
             grep '^|' bench.txt
             echo
-            echo "**$(grep '^B is ' bench.txt)**"
+            echo "**$(grep -E '^(🟢|🔴|⚪)' bench.txt)**"
           } > comment.md
       - name: Create or update PR comment
         # The default token is read-only for pull requests from forks, so the

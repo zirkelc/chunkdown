@@ -10,9 +10,12 @@
  * remaining difference is the code.
  *
  * Usage:
- *   pnpm bench:ab <revA> [revB]
+ *   pnpm bench:ab <revA> [revB] [--label-a=<label>] [--label-b=<label>]
  *
- * `revA` is any git revision; `revB` defaults to the working tree.
+ * `revA` is any git revision; `revB` defaults to the working tree. Table
+ * columns are labelled with the branch name and short commit of each side,
+ * resolved from git; `--label-a`/`--label-b` override the resolved labels
+ * (useful in CI, where branch names are not visible from the checkout).
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
@@ -46,7 +49,40 @@ const loadRevision = async (rev: string, dir: string): Promise<Factory> => {
   return module.chunkdown;
 };
 
-const [revA = 'HEAD', revB = 'WORKTREE'] = process.argv.slice(2);
+const labels: { a?: string; b?: string } = {};
+const positional: Array<string> = [];
+for (const arg of process.argv.slice(2)) {
+  if (arg.startsWith('--label-a=')) labels.a = arg.slice('--label-a='.length);
+  else if (arg.startsWith('--label-b=')) labels.b = arg.slice('--label-b='.length);
+  else positional.push(arg);
+}
+const [revA = 'HEAD', revB = 'WORKTREE'] = positional;
+
+const git = (args: Array<string>): string =>
+  execFileSync('git', args, { cwd: repoRoot, encoding: 'utf8' }).trim();
+
+/**
+ * Label a revision as `branch@commit` where a branch (local or remote)
+ * points at it, or just the short commit otherwise. The working tree is
+ * labelled with the currently checked-out branch and commit.
+ */
+const describeRevision = (rev: string): string => {
+  try {
+    const target = rev === 'WORKTREE' ? 'HEAD' : rev;
+    const sha = git(['rev-parse', '--short', target]);
+    const branch = git(['branch', '--all', '--points-at', target, '--format=%(refname:short)'])
+      .split('\n')
+      .map((name) => name.replace(/^origin\//, ''))
+      .filter((name) => name !== '' && name !== 'HEAD')[0];
+    const label = branch ? `${branch}@${sha}` : sha;
+    return rev === 'WORKTREE' ? `worktree (${label})` : label;
+  } catch {
+    return rev;
+  }
+};
+
+const labelA = labels.a ?? describeRevision(revA);
+const labelB = labels.b ?? describeRevision(revB);
 
 /**
  * The exported trees live inside the repository so that Node resolves their
@@ -110,7 +146,7 @@ const pct = (a: number, b: number) => {
 };
 
 const fixtureNames = [...new Set(rows.map((r) => r.fixture))];
-const header = ['fixture', `A ${revA}`, `B ${revB}`, 'delta'];
+const header = ['fixture', `A ${labelA}`, `B ${labelB}`, 'delta'];
 const table: Array<Array<string>> = [];
 
 for (const name of fixtureNames) {
@@ -133,4 +169,19 @@ console.log(
 console.log(line(header));
 console.log(`|${widths.map((w) => '-'.repeat(w + 2)).join('|')}|`);
 for (const row of table) console.log(line(row));
-console.log(`\nB is ${pct(totalA, totalB)} vs A`);
+/**
+ * A/A runs of this harness stay within ±0.5%, so smaller totals are noise
+ * rather than a real difference.
+ */
+const NOISE_PERCENT = 0.5;
+const totalDelta = ((totalB - totalA) / totalA) * 100;
+
+let conclusion: string;
+if (totalDelta <= -NOISE_PERCENT) {
+  conclusion = `🟢 B is ${Math.abs(totalDelta).toFixed(1)}% faster than A`;
+} else if (totalDelta >= NOISE_PERCENT) {
+  conclusion = `🔴 B is ${totalDelta.toFixed(1)}% slower than A`;
+} else {
+  conclusion = `⚪ B is within noise of A (${pct(totalA, totalB)})`;
+}
+console.log(`\n${conclusion}`);
