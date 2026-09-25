@@ -19,6 +19,9 @@ jobs:
   bench:
     name: A/B Benchmark
     runs-on: ubuntu-latest
+    # Release pull requests only bump the version and changelog, so their diff
+    # against the base carries no runtime change worth measuring.
+    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
