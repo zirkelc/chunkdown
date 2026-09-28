@@ -1,0 +1,5 @@
+{
+  "entry": "src/index.ts",
+  "src": ["src"],
+  "cases": "perf/cases.mts"
+}

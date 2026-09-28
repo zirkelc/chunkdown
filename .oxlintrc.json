@@ -140,5 +140,5 @@
     "builtin": true
   },
   "globals": {},
-  "ignorePatterns": ["benchmarks/fixtures/**", ".claude/**"]
+  "ignorePatterns": ["benchmarks/fixtures/**", ".claude/**", "perf/**"]
 }

@@ -1,0 +1,86 @@
+{
+  "ai-sdk-overview": {
+    "hash": "9173e8f9",
+    "bytes": 32
+  },
+  "ai-sdk-prompts": {
+    "hash": "477748e2",
+    "bytes": 32
+  },
+  "ai-sdk-tools": {
+    "hash": "17035587",
+    "bytes": 33
+  },
+  "flat-photosynthesis-small": {
+    "hash": "feebd10c",
+    "bytes": 32
+  },
+  "flat-photosynthesis#1": {
+    "hash": "fa4a2328",
+    "bytes": 33
+  },
+  "flat-photosynthesis#2": {
+    "hash": "43fbe702",
+    "bytes": 33
+  },
+  "rust-book-ownership": {
+    "hash": "3bca0508",
+    "bytes": 33
+  },
+  "spec-commonmark#1": {
+    "hash": "b26cee45",
+    "bytes": 33
+  },
+  "spec-commonmark#2": {
+    "hash": "67002444",
+    "bytes": 33
+  },
+  "spec-commonmark#3": {
+    "hash": "4a27c9cf",
+    "bytes": 33
+  },
+  "spec-commonmark#4": {
+    "hash": "2e6e19d7",
+    "bytes": 33
+  },
+  "spec-gfm#1": {
+    "hash": "395b1d64",
+    "bytes": 33
+  },
+  "spec-gfm#2": {
+    "hash": "68fdeaa1",
+    "bytes": 33
+  },
+  "spec-gfm#3": {
+    "hash": "157d633a",
+    "bytes": 33
+  },
+  "spec-gfm#4": {
+    "hash": "4743ccf8",
+    "bytes": 33
+  },
+  "wikipedia-berlin#1": {
+    "hash": "59a3356b",
+    "bytes": 33
+  },
+  "wikipedia-berlin#2": {
+    "hash": "2f02e26a",
+    "bytes": 33
+  },
+  "wikipedia-berlin#3": {
+    "hash": "7fb0f364",
+    "bytes": 33
+  },
+  "wikipedia-markdown": {
+    "hash": "bb3386cf",
+    "bytes": 32
+  },
+  "wikipedia-python": {
+    "hash": "ccfd1757",
+    "bytes": 33
+  },
+  "wikipedia-transformer": {
+    "hash": "3308f796",
+    "bytes": 33
+  }
+}
