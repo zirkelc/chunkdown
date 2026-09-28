@@ -167,6 +167,47 @@ const PATTERNS: Array<Pattern> = [
   { regex: /\s+/g, type: `whitespace`, weight: SEMANTIC_WEIGHTS.FALLBACK },
 ];
 
+/**
+ * Block node types that parse back to the same subtree when serialized
+ * standalone. A bare phrasing node (e.g. `text`) would parse as a paragraph.
+ */
+const REPARSE_STABLE_TYPES = new Set(['paragraph', 'heading', 'code', 'html']);
+
+/**
+ * Types that resolve against definitions elsewhere in the document.
+ */
+const CONTEXT_DEPENDENT_TYPES = new Set(['linkReference', 'imageReference', 'footnoteReference', 'definition']);
+
+/**
+ * Copy a subtree with every position offset moved back by `shift`. Only
+ * offsets are kept, since nothing downstream reads lines or columns. Returns
+ * undefined when the subtree contains a context-dependent node or a node
+ * without offsets.
+ */
+const shiftOffsets = (node: Nodes, shift: number): Nodes | undefined => {
+  if (CONTEXT_DEPENDENT_TYPES.has(node.type)) return undefined;
+  const start = node.position?.start?.offset;
+  const end = node.position?.end?.offset;
+  if (start === undefined || end === undefined) return undefined;
+
+  const copy = { ...node } as Nodes & { children?: Array<Nodes> };
+  delete copy.data;
+  copy.position = {
+    start: { line: 0, column: 0, offset: start - shift },
+    end: { line: 0, column: 0, offset: end - shift },
+  };
+  if ('children' in node) {
+    const children: Array<Nodes> = [];
+    for (const child of node.children) {
+      const shifted = shiftOffsets(child, shift);
+      if (shifted === undefined) return undefined;
+      children.push(shifted);
+    }
+    copy.children = children;
+  }
+  return copy;
+};
+
 export class TextSplitter extends AbstractNodeSplitter {
   splitText(text: string): string[] {
     const ast = fromMarkdown(text);
@@ -180,7 +221,7 @@ export class TextSplitter extends AbstractNodeSplitter {
      * Parse the markdown text to get correct position offsets for this text.
      * The original node has offsets relative to its source document, not to this text.
      */
-    const ast = fromMarkdown(markdown);
+    const ast = this.sourceTree(node, markdown) ?? fromMarkdown(markdown);
     const ranges = this.extractPenalizedRanges(ast);
     /**
      * Build position mapping for plain text pattern matching.
@@ -216,6 +257,33 @@ export class TextSplitter extends AbstractNodeSplitter {
     }
 
     return nodes;
+  }
+
+  /**
+   * Parsing a block node's serialization gives back the node's own subtree
+   * when the serialization is exactly the node's slice of the source document
+   * (plus the serializer's final line ending), only with offsets relative to
+   * that text. In that case the subtree is reused with shifted offsets instead
+   * of being parsed again. Reference nodes resolve against definitions
+   * elsewhere in the document, so subtrees that contain them are parsed.
+   */
+  private sourceTree(node: Nodes, markdown: string): Root | undefined {
+    const { source } = this.options;
+    const start = node.position?.start?.offset;
+    const end = node.position?.end?.offset;
+    if (source === undefined || start === undefined || end === undefined) return undefined;
+    if (!REPARSE_STABLE_TYPES.has(node.type)) return undefined;
+    if (markdown.length !== end - start + 1 || markdown.charCodeAt(end - start) !== 10 /* \n */) return undefined;
+    if (!source.startsWith(markdown.slice(0, -1), start)) return undefined;
+
+    const shifted = shiftOffsets(node, start);
+    if (shifted === undefined) return undefined;
+
+    return {
+      type: 'root',
+      children: [shifted as Root['children'][number]],
+      position: { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: markdown.length } },
+    };
   }
 
   /**

@@ -1,6 +1,7 @@
 import type { Heading, Nodes, Root } from 'mdast';
 import { fromMarkdown, preprocessMarkdown, toMarkdown, toString } from './markdown';
 import { splitTextByMaxRawSize } from './size';
+import type { SharedSplitterOptions } from './splitters/base';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
 import type { Breadcrumb, Chunk, NodeRules, SplitterOptions, SplitterResult } from './types';
@@ -31,8 +32,9 @@ export const defaultNodeRules: NodeRules = {
 };
 
 class Chunkdown implements NodeSplitter<Root> {
-  private options: SplitterOptions;
+  private options: SharedSplitterOptions;
   private splitter: TreeSplitter;
+  private hasTransforms: boolean;
 
   constructor(options: SplitterOptions) {
     this.options = {
@@ -40,6 +42,7 @@ class Chunkdown implements NodeSplitter<Root> {
       maxOverflowRatio: Math.max(1.0, options.maxOverflowRatio ?? 1.0),
     };
     this.splitter = new TreeSplitter(this.options);
+    this.hasTransforms = Object.values(this.options.rules ?? {}).some((rule) => rule?.transform !== undefined);
   }
 
   get chunkSize(): number {
@@ -63,7 +66,19 @@ class Chunkdown implements NodeSplitter<Root> {
   split(text: string): SplitterResult {
     const root = fromMarkdown(text);
     const preparedRoot = preprocessMarkdown(root, this.options);
-    const nodes = this.splitter.splitNode(preparedRoot);
+
+    /**
+     * Splitters may reuse source subtrees whose text matches the source. A
+     * transform can leave nodes whose text matches while their structure or
+     * positions no longer do, so the source is withheld when transforms run.
+     */
+    let nodes: Array<Nodes>;
+    this.options.source = this.hasTransforms ? undefined : text;
+    try {
+      nodes = this.splitter.splitNode(preparedRoot);
+    } finally {
+      this.options.source = undefined;
+    }
 
     const chunks: Chunk[] = [];
 
