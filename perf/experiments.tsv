@@ -1,0 +1,5 @@
+commit	delta1	delta2	status	description
+0a45fbc	-8.57%/-9.51%	-8.51%/-9.63%	keep	E1 text splitter reuses the source subtree (shifted offsets) when the serialization equals the source slice; 0 diffs in 9792 reuses x 4 rule sets; equivalence test c8742ce. First run -8.37/-9.23 invalid (BUSY after)
+47b7628	-1.78%/-1.76%	-2.66%/-2.63%	keep	E2 source subtree reuse also when the serializer rewrote _ emphasis markers to *; run guard (a * run is all rewritten or all original); 4 synthetic merge cases fail without it; 11168 reuses 0 diffs
+fda4f50	-7.69%/-7.26%	-7.19%/-6.75%	keep	E3 source subtree reuse across inserted/removed backslash escapes (offset edits + binary-search mapping); reuse covers 86% of text-splitter nodes; 15016 reuses 0 diffs; +72 lines net
+d78e1a6	-0.69%/-0.47%		near-miss	E4 alignment also removes container prefixes (indent, >) at continuation-line starts; 4035 reuses 0 diffs; spec parts -1..-4% all with bands over 0; under bar, +10 lines; not re-tested focused
