@@ -179,56 +179,110 @@ const REPARSE_STABLE_TYPES = new Set(['paragraph', 'heading', 'code', 'html']);
 const CONTEXT_DEPENDENT_TYPES = new Set(['linkReference', 'imageReference', 'footnoteReference', 'definition']);
 
 /**
- * Whether the first `length` characters of `markdown` are the source text at
- * `start`. The serializer writes every emphasis marker as `*`, so a `_` in the
- * source may appear as `*`: same length, same offsets, same tree. A run of `*`
- * must come entirely from `_` or entirely from `*`, because a rewritten run
- * next to an original one would merge into a single run and pair differently.
+ * Whether a character code is ASCII punctuation, the set a backslash escapes.
  */
-const matchesSource = (source: string, start: number, markdown: string, length: number): boolean => {
+const isAsciiPunctuation = (code: number): boolean =>
+  (code >= 33 && code <= 47) || (code >= 58 && code <= 64) || (code >= 91 && code <= 96) || (code >= 123 && code <= 126);
+
+/**
+ * Offset edits between a source slice and its serialization: `at` is a slice
+ * index where a backslash was inserted or removed, `shift` the total change in
+ * length up to and including that edit.
+ */
+type OffsetEdits = Array<{ at: number; shift: number }>;
+
+/**
+ * Align a node's source text `[start, end)` with its serialization (without
+ * the final line ending), allowing only differences that parse to the same
+ * tree: a backslash the serializer inserted or removed before ASCII
+ * punctuation (both spellings unescape to the same character), and a `_`
+ * emphasis marker written as `*`. A run of `*` must come entirely from `_` or
+ * entirely from `*`, because a rewritten run next to an original one would
+ * merge into a single run and pair differently. Returns the offset edits, or
+ * undefined when the texts differ in any other way.
+ */
+const alignWithSource = (source: string, start: number, end: number, markdown: string): OffsetEdits | undefined => {
+  const edits: OffsetEdits = [];
+  const markdownEnd = markdown.length - 1;
+  let i = start;
+  let j = 0;
+  let shift = 0;
   /**
    * Whether the current run of `*` was rewritten from `_`, or undefined outside a run
    */
   let runRewritten: boolean | undefined;
-  for (let i = 0; i < length; i++) {
-    const char = markdown.charCodeAt(i);
-    const sourceChar = source.charCodeAt(start + i);
+
+  while (i < end && j < markdownEnd) {
+    const sourceChar = source.charCodeAt(i);
+    const char = markdown.charCodeAt(j);
     const rewritten = char === 42 /* * */ && sourceChar === 95; /* _ */
-    if (char !== sourceChar && !rewritten) return false;
-    if (char === 42 /* * */) {
-      if (runRewritten === undefined) runRewritten = rewritten;
-      else if (runRewritten !== rewritten) return false;
-    } else {
+
+    if (char === sourceChar || rewritten) {
+      if (char === 42 /* * */) {
+        if (runRewritten === undefined) runRewritten = rewritten;
+        else if (runRewritten !== rewritten) return undefined;
+      } else {
+        runRewritten = undefined;
+      }
+      i++;
+      j++;
+    } else if (char === 92 /* \ */ && markdown.charCodeAt(j + 1) === sourceChar && isAsciiPunctuation(sourceChar)) {
+      edits.push({ at: i - start, shift: ++shift });
       runRewritten = undefined;
+      j++;
+    } else if (sourceChar === 92 /* \ */ && source.charCodeAt(i + 1) === char && isAsciiPunctuation(char)) {
+      edits.push({ at: i - start, shift: --shift });
+      runRewritten = undefined;
+      i++;
+    } else {
+      return undefined;
     }
   }
-  return true;
+
+  return i === end && j === markdownEnd ? edits : undefined;
 };
 
 /**
- * Copy a subtree with every position offset moved back by `shift`. Only
+ * Map an offset relative to the source slice to the serialization: it moves by
+ * every edit before it. An edit at the offset itself belongs to the text that
+ * starts there, so it does not move the offset.
+ */
+const mapOffset = (offset: number, edits: OffsetEdits): number => {
+  let low = 0;
+  let high = edits.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (edits[mid].at < offset) low = mid + 1;
+    else high = mid;
+  }
+  return low === 0 ? offset : offset + edits[low - 1].shift;
+};
+
+/**
+ * Copy a subtree with every position offset moved from the source document to
+ * the serialization, which starts at `start` and differs by `edits`. Only
  * offsets are kept, since nothing downstream reads lines or columns. Returns
  * undefined when the subtree contains a context-dependent node or a node
  * without offsets.
  */
-const shiftOffsets = (node: Nodes, shift: number): Nodes | undefined => {
+const mapOffsets = (node: Nodes, start: number, edits: OffsetEdits): Nodes | undefined => {
   if (CONTEXT_DEPENDENT_TYPES.has(node.type)) return undefined;
-  const start = node.position?.start?.offset;
-  const end = node.position?.end?.offset;
-  if (start === undefined || end === undefined) return undefined;
+  const nodeStart = node.position?.start?.offset;
+  const nodeEnd = node.position?.end?.offset;
+  if (nodeStart === undefined || nodeEnd === undefined) return undefined;
 
   const copy = { ...node } as Nodes & { children?: Array<Nodes> };
   delete copy.data;
   copy.position = {
-    start: { line: 0, column: 0, offset: start - shift },
-    end: { line: 0, column: 0, offset: end - shift },
+    start: { line: 0, column: 0, offset: mapOffset(nodeStart - start, edits) },
+    end: { line: 0, column: 0, offset: mapOffset(nodeEnd - start, edits) },
   };
   if ('children' in node) {
     const children: Array<Nodes> = [];
     for (const child of node.children) {
-      const shifted = shiftOffsets(child, shift);
-      if (shifted === undefined) return undefined;
-      children.push(shifted);
+      const mapped = mapOffsets(child, start, edits);
+      if (mapped === undefined) return undefined;
+      children.push(mapped);
     }
     copy.children = children;
   }
@@ -288,12 +342,12 @@ export class TextSplitter extends AbstractNodeSplitter {
 
   /**
    * Parsing a block node's serialization gives back the node's own subtree
-   * when the serialization is the node's slice of the source document (plus
-   * the serializer's final line ending, and up to rewritten emphasis markers),
-   * only with offsets relative to
-   * that text. In that case the subtree is reused with shifted offsets instead
-   * of being parsed again. Reference nodes resolve against definitions
-   * elsewhere in the document, so subtrees that contain them are parsed.
+   * when the serialization differs from the node's slice of the source
+   * document only in ways that do not change the parse (see the alignment
+   * above), with offsets relative to the serialization. In that case the
+   * subtree is reused with mapped offsets instead of being parsed again.
+   * Reference nodes resolve against definitions elsewhere in the document, so
+   * subtrees that contain them are parsed.
    */
   protected sourceTree(node: Nodes, markdown: string): Root | undefined {
     const { source } = this.options;
@@ -301,15 +355,17 @@ export class TextSplitter extends AbstractNodeSplitter {
     const end = node.position?.end?.offset;
     if (source === undefined || start === undefined || end === undefined) return undefined;
     if (!REPARSE_STABLE_TYPES.has(node.type)) return undefined;
-    if (markdown.length !== end - start + 1 || markdown.charCodeAt(end - start) !== 10 /* \n */) return undefined;
-    if (!matchesSource(source, start, markdown, end - start)) return undefined;
+    if (markdown.charCodeAt(markdown.length - 1) !== 10 /* \n */) return undefined;
 
-    const shifted = shiftOffsets(node, start);
-    if (shifted === undefined) return undefined;
+    const edits = alignWithSource(source, start, end, markdown);
+    if (edits === undefined) return undefined;
+
+    const mapped = mapOffsets(node, start, edits);
+    if (mapped === undefined) return undefined;
 
     return {
       type: 'root',
-      children: [shifted as Root['children'][number]],
+      children: [mapped as Root['children'][number]],
       position: { start: { line: 1, column: 1, offset: 0 }, end: { line: 1, column: 1, offset: markdown.length } },
     };
   }

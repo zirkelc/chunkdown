@@ -243,6 +243,22 @@ describe('source subtree reuse equivalence', () => {
       '* not a list _a_',
       '- item with _a_ inside\n- and *b*',
       '> quote _a_ and *b*',
+      // escapes the serializer inserts or removes
+      'a [b] c and [d]',
+      '[x](https://a.org/wiki/A_(b)) tail',
+      'a \\- b and \\. c',
+      'literal \\\\ backslash and \\\\[x]',
+      'a\\*b\\* and \\_c\\_',
+      '`code \\[x] \\*` and \\[y]',
+      'hard\\\nbreak and \\[z]',
+      '<https://x.y/a\\_b> and \\[w]',
+      '<span title="\\[">x</span> [v]',
+      'a *b\\*c* d',
+      'x \\[y\\](z) and [u](v)',
+      '_a_\\_ and \\*_b_',
+      '[a\\]b](c) and ![d\\[e](f)',
+      '1\\. not a list [a]',
+      '\\# not a heading [a]',
     ];
 
     // Act
