@@ -1,6 +1,9 @@
+import type { Nodes, Root } from 'mdast';
 import { describe, expect, it } from 'vitest';
-import { fromMarkdown, toString } from '../src/markdown';
+import { fromMarkdown, toMarkdown, toString } from '../src/markdown';
 import { getContentSize } from '../src/size';
+import { TextSplitter } from '../src/splitters/text';
+import type { SplitterOptions } from '../src/types';
 import { loadFixtures } from './dataset';
 
 /**
@@ -163,4 +166,58 @@ describe('fast-path parser equivalence', () => {
     expect(mismatches).toEqual([]);
   });
 
+});
+
+/**
+ * Exposes the text splitter's source subtree reuse for testing.
+ */
+class SourceTreeProbe extends TextSplitter {
+  probe(node: Nodes, markdown: string): Root | undefined {
+    return this.sourceTree(node, markdown);
+  }
+}
+
+/**
+ * Reduce a tree to what the text splitter reads from it: every field except
+ * `data`, and positions as offsets only.
+ */
+const offsetsOnly = (node: Nodes): unknown => {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'data') continue;
+    if (key === 'position') out.position = [node.position?.start.offset, node.position?.end.offset];
+    else if (key === 'children') out.children = (value as Array<Nodes>).map(offsetsOnly);
+    else out[key] = value;
+  }
+  return out;
+};
+
+describe('source subtree reuse equivalence', () => {
+  it('should reuse only subtrees that equal the re-parse of their serialization', () => {
+    // Arrange
+    const candidates: Array<{ source: string; node: Nodes }> = [];
+    for (const fixture of fixtures) {
+      const collect = (node: Nodes): void => {
+        candidates.push({ source: fixture.text, node });
+        if ('children' in node) node.children.forEach(collect);
+      };
+      collect(fromMarkdown(fixture.text));
+    }
+
+    // Act
+    let reused = 0;
+    const mismatches: Array<string> = [];
+    for (const { source, node } of candidates) {
+      const markdown = toMarkdown(node);
+      const tree = new SourceTreeProbe({ chunkSize: 100, source } as SplitterOptions).probe(node, markdown);
+      if (tree === undefined) continue;
+      reused++;
+      const expected = JSON.stringify(offsetsOnly(fromMarkdown(markdown)));
+      if (JSON.stringify(offsetsOnly(tree)) !== expected) mismatches.push(markdown.slice(0, 120));
+    }
+
+    // Assert
+    expect(mismatches).toEqual([]);
+    expect(reused).toBeGreaterThan(1_000);
+  }, 60_000);
 });

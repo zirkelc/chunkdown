@@ -267,7 +267,7 @@ export class TextSplitter extends AbstractNodeSplitter {
    * of being parsed again. Reference nodes resolve against definitions
    * elsewhere in the document, so subtrees that contain them are parsed.
    */
-  private sourceTree(node: Nodes, markdown: string): Root | undefined {
+  protected sourceTree(node: Nodes, markdown: string): Root | undefined {
     const { source } = this.options;
     const start = node.position?.start?.offset;
     const end = node.position?.end?.offset;
