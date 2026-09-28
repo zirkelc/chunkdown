@@ -179,6 +179,33 @@ const REPARSE_STABLE_TYPES = new Set(['paragraph', 'heading', 'code', 'html']);
 const CONTEXT_DEPENDENT_TYPES = new Set(['linkReference', 'imageReference', 'footnoteReference', 'definition']);
 
 /**
+ * Whether the first `length` characters of `markdown` are the source text at
+ * `start`. The serializer writes every emphasis marker as `*`, so a `_` in the
+ * source may appear as `*`: same length, same offsets, same tree. A run of `*`
+ * must come entirely from `_` or entirely from `*`, because a rewritten run
+ * next to an original one would merge into a single run and pair differently.
+ */
+const matchesSource = (source: string, start: number, markdown: string, length: number): boolean => {
+  /**
+   * Whether the current run of `*` was rewritten from `_`, or undefined outside a run
+   */
+  let runRewritten: boolean | undefined;
+  for (let i = 0; i < length; i++) {
+    const char = markdown.charCodeAt(i);
+    const sourceChar = source.charCodeAt(start + i);
+    const rewritten = char === 42 /* * */ && sourceChar === 95; /* _ */
+    if (char !== sourceChar && !rewritten) return false;
+    if (char === 42 /* * */) {
+      if (runRewritten === undefined) runRewritten = rewritten;
+      else if (runRewritten !== rewritten) return false;
+    } else {
+      runRewritten = undefined;
+    }
+  }
+  return true;
+};
+
+/**
  * Copy a subtree with every position offset moved back by `shift`. Only
  * offsets are kept, since nothing downstream reads lines or columns. Returns
  * undefined when the subtree contains a context-dependent node or a node
@@ -261,8 +288,9 @@ export class TextSplitter extends AbstractNodeSplitter {
 
   /**
    * Parsing a block node's serialization gives back the node's own subtree
-   * when the serialization is exactly the node's slice of the source document
-   * (plus the serializer's final line ending), only with offsets relative to
+   * when the serialization is the node's slice of the source document (plus
+   * the serializer's final line ending, and up to rewritten emphasis markers),
+   * only with offsets relative to
    * that text. In that case the subtree is reused with shifted offsets instead
    * of being parsed again. Reference nodes resolve against definitions
    * elsewhere in the document, so subtrees that contain them are parsed.
@@ -274,7 +302,7 @@ export class TextSplitter extends AbstractNodeSplitter {
     if (source === undefined || start === undefined || end === undefined) return undefined;
     if (!REPARSE_STABLE_TYPES.has(node.type)) return undefined;
     if (markdown.length !== end - start + 1 || markdown.charCodeAt(end - start) !== 10 /* \n */) return undefined;
-    if (!source.startsWith(markdown.slice(0, -1), start)) return undefined;
+    if (!matchesSource(source, start, markdown, end - start)) return undefined;
 
     const shifted = shiftOffsets(node, start);
     if (shifted === undefined) return undefined;

@@ -220,4 +220,47 @@ describe('source subtree reuse equivalence', () => {
     expect(mismatches).toEqual([]);
     expect(reused).toBeGreaterThan(1_000);
   }, 60_000);
+
+  it('should reuse only subtrees that equal the re-parse for emphasis edge cases', () => {
+    // Arrange
+    const sources = [
+      '_a_ and *b*',
+      '_a_*b*',
+      '*a*_b_',
+      '__a__ and **b**',
+      '__a__**b**',
+      '_a *b* c_',
+      '*a _b_ c*',
+      '_a **b** c_',
+      '___a___',
+      '_a_ snake_case_word _b_',
+      'foo_bar_ _baz_',
+      '_a_b_ c',
+      '**_a_**',
+      '_**a**_',
+      '_a_\\*b',
+      'x _a_. _b_, (_c_) "_d_"',
+      '* not a list _a_',
+      '- item with _a_ inside\n- and *b*',
+      '> quote _a_ and *b*',
+    ];
+
+    // Act
+    const mismatches: Array<string> = [];
+    for (const source of sources) {
+      const collect = (node: Nodes): void => {
+        const markdown = toMarkdown(node);
+        const tree = new SourceTreeProbe({ chunkSize: 100, source } as SplitterOptions).probe(node, markdown);
+        if (tree !== undefined) {
+          const expected = JSON.stringify(offsetsOnly(fromMarkdown(markdown)));
+          if (JSON.stringify(offsetsOnly(tree)) !== expected) mismatches.push(source);
+        }
+        if ('children' in node) node.children.forEach(collect);
+      };
+      collect(fromMarkdown(source));
+    }
+
+    // Assert
+    expect(mismatches).toEqual([]);
+  });
 });
