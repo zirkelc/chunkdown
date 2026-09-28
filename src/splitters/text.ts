@@ -182,7 +182,10 @@ const CONTEXT_DEPENDENT_TYPES = new Set(['linkReference', 'imageReference', 'foo
  * Whether a character code is ASCII punctuation, the set a backslash escapes.
  */
 const isAsciiPunctuation = (code: number): boolean =>
-  (code >= 33 && code <= 47) || (code >= 58 && code <= 64) || (code >= 91 && code <= 96) || (code >= 123 && code <= 126);
+  (code >= 33 && code <= 47) ||
+  (code >= 58 && code <= 64) ||
+  (code >= 91 && code <= 96) ||
+  (code >= 123 && code <= 126);
 
 /**
  * Offset edits between a source slice and its serialization: `at` is a slice
