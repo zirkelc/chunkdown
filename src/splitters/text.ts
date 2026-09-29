@@ -192,8 +192,18 @@ export class TextSplitter extends AbstractNodeSplitter {
     const nodes: Nodes[] = [];
 
     const totalPlainLength = mapping.plain.length;
+    const literal = node.type === 'code';
 
-    for (const textChunk of this.splitRecursive(markdown, boundaries, 0, markdown.length, 0, totalPlainLength, Infinity)) {
+    for (const textChunk of this.splitRecursive(
+      markdown,
+      boundaries,
+      0,
+      markdown.length,
+      0,
+      totalPlainLength,
+      Infinity,
+      literal,
+    )) {
       // HACK: We use 'html' node type to preserve the markdown text as-is.
       // The chunks are already valid markdown (from toMarkdown above), so we need
       // a node type that passes through unchanged during serialization. The 'html'
@@ -458,6 +468,12 @@ export class TextSplitter extends AbstractNodeSplitter {
    * level works on a window `[mdStart, mdEnd)` with `plainStart` as its plain
    * text origin, and `maxWeight` caps the boundary strength to those at most
    * as strong as the ancestors' selections.
+   *
+   * `literal` marks text whose plain text is exactly its content, such as a
+   * code block: each part is then sized by its plain text length. Other text
+   * is sized by parsing each part, because a cut can change how the markdown
+   * around it parses; code parsed as markdown would lose its indentation and
+   * markdown-like characters from the count.
    */
   private *splitRecursive(
     text: string,
@@ -467,6 +483,7 @@ export class TextSplitter extends AbstractNodeSplitter {
     plainStart: number,
     totalPlainLength: number,
     maxWeight: number,
+    literal: boolean,
   ): Generator<string> {
     /**
      * Fast path: use pre-computed plain text length to skip parsing
@@ -507,13 +524,13 @@ export class TextSplitter extends AbstractNodeSplitter {
     }
 
     /**
-     * Compute exact sizes for the selected boundary via getContentSize
+     * Compute exact sizes for the selected boundary
      */
     const position = boundary.mdPosition;
     const firstPart = text.substring(mdStart, position);
     const secondPart = text.substring(position, mdEnd);
-    const firstPartSize = getContentSize(firstPart);
-    const secondPartSize = getContentSize(secondPart);
+    const firstPartSize = literal ? boundary.plainPosition - plainStart : getContentSize(firstPart);
+    const secondPartSize = literal ? totalPlainLength - firstPartSize : getContentSize(secondPart);
 
     /**
      * Recursive calls only use boundaries at most as strong as the selected
@@ -523,7 +540,16 @@ export class TextSplitter extends AbstractNodeSplitter {
     if (firstPartSize <= this.maxAllowedSize) {
       yield firstPart;
     } else {
-      yield* this.splitRecursive(text, boundaries, mdStart, position, plainStart, firstPartSize, boundary.weight);
+      yield* this.splitRecursive(
+        text,
+        boundaries,
+        mdStart,
+        position,
+        plainStart,
+        firstPartSize,
+        boundary.weight,
+        literal,
+      );
     }
 
     if (secondPartSize <= this.maxAllowedSize) {
@@ -537,6 +563,7 @@ export class TextSplitter extends AbstractNodeSplitter {
         boundary.plainPosition,
         secondPartSize,
         boundary.weight,
+        literal,
       );
     }
   }
