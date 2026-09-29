@@ -274,12 +274,16 @@ const mapOffsets = (node: Nodes, start: number, edits: OffsetEdits): Nodes | und
   const nodeEnd = node.position?.end?.offset;
   if (nodeStart === undefined || nodeEnd === undefined) return undefined;
 
-  const copy = { ...node } as Nodes & { children?: Array<Nodes> };
-  delete copy.data;
-  copy.position = {
-    start: { line: 0, column: 0, offset: mapOffset(nodeStart - start, edits) },
-    end: { line: 0, column: 0, offset: mapOffset(nodeEnd - start, edits) },
-  };
+  /**
+   * `data` is carried over unchanged: nothing that reads this tree uses it.
+   */
+  const copy = {
+    ...node,
+    position: {
+      start: { line: 0, column: 0, offset: mapOffset(nodeStart - start, edits) },
+      end: { line: 0, column: 0, offset: mapOffset(nodeEnd - start, edits) },
+    },
+  } as Nodes & { children?: Array<Nodes> };
   if ('children' in node) {
     const children: Array<Nodes> = [];
     for (const child of node.children) {
