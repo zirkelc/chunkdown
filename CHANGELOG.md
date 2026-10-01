@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.5.1](https://github.com/zirkelc/chunkdown/compare/v3.5.0...v3.5.1) (2026-10-01)
+
+
+### Performance Improvements
+
+* map source subtree offsets across escapes the serializer changed ([9cbb1f2](https://github.com/zirkelc/chunkdown/commit/9cbb1f25dafb07d256bee7d947a7f830d42ffdce))
+* reuse source subtrees in the text splitter instead of re-parsing ([e00ce2d](https://github.com/zirkelc/chunkdown/commit/e00ce2d2bed3a05eb259df3ae01464d03f3b2cad))
+* reuse source subtrees in the text splitter instead of re-parsing ([f8d0968](https://github.com/zirkelc/chunkdown/commit/f8d096811d804fc71e47536b7b468d38aca460d1))
+* reuse source subtrees whose emphasis markers the serializer rewrote ([b06abd8](https://github.com/zirkelc/chunkdown/commit/b06abd8c20c0a21afee24e0ba8f01d1f15bb2bb1))
+
 ## [3.5.0](https://github.com/zirkelc/chunkdown/compare/v3.4.0...v3.5.0) (2026-07-29)
 
 
