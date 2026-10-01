@@ -1,6 +1,9 @@
+import type { Nodes, Root } from 'mdast';
 import { describe, expect, it } from 'vitest';
-import { fromMarkdown, toString } from '../src/markdown';
+import { fromMarkdown, toMarkdown, toString } from '../src/markdown';
 import { getContentSize } from '../src/size';
+import { TextSplitter } from '../src/splitters/text';
+import type { SplitterOptions } from '../src/types';
 import { loadFixtures } from './dataset';
 
 /**
@@ -163,4 +166,117 @@ describe('fast-path parser equivalence', () => {
     expect(mismatches).toEqual([]);
   });
 
+});
+
+/**
+ * Exposes the text splitter's source subtree reuse for testing.
+ */
+class SourceTreeProbe extends TextSplitter {
+  probe(node: Nodes, markdown: string): Root | undefined {
+    return this.sourceTree(node, markdown);
+  }
+}
+
+/**
+ * Reduce a tree to what the text splitter reads from it: every field except
+ * `data`, and positions as offsets only.
+ */
+const offsetsOnly = (node: Nodes): unknown => {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'data') continue;
+    if (key === 'position') out.position = [node.position?.start.offset, node.position?.end.offset];
+    else if (key === 'children') out.children = (value as Array<Nodes>).map(offsetsOnly);
+    else out[key] = value;
+  }
+  return out;
+};
+
+describe('source subtree reuse equivalence', () => {
+  it('should reuse only subtrees that equal the re-parse of their serialization', () => {
+    // Arrange
+    const candidates: Array<{ source: string; node: Nodes }> = [];
+    for (const fixture of fixtures) {
+      const collect = (node: Nodes): void => {
+        candidates.push({ source: fixture.text, node });
+        if ('children' in node) node.children.forEach(collect);
+      };
+      collect(fromMarkdown(fixture.text));
+    }
+
+    // Act
+    let reused = 0;
+    const mismatches: Array<string> = [];
+    for (const { source, node } of candidates) {
+      const markdown = toMarkdown(node);
+      const tree = new SourceTreeProbe({ chunkSize: 100, source } as SplitterOptions).probe(node, markdown);
+      if (tree === undefined) continue;
+      reused++;
+      const expected = JSON.stringify(offsetsOnly(fromMarkdown(markdown)));
+      if (JSON.stringify(offsetsOnly(tree)) !== expected) mismatches.push(markdown.slice(0, 120));
+    }
+
+    // Assert
+    expect(mismatches).toEqual([]);
+    expect(reused).toBeGreaterThan(1_000);
+  }, 60_000);
+
+  it('should reuse only subtrees that equal the re-parse for emphasis edge cases', () => {
+    // Arrange
+    const sources = [
+      '_a_ and *b*',
+      '_a_*b*',
+      '*a*_b_',
+      '__a__ and **b**',
+      '__a__**b**',
+      '_a *b* c_',
+      '*a _b_ c*',
+      '_a **b** c_',
+      '___a___',
+      '_a_ snake_case_word _b_',
+      'foo_bar_ _baz_',
+      '_a_b_ c',
+      '**_a_**',
+      '_**a**_',
+      '_a_\\*b',
+      'x _a_. _b_, (_c_) "_d_"',
+      '* not a list _a_',
+      '- item with _a_ inside\n- and *b*',
+      '> quote _a_ and *b*',
+      // escapes the serializer inserts or removes
+      'a [b] c and [d]',
+      '[x](https://a.org/wiki/A_(b)) tail',
+      'a \\- b and \\. c',
+      'literal \\\\ backslash and \\\\[x]',
+      'a\\*b\\* and \\_c\\_',
+      '`code \\[x] \\*` and \\[y]',
+      'hard\\\nbreak and \\[z]',
+      '<https://x.y/a\\_b> and \\[w]',
+      '<span title="\\[">x</span> [v]',
+      'a *b\\*c* d',
+      'x \\[y\\](z) and [u](v)',
+      '_a_\\_ and \\*_b_',
+      '[a\\]b](c) and ![d\\[e](f)',
+      '1\\. not a list [a]',
+      '\\# not a heading [a]',
+    ];
+
+    // Act
+    const mismatches: Array<string> = [];
+    for (const source of sources) {
+      const collect = (node: Nodes): void => {
+        const markdown = toMarkdown(node);
+        const tree = new SourceTreeProbe({ chunkSize: 100, source } as SplitterOptions).probe(node, markdown);
+        if (tree !== undefined) {
+          const expected = JSON.stringify(offsetsOnly(fromMarkdown(markdown)));
+          if (JSON.stringify(offsetsOnly(tree)) !== expected) mismatches.push(source);
+        }
+        if ('children' in node) node.children.forEach(collect);
+      };
+      collect(fromMarkdown(source));
+    }
+
+    // Assert
+    expect(mismatches).toEqual([]);
+  });
 });

@@ -4,10 +4,17 @@ import type { ComplexSplitRules, NodeRules, SplitterOptions } from '../types';
 import type { NodeSplitter } from './interface';
 
 /**
+ * Options as shared by all splitters of one chunkdown instance. `source` is the
+ * document being split, set only while a split is running, so that splitters
+ * can read the original text of a node from its position offsets.
+ */
+export type SharedSplitterOptions = SplitterOptions & { source?: string };
+
+/**
  * Abstract base class for node splitters
  */
 export abstract class AbstractNodeSplitter<NODE extends Nodes = Nodes> implements NodeSplitter<NODE> {
-  protected options: SplitterOptions;
+  protected options: SharedSplitterOptions;
   protected chunkSize: number;
   protected maxOverflowRatio: number;
   protected maxAllowedSize: number;
