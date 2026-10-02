@@ -62,4 +62,21 @@ function example() {
       expect(chunks.length).toBe(1);
     });
   });
+
+  describe('Size', () => {
+    it('should count every code character, including markdown-like syntax', () => {
+      // Arrange
+      const lines = Array.from({ length: 30 }, (_, i) => `  total${i} = **a** + _b_;`);
+      const text = `\`\`\`js\n${lines.join('\n')}\n\`\`\``;
+      const splitter = new CodeSplitter({ chunkSize: 100, maxOverflowRatio: 1.0 });
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      const codeLengths = chunks.map((chunk) => chunk.replace(/^```js\n/, '').replace(/\n?```$/, '').length);
+      const tooLarge = codeLengths.filter((length) => length > 100);
+      expect(tooLarge).toEqual([]);
+    });
+  });
 });

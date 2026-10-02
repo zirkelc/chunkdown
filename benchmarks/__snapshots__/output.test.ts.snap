@@ -10,17 +10,17 @@ exports[`cs100-r1.0 > ai-sdk-overview 1`] = `
 
 exports[`cs100-r1.0 > ai-sdk-prompts 1`] = `
 {
-  "breadcrumbs": "4beb6de0e6c0499a",
-  "chunks": 218,
-  "text": "e84bd48a6d241135",
+  "breadcrumbs": "f419fc413b48bbcf",
+  "chunks": 228,
+  "text": "e52a937d95ca0c7b",
 }
 `;
 
 exports[`cs100-r1.0 > ai-sdk-tools 1`] = `
 {
-  "breadcrumbs": "739ca9d4db06ea32",
-  "chunks": 733,
-  "text": "9c634c8ee9b2434c",
+  "breadcrumbs": "0ae26a1c6f391450",
+  "chunks": 770,
+  "text": "6672255162cfe713",
 }
 `;
 
@@ -42,25 +42,25 @@ exports[`cs100-r1.0 > flat-photosynthesis-small 1`] = `
 
 exports[`cs100-r1.0 > rust-book-ownership 1`] = `
 {
-  "breadcrumbs": "829eea159c72a002",
-  "chunks": 409,
-  "text": "3836e51163716b7e",
+  "breadcrumbs": "1ced05e0c74a0e35",
+  "chunks": 412,
+  "text": "6e1d399c8c7ebffb",
 }
 `;
 
 exports[`cs100-r1.0 > spec-commonmark 1`] = `
 {
-  "breadcrumbs": "b2bfbb3d43491fb7",
-  "chunks": 2273,
-  "text": "69f604355132c01b",
+  "breadcrumbs": "c98dce2b8f445e7a",
+  "chunks": 2267,
+  "text": "b5d06e6ffd4846c2",
 }
 `;
 
 exports[`cs100-r1.0 > spec-gfm 1`] = `
 {
-  "breadcrumbs": "2827d932c0486136",
-  "chunks": 2419,
-  "text": "f6b1bb0a389f468f",
+  "breadcrumbs": "6ee4876211602190",
+  "chunks": 2412,
+  "text": "a80748c0381d67a3",
 }
 `;
 
@@ -90,9 +90,9 @@ exports[`cs100-r1.0 > wikipedia-python 1`] = `
 
 exports[`cs100-r1.0 > wikipedia-transformer 1`] = `
 {
-  "breadcrumbs": "3cd117ce7b5cd559",
-  "chunks": 843,
-  "text": "0de1b642f3c29fc3",
+  "breadcrumbs": "bca0d515f9812e15",
+  "chunks": 847,
+  "text": "7d1861d5eb02330d",
 }
 `;
 
@@ -106,17 +106,17 @@ exports[`cs100-r1.5 > ai-sdk-overview 1`] = `
 
 exports[`cs100-r1.5 > ai-sdk-prompts 1`] = `
 {
-  "breadcrumbs": "532ef18ec144da33",
-  "chunks": 150,
-  "text": "2a7fb264cbc086e1",
+  "breadcrumbs": "cd40beabb245f089",
+  "chunks": 165,
+  "text": "c6cf3d601513958e",
 }
 `;
 
 exports[`cs100-r1.5 > ai-sdk-tools 1`] = `
 {
-  "breadcrumbs": "e5e54eb4e4cd393d",
-  "chunks": 513,
-  "text": "2765cc9ad2f3de68",
+  "breadcrumbs": "5c59a6e1abcee084",
+  "chunks": 542,
+  "text": "c74300f43ef0d5ad",
 }
 `;
 
@@ -138,25 +138,25 @@ exports[`cs100-r1.5 > flat-photosynthesis-small 1`] = `
 
 exports[`cs100-r1.5 > rust-book-ownership 1`] = `
 {
-  "breadcrumbs": "a07ba6621ee8aa42",
-  "chunks": 276,
-  "text": "1b91bdef2c52e20b",
+  "breadcrumbs": "84081a77473b3440",
+  "chunks": 278,
+  "text": "941924a09d747c49",
 }
 `;
 
 exports[`cs100-r1.5 > spec-commonmark 1`] = `
 {
-  "breadcrumbs": "5e94042b3e876e2b",
+  "breadcrumbs": "7a4e7ba97f62776d",
   "chunks": 1475,
-  "text": "63a447a2d79bff8b",
+  "text": "0a314977a57347c9",
 }
 `;
 
 exports[`cs100-r1.5 > spec-gfm 1`] = `
 {
-  "breadcrumbs": "1207ad83f2ab01b1",
-  "chunks": 1588,
-  "text": "b6b2c2e92d4013fe",
+  "breadcrumbs": "5d4a7f382d42f0e6",
+  "chunks": 1589,
+  "text": "07405da316efb4ef",
 }
 `;
 
@@ -188,7 +188,7 @@ exports[`cs100-r1.5 > wikipedia-transformer 1`] = `
 {
   "breadcrumbs": "7b518dcddd163848",
   "chunks": 559,
-  "text": "192abbc899a97fba",
+  "text": "e8ed9636462ee58f",
 }
 `;
 
@@ -202,17 +202,17 @@ exports[`cs250-r1.0 > ai-sdk-overview 1`] = `
 
 exports[`cs250-r1.0 > ai-sdk-prompts 1`] = `
 {
-  "breadcrumbs": "8eea0ae709e16459",
-  "chunks": 96,
-  "text": "1c1c780408ae3fd2",
+  "breadcrumbs": "e82e732627168dcd",
+  "chunks": 103,
+  "text": "885c855a8d6a4463",
 }
 `;
 
 exports[`cs250-r1.0 > ai-sdk-tools 1`] = `
 {
-  "breadcrumbs": "18b7f97442522de1",
-  "chunks": 319,
-  "text": "53da0f31c58b695d",
+  "breadcrumbs": "7a2012d57f56747e",
+  "chunks": 328,
+  "text": "81a966df870e036a",
 }
 `;
 
@@ -236,23 +236,23 @@ exports[`cs250-r1.0 > rust-book-ownership 1`] = `
 {
   "breadcrumbs": "99976145faf23e17",
   "chunks": 169,
-  "text": "3f576bf94d0b7914",
+  "text": "444898df77838cb1",
 }
 `;
 
 exports[`cs250-r1.0 > spec-commonmark 1`] = `
 {
-  "breadcrumbs": "bc1c1158faf8a894",
-  "chunks": 863,
-  "text": "443e301dc9063460",
+  "breadcrumbs": "55460f014511a8c6",
+  "chunks": 865,
+  "text": "5c25900aa300db28",
 }
 `;
 
 exports[`cs250-r1.0 > spec-gfm 1`] = `
 {
-  "breadcrumbs": "aeb944e01b214a2e",
-  "chunks": 911,
-  "text": "c1b00eafd949c38c",
+  "breadcrumbs": "5fc6a8530850f41a",
+  "chunks": 913,
+  "text": "b4de47599b989026",
 }
 `;
 
@@ -282,9 +282,9 @@ exports[`cs250-r1.0 > wikipedia-python 1`] = `
 
 exports[`cs250-r1.0 > wikipedia-transformer 1`] = `
 {
-  "breadcrumbs": "394b56b4b27cb42d",
-  "chunks": 342,
-  "text": "7646798636d59545",
+  "breadcrumbs": "0e4a9b7eae9022b0",
+  "chunks": 343,
+  "text": "2820649f5bef798b",
 }
 `;
 
@@ -298,17 +298,17 @@ exports[`cs250-r1.5 > ai-sdk-overview 1`] = `
 
 exports[`cs250-r1.5 > ai-sdk-prompts 1`] = `
 {
-  "breadcrumbs": "4168d07e4bd0414d",
-  "chunks": 74,
-  "text": "6f564a783a119ddd",
+  "breadcrumbs": "e4cc0a71d73f3c8a",
+  "chunks": 73,
+  "text": "afdda52ea5ab2b0a",
 }
 `;
 
 exports[`cs250-r1.5 > ai-sdk-tools 1`] = `
 {
-  "breadcrumbs": "c1df180f62f863b5",
-  "chunks": 211,
-  "text": "fe6eb4e43f5457bc",
+  "breadcrumbs": "f430f53382b1698e",
+  "chunks": 215,
+  "text": "63a475707abefe63",
 }
 `;
 
@@ -330,9 +330,9 @@ exports[`cs250-r1.5 > flat-photosynthesis-small 1`] = `
 
 exports[`cs250-r1.5 > rust-book-ownership 1`] = `
 {
-  "breadcrumbs": "d2b709e23989fa71",
-  "chunks": 106,
-  "text": "710df23cd436cec9",
+  "breadcrumbs": "0b699ab98ad38fdc",
+  "chunks": 107,
+  "text": "664827596cbb1101",
 }
 `;
 
@@ -380,7 +380,7 @@ exports[`cs250-r1.5 > wikipedia-transformer 1`] = `
 {
   "breadcrumbs": "c56096f268535cd5",
   "chunks": 220,
-  "text": "b03eafe483e4b2f0",
+  "text": "caf569645079d07c",
 }
 `;
 
@@ -394,17 +394,17 @@ exports[`cs500-r1.0 > ai-sdk-overview 1`] = `
 
 exports[`cs500-r1.0 > ai-sdk-prompts 1`] = `
 {
-  "breadcrumbs": "e9c026b783e71478",
-  "chunks": 51,
-  "text": "a85cbcc293d306d9",
+  "breadcrumbs": "d9df00c38f1d1dc0",
+  "chunks": 53,
+  "text": "603a9a981c941059",
 }
 `;
 
 exports[`cs500-r1.0 > ai-sdk-tools 1`] = `
 {
-  "breadcrumbs": "8bdb41c69e840d6b",
-  "chunks": 164,
-  "text": "2823d6551bcd92a2",
+  "breadcrumbs": "3128c8fe07521c10",
+  "chunks": 167,
+  "text": "d70665ab2dfdc194",
 }
 `;
 
@@ -426,9 +426,9 @@ exports[`cs500-r1.0 > flat-photosynthesis-small 1`] = `
 
 exports[`cs500-r1.0 > rust-book-ownership 1`] = `
 {
-  "breadcrumbs": "c4612022e02368ee",
-  "chunks": 80,
-  "text": "43f77ce68e84a00d",
+  "breadcrumbs": "8c09785cf6076bf1",
+  "chunks": 81,
+  "text": "40d948abdebea262",
 }
 `;
 
@@ -492,7 +492,7 @@ exports[`cs500-r1.5 > ai-sdk-prompts 1`] = `
 {
   "breadcrumbs": "f83003727f134625",
   "chunks": 34,
-  "text": "394770bad380327a",
+  "text": "ae086bf52ce88589",
 }
 `;
 
@@ -588,7 +588,7 @@ exports[`cs1000-r1.0 > ai-sdk-prompts 1`] = `
 {
   "breadcrumbs": "e20323b2a9286103",
   "chunks": 29,
-  "text": "15587fd8822e8a34",
+  "text": "62658403d6200e56",
 }
 `;
 
