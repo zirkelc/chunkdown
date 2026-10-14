@@ -103,7 +103,11 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
      */
     for (let cellIndex = 0; cellIndex < row.children.length; cellIndex++) {
       const cell = row.children[cellIndex];
-      const headerCell = headerRow.children[cellIndex];
+      /**
+       * GFM keeps cells beyond the header width in the row.
+       * Such cells have no header cell, so pair them with an empty header cell.
+       */
+      const headerCell: TableCell = headerRow.children[cellIndex] ?? { type: 'tableCell', children: [] };
 
       /**
        * Create a mini-table with one column: header cell + data cell

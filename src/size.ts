@@ -378,8 +378,9 @@ export const getSectionSize = (section: Section): number => {
 export function* splitTextByMaxRawSize(text: string, maxRawSize: number): Generator<string> {
   let remaining = text;
 
-  while (remaining.length > maxRawSize) {
-    let splitPos = maxRawSize;
+  // Treat a limit below 1 as 1, so every pass advances at least one character and the loop ends
+  while (remaining.length > Math.max(1, maxRawSize)) {
+    let splitPos = Math.max(1, maxRawSize);
     let foundWhitespace = false;
 
     // Search backwards from maxRawSize for any whitespace

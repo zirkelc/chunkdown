@@ -177,4 +177,38 @@ describe('TableSplitter', () => {
       ]);
     });
   });
+
+  describe('Rows with more cells than the header', () => {
+    const text = `| a |
+| - |
+| xxxxxxxxxxxx | yy |`;
+
+    it('should pair extra cells with an empty header cell', () => {
+      // Arrange
+      const splitter = new TableSplitter({ chunkSize: 10 });
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks).toEqual([`| a |\n| - |\n| xxxxxxxxxxxx\n |`, `| |\n| - |\n| yy |`]);
+    });
+
+    it('should pair split chunks of an extra cell with an empty header cell', () => {
+      // Arrange
+      const splitter = new TableSplitter({ chunkSize: 10 });
+      const longText = `| a |
+| - |
+| xxxxxxxxxxxxxxxxxxxx | yyyyyyyyyyyyyyyyyyyyyyyy |`;
+
+      // Act
+      const chunks = splitter.splitText(longText);
+
+      // Assert
+      expect(chunks).toEqual([
+        `| a |\n| - |\n| xxxxxxxxxxxxxxxxxxxx\n |`,
+        `| |\n| - |\n| yyyyyyyyyyyyyyyyyyyyyyyy\n |`,
+      ]);
+    });
+  });
 });

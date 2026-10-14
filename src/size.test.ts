@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHierarchicalAST } from './ast';
 import { fromMarkdown } from './markdown';
-import { getContentSize, getRawSize, getSectionSize, splitByMaxRawSize } from './size';
+import { getContentSize, getRawSize, getSectionSize, splitByMaxRawSize, splitTextByMaxRawSize } from './size';
 
 describe('getContentSize', () => {
   it('should measure plain text correctly', () => {
@@ -319,5 +319,18 @@ describe('splitByMaxRawSize', () => {
     expect(result[0]).toBe('short verylongw');
     expect(result[1]).toBe('ordwithoutspace');
     expect(result[2]).toBe('s another');
+  });
+});
+
+describe('splitTextByMaxRawSize', () => {
+  it.each([0, -1, 0.5])('should advance at least one character per chunk if maxRawSize is %s', (maxRawSize) => {
+    // Arrange
+    const text = 'abc';
+
+    // Act
+    const result = Array.from(splitTextByMaxRawSize(text, maxRawSize));
+
+    // Assert
+    expect(result).toEqual(['a', 'b', 'c']);
   });
 });
