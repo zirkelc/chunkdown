@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.2](https://github.com/zirkelc/chunkdown/compare/v3.5.1...v3.5.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* handle table rows wider than the header and reject invalid maxRawSize ([#31](https://github.com/zirkelc/chunkdown/issues/31)) ([64e0fc5](https://github.com/zirkelc/chunkdown/commit/64e0fc53efe1448bc8776983cd2da545758a67b4))
+
 ## [3.5.1](https://github.com/zirkelc/chunkdown/compare/v3.5.0...v3.5.1) (2026-10-01)
 
 
