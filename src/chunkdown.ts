@@ -37,6 +37,10 @@ class Chunkdown implements NodeSplitter<Root> {
   private hasTransforms: boolean;
 
   constructor(options: SplitterOptions) {
+    if (options.maxRawSize !== undefined && (!Number.isInteger(options.maxRawSize) || options.maxRawSize < 1)) {
+      throw new Error(`maxRawSize must be a positive integer, got ${options.maxRawSize}`);
+    }
+
     this.options = {
       ...options,
       maxOverflowRatio: Math.max(1.0, options.maxOverflowRatio ?? 1.0),

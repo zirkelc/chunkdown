@@ -41,6 +41,42 @@ describe('chunkdown', () => {
         expect(chunk.text.length).toBeLessThanOrEqual(maxRawSize);
       });
     });
+
+    it.each([0, -1, 1.5, Number.NaN])('should throw if maxRawSize is %s', (maxRawSize) => {
+      // Arrange
+      const options = { chunkSize: 100, maxRawSize };
+
+      // Act
+      const create = () => chunkdown(options);
+
+      // Assert
+      expect(create).toThrow();
+    });
+
+    it('should accept maxRawSize of 1', () => {
+      // Arrange
+      const splitter = chunkdown({ chunkSize: 100, maxRawSize: 1 });
+
+      // Act
+      const { chunks } = splitter.split('abc');
+
+      // Assert
+      expect(chunks.map((chunk) => chunk.text)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should not throw for table rows with more cells than the header', () => {
+      // Arrange
+      const splitter = chunkdown({ chunkSize: 10 });
+      const text = '| a |\n| - |\n| xxxxxxxxxxxxxxxxxxxx | yyyyyyyyyyyyyyyyyyyyyyyy |\n';
+
+      // Act
+      const { chunks } = splitter.split(text);
+
+      // Assert
+      const texts = chunks.map((chunk) => chunk.text);
+      expect(texts.some((chunkText) => chunkText.includes('xxxxxxxxxxxxxxxxxxxx'))).toBe(true);
+      expect(texts.some((chunkText) => chunkText.includes('yyyyyyyyyyyyyyyyyyyyyyyy'))).toBe(true);
+    });
   });
 
   describe('Breadcrumbs', () => {

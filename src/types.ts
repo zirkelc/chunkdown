@@ -76,6 +76,7 @@ export type SplitterOptions = {
    * Optional maximum raw markdown length (characters) for embedding model compatibility.
    * If set, chunks will be further split when their raw markdown exceeds this limit.
    * Useful for embedding models with character limits (e.g., 7000 for OpenAI text-embedding-3-large).
+   * Must be a positive integer (1 or greater), otherwise the constructor throws an error.
    * If undefined, defaults to chunkSize * maxOverflowRatio * 4 for reasonable safety.
    */
   maxRawSize?: number;
