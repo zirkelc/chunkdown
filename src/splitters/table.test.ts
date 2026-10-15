@@ -178,6 +178,54 @@ describe('TableSplitter', () => {
     });
   });
 
+  describe('Cells that are split into parts', () => {
+    it('should not keep whitespace at the ends of the parts', () => {
+      // Arrange
+      const splitter = new TableSplitter({ chunkSize: 10 });
+      const cellText = `| A |
+| - |
+| one **two three** four five six. Third one? Fourth part. |`;
+
+      // Act
+      const chunks = splitter.splitText(cellText);
+
+      // Assert
+      expect(chunks).toEqual([
+        `| A |\n| - |\n| one |`,
+        `| A |\n| - |\n| **two three** |`,
+        `| A |\n| - |\n| four |`,
+        `| A |\n| - |\n| five six. |`,
+        `| A |\n| - |\n| Third one? |`,
+        `| A |\n| - |\n| Fourth |`,
+        `| A |\n| - |\n| part. |`,
+      ]);
+    });
+
+    it('should skip parts that contain only whitespace', () => {
+      // Arrange
+      const splitter = new TableSplitter({ chunkSize: 10 });
+      const cellText = `| A |
+| - |
+| first sentence here. Second sentence here! Third one? Fourth part. |`;
+
+      // Act
+      const chunks = splitter.splitText(cellText);
+
+      // Assert
+      expect(chunks).toEqual([
+        `| A |\n| - |\n| first |`,
+        `| A |\n| - |\n| sentence |`,
+        `| A |\n| - |\n| here. |`,
+        `| A |\n| - |\n| Second |`,
+        `| A |\n| - |\n| sentence |`,
+        `| A |\n| - |\n| here! |`,
+        `| A |\n| - |\n| Third one? |`,
+        `| A |\n| - |\n| Fourth |`,
+        `| A |\n| - |\n| part. |`,
+      ]);
+    });
+  });
+
   describe('Rows with more cells than the header', () => {
     const text = `| a |
 | - |
@@ -191,7 +239,7 @@ describe('TableSplitter', () => {
       const chunks = splitter.splitText(text);
 
       // Assert
-      expect(chunks).toEqual([`| a |\n| - |\n| xxxxxxxxxxxx\n |`, `| |\n| - |\n| yy |`]);
+      expect(chunks).toEqual([`| a |\n| - |\n| xxxxxxxxxxxx |`, `| |\n| - |\n| yy |`]);
     });
 
     it('should pair split chunks of an extra cell with an empty header cell', () => {
@@ -205,10 +253,7 @@ describe('TableSplitter', () => {
       const chunks = splitter.splitText(longText);
 
       // Assert
-      expect(chunks).toEqual([
-        `| a |\n| - |\n| xxxxxxxxxxxxxxxxxxxx\n |`,
-        `| |\n| - |\n| yyyyyyyyyyyyyyyyyyyyyyyy\n |`,
-      ]);
+      expect(chunks).toEqual([`| a |\n| - |\n| xxxxxxxxxxxxxxxxxxxx |`, `| |\n| - |\n| yyyyyyyyyyyyyyyyyyyyyyyy |`]);
     });
   });
 });

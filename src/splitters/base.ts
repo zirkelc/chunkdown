@@ -4,11 +4,13 @@ import type { ComplexSplitRules, NodeRules, SplitterOptions } from '../types';
 import type { NodeSplitter } from './interface';
 
 /**
- * Options as shared by all splitters of one chunkdown instance. `source` is the
- * document being split, set only while a split is running, so that splitters
- * can read the original text of a node from its position offsets.
+ * Options as shared by all splitters of one chunkdown instance. Both fields
+ * are set only while a split is running. `document` is the text being split,
+ * so that splitters can read the original text of a node from its position
+ * offsets. `reuseSourceTrees` allows splitters to reuse source subtrees whose
+ * text matches the source; it is off when transforms run.
  */
-export type SharedSplitterOptions = SplitterOptions & { source?: string };
+export type SharedSplitterOptions = SplitterOptions & { document?: string; reuseSourceTrees?: boolean };
 
 /**
  * Abstract base class for node splitters

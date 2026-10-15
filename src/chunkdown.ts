@@ -1,10 +1,12 @@
 import type { Heading, Nodes, Root } from 'mdast';
 import { fromMarkdown, preprocessMarkdown, toMarkdown, toString } from './markdown';
-import { splitTextByMaxRawSize } from './size';
+import { chunkRange, lineStarts, recordSourceNodes, toPoint } from './position';
+import { splitRangesByMaxRawSize } from './size';
 import type { SharedSplitterOptions } from './splitters/base';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
-import type { Breadcrumb, Chunk, NodeRules, SplitterOptions, SplitterResult } from './types';
+import type { Breadcrumb, Chunk, ChunkPosition, NodeRules, SplitterOptions, SplitterResult } from './types';
+import { alignWithSource, unmapOffset } from './utils/source-offsets';
 
 /**
  * Default node rules:
@@ -65,24 +67,41 @@ class Chunkdown implements NodeSplitter<Root> {
    * Split markdown text into chunks with metadata.
    *
    * @param text - The markdown text to split
-   * @returns SplitResult containing chunks with text and breadcrumbs
+   * @returns SplitResult containing chunks with text, breadcrumbs and source positions
    */
   split(text: string): SplitterResult {
+    /**
+     * The parser drops a leading byte order mark and counts its offsets
+     * without it. All offsets are computed against the text without it, and
+     * the positions of the chunks are moved back by its length at the end.
+     */
+    const bom = text.charCodeAt(0) === 0xfeff ? 1 : 0;
+    const document = bom ? text.slice(bom) : text;
+
     const root = fromMarkdown(text);
     const preparedRoot = preprocessMarkdown(root, this.options);
+    const sourceNodes = recordSourceNodes(preparedRoot);
 
     /**
      * Splitters may reuse source subtrees whose text matches the source. A
      * transform can leave nodes whose text matches while their structure or
-     * positions no longer do, so the source is withheld when transforms run.
+     * positions no longer do, so the reuse is off when transforms run.
      */
     let nodes: Array<Nodes>;
-    this.options.source = this.hasTransforms ? undefined : text;
+    this.options.document = document;
+    this.options.reuseSourceTrees = !this.hasTransforms;
     try {
       nodes = this.splitter.splitNode(preparedRoot);
     } finally {
-      this.options.source = undefined;
+      this.options.document = undefined;
+      this.options.reuseSourceTrees = undefined;
     }
+
+    const starts = lineStarts(document);
+    const toPosition = (start: number, end: number): ChunkPosition => ({
+      start: toPoint(start, starts, bom),
+      end: toPoint(end, starts, bom),
+    });
 
     const chunks: Chunk[] = [];
 
@@ -96,12 +115,28 @@ class Chunkdown implements NodeSplitter<Root> {
         depth: h.depth,
       }));
 
+      const range = chunkRange(node, sourceNodes, document);
+
       if (this.options.maxRawSize !== undefined && markdown.length > this.options.maxRawSize) {
-        for (const part of splitTextByMaxRawSize(markdown, this.options.maxRawSize)) {
-          chunks.push({ text: part, breadcrumbs });
+        /**
+         * The parts are cut from the written-out text. Their source offsets
+         * are only known when that text is the source region with at most
+         * escapes changed.
+         */
+        const edits = range ? alignWithSource(document, range[0], range[1], `${markdown}\n`) : undefined;
+        for (const [start, end] of splitRangesByMaxRawSize(markdown, this.options.maxRawSize)) {
+          const chunk: Chunk = { text: markdown.slice(start, end), breadcrumbs };
+          if (range && edits) {
+            chunk.source = {
+              position: toPosition(range[0] + unmapOffset(start, edits), range[0] + unmapOffset(end, edits)),
+            };
+          }
+          chunks.push(chunk);
         }
       } else {
-        chunks.push({ text: markdown, breadcrumbs });
+        const chunk: Chunk = { text: markdown, breadcrumbs };
+        if (range) chunk.source = { position: toPosition(range[0], range[1]) };
+        chunks.push(chunk);
       }
     }
 
