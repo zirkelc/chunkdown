@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.0](https://github.com/zirkelc/chunkdown/compare/v3.5.2...v3.6.0) (2026-10-15)
+
+
+### Features
+
+* add the source position of each chunk ([#33](https://github.com/zirkelc/chunkdown/issues/33)) ([f9cad1b](https://github.com/zirkelc/chunkdown/commit/f9cad1b1baabc9cab99a165c4d202f5ec6e97dcc))
+
 ## [3.5.2](https://github.com/zirkelc/chunkdown/compare/v3.5.1...v3.5.2) (2026-10-14)
 
 
