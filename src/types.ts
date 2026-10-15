@@ -319,6 +319,50 @@ export interface Breadcrumb {
 }
 
 /**
+ * A place in the source text, in the convention of unist points.
+ */
+export interface ChunkPoint {
+  /**
+   * Line in the source text (1-based)
+   */
+  line: number;
+  /**
+   * Character offset in the source text (0-based, UTF-16 code units like
+   * `String.prototype.slice`)
+   */
+  offset: number;
+}
+
+/**
+ * The region of the source text that a chunk came from, in the convention of
+ * unist positions: `start` is the first character of the region and `end` is
+ * the place after the last character, so the region is
+ * `text.slice(start.offset, end.offset)`. `end.line` is the line of
+ * `end.offset`. A region never ends with whitespace, so this is also the line
+ * of its last character.
+ */
+export interface ChunkPosition {
+  start: ChunkPoint;
+  end: ChunkPoint;
+}
+
+/**
+ * The origin of a chunk in the text passed to `split()`.
+ */
+export interface ChunkSource {
+  /**
+   * The region of the source text that the chunk came from.
+   *
+   * The chunk text is written out again from the syntax tree, so it can differ
+   * from the source region (escapes, list markers, inline links, a repeated
+   * table header). The region covers the source nodes in the chunk; nodes
+   * that chunkdown inserts (the repeated header row of a split table) do not
+   * count.
+   */
+  position: ChunkPosition;
+}
+
+/**
  * A chunk of text with its breadcrumbs.
  */
 export interface Chunk {
@@ -330,6 +374,16 @@ export interface Chunk {
    * Ancestor headings for hierarchical context
    */
   breadcrumbs: Breadcrumb[];
+  /**
+   * Where the chunk came from in the text passed to `split()`.
+   *
+   * Undefined when the region cannot be found exactly: a chunk without nodes
+   * from the source (for example from a transform that creates new nodes), a
+   * part of a text that cannot be mapped to the source, or a part of a chunk
+   * cut by `maxRawSize` whose text is not the source region with only
+   * escapes changed.
+   */
+  source?: ChunkSource;
 }
 
 /**

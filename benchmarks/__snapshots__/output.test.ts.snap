@@ -76,7 +76,7 @@ exports[`cs100-r1.0 > wikipedia-markdown 1`] = `
 {
   "breadcrumbs": "96395e9d3ab8fb40",
   "chunks": 152,
-  "text": "9fdbbb586f686cc9",
+  "text": "098318874871608e",
 }
 `;
 
@@ -84,7 +84,7 @@ exports[`cs100-r1.0 > wikipedia-python 1`] = `
 {
   "breadcrumbs": "3d9bfbb45ae15874",
   "chunks": 709,
-  "text": "e086c4c94ff34be4",
+  "text": "08fd5292a911cc26",
 }
 `;
 
@@ -172,7 +172,7 @@ exports[`cs100-r1.5 > wikipedia-markdown 1`] = `
 {
   "breadcrumbs": "52a48a9d2098d886",
   "chunks": 109,
-  "text": "bb027b8d9e67275b",
+  "text": "ecae847b847c9a97",
 }
 `;
 
@@ -180,7 +180,7 @@ exports[`cs100-r1.5 > wikipedia-python 1`] = `
 {
   "breadcrumbs": "f3cee6035af4fd8b",
   "chunks": 462,
-  "text": "9a2d5bb002c81a17",
+  "text": "e0cd6423edff3ae3",
 }
 `;
 
@@ -268,7 +268,7 @@ exports[`cs250-r1.0 > wikipedia-markdown 1`] = `
 {
   "breadcrumbs": "f810f9a06fa544da",
   "chunks": 56,
-  "text": "8943bd4881964ad3",
+  "text": "4f6b0528697e9a40",
 }
 `;
 
@@ -276,7 +276,7 @@ exports[`cs250-r1.0 > wikipedia-python 1`] = `
 {
   "breadcrumbs": "6c9673f642d01ce9",
   "chunks": 280,
-  "text": "dc5cfae749b511d5",
+  "text": "1d61f914e1280f57",
 }
 `;
 
@@ -372,7 +372,7 @@ exports[`cs250-r1.5 > wikipedia-python 1`] = `
 {
   "breadcrumbs": "0081f5eeedd4dbe8",
   "chunks": 186,
-  "text": "a86b5ff48816ce16",
+  "text": "19f0a1dee291cdb0",
 }
 `;
 
@@ -468,7 +468,7 @@ exports[`cs500-r1.0 > wikipedia-python 1`] = `
 {
   "breadcrumbs": "f2a10a359d5ac43d",
   "chunks": 139,
-  "text": "1f728e65550d2a0f",
+  "text": "3888e82716d6003b",
 }
 `;
 
@@ -564,7 +564,7 @@ exports[`cs500-r1.5 > wikipedia-python 1`] = `
 {
   "breadcrumbs": "ecf93203f6f58c6a",
   "chunks": 94,
-  "text": "499e2a898893e336",
+  "text": "a154adb4e070971e",
 }
 `;
 

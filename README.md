@@ -125,6 +125,7 @@ const { chunks } = splitter.split(text);
 // Each chunk contains:
 // - text: the chunk content as markdown string
 // - breadcrumbs: array of ancestor headings for context
+// - source: where the chunk is in the source text (optional)
 ```
 
 #### Breadcrumbs
@@ -175,6 +176,49 @@ const { chunks } = splitter.split(text);
 //   { text: "Text Generation", depth: 2 }
 // ]  // ancestors only (H3 is in chunk)
 ```
+
+#### Source Position
+
+Each chunk includes a `source` with a `position`: the region of the text passed to `split()` that the chunk came from. You can store it with the chunk, so that an agent can later read the document from that line. Do not search for the chunk text in the source to find it: the chunk text is written out again from the syntax tree, so it often differs from the source (added escapes, `*` instead of `-` as list marker, bare links written as inline links, the repeated header row of a split table).
+
+The position uses the convention of [unist](https://github.com/syntax-tree/unist#position):
+
+- `start.offset` and `end.offset` are 0-based character offsets (UTF-16 code units, like `String.prototype.slice`) into the exact text passed to `split()`, a leading byte order mark included. `start` is the first character of the region and `end` is the place after the last character, so the region is `text.slice(start.offset, end.offset)`.
+- `start.line` and `end.line` are 1-based lines. `end.line` is the line of `end.offset`, which is also the line of the last character, because a region never ends with whitespace.
+
+```typescript
+import { chunkdown } from 'chunkdown';
+
+const text = `# Contact
+
+Write to info@example.com for help.
+
+- Monday to Friday
+- 9:00 to 17:00
+`;
+
+const splitter = chunkdown({ chunkSize: 40 });
+const { chunks } = splitter.split(text);
+
+// chunks[1]:
+// text: "Write to [info@example.com](mailto:info@example.com) for help.",
+// source: { position: { start: { line: 3, offset: 11 }, end: { line: 3, offset: 46 } } }
+// text.slice(11, 46) === "Write to info@example.com for help."
+
+// chunks[2]:
+// text: "* Monday to Friday\n* 9:00 to 17:00",
+// source: { position: { start: { line: 5, offset: 48 }, end: { line: 6, offset: 82 } } }
+// text.slice(48, 82) === "- Monday to Friday\n- 9:00 to 17:00"
+```
+
+The region covers the source nodes in the chunk. Nodes that chunkdown inserts do not count: a continuation chunk of a split table starts with the header row again, but its position starts at its first data row (the first chunk of a table includes the header row). When a text is cut inside a node (for example a long paragraph), each part gets the region of its own text. When a list item or a blockquote is cut, the region of its first part includes the marker (`-`, `1.`, `>`), and the regions of the later parts start at their text.
+
+> [!NOTE]
+> `source` is `undefined` when the region cannot be found exactly:
+>
+> - a chunk that has no nodes from the source, for example from a transform that creates new nodes (a transform that keeps the `position` of the node it replaces keeps the region),
+> - a part of a text that cannot be mapped to the source (rare, for example a cut inside an indented code block),
+> - a part of a chunk cut by [`maxRawSize`](#maxrawsize-number-optional) when the chunk text is not the source region with only escapes changed (for example a list, where the list marker changes).
 
 #### Links and Images
 
@@ -664,6 +708,8 @@ For example, OpenAI's latest embedding model [`text-embedding-3-large`](https://
 
 The `maxRawSize` option acts as a safety net that enforces a hard limit on the total number of characters allowed in each chunk.
 It is guaranteed that no chunk will exceed this limit, even if it means splitting semantic units that would otherwise be preserved.
+
+The parts are cut from the written-out chunk text, so a part only has a [`source`](#source-position) when the chunk text is the source region with at most escapes changed.
 
 ## Visualization
 

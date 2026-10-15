@@ -165,7 +165,6 @@ describe('fast-path parser equivalence', () => {
     // Assert
     expect(mismatches).toEqual([]);
   });
-
 });
 
 /**
@@ -209,7 +208,11 @@ describe('source subtree reuse equivalence', () => {
     const mismatches: Array<string> = [];
     for (const { source, node } of candidates) {
       const markdown = toMarkdown(node);
-      const tree = new SourceTreeProbe({ chunkSize: 100, source } as SplitterOptions).probe(node, markdown);
+      const tree = new SourceTreeProbe({
+        chunkSize: 100,
+        document: source,
+        reuseSourceTrees: true,
+      } as SplitterOptions).probe(node, markdown);
       if (tree === undefined) continue;
       reused++;
       const expected = JSON.stringify(offsetsOnly(fromMarkdown(markdown)));
@@ -266,7 +269,11 @@ describe('source subtree reuse equivalence', () => {
     for (const source of sources) {
       const collect = (node: Nodes): void => {
         const markdown = toMarkdown(node);
-        const tree = new SourceTreeProbe({ chunkSize: 100, source } as SplitterOptions).probe(node, markdown);
+        const tree = new SourceTreeProbe({
+          chunkSize: 100,
+          document: source,
+          reuseSourceTrees: true,
+        } as SplitterOptions).probe(node, markdown);
         if (tree !== undefined) {
           const expected = JSON.stringify(offsetsOnly(fromMarkdown(markdown)));
           if (JSON.stringify(offsetsOnly(tree)) !== expected) mismatches.push(source);

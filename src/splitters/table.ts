@@ -6,6 +6,45 @@ import { AbstractNodeSplitter } from './base';
 import { TreeSplitter } from './tree';
 
 /**
+ * Whether a chunk of the table was emitted, which then showed the original
+ * header row
+ */
+type HeaderState = { shown: boolean };
+
+/**
+ * Remove the whitespace at the ends of the content of a split cell. A part of
+ * a cut cell keeps the whitespace at the cut and the final line ending of the
+ * cut text, and a line ending in a cell breaks the table row. Nodes that are
+ * empty after the trim are removed.
+ */
+const trimCellContent = (children: TableCell['children']): TableCell['children'] => {
+  const trimmed = [...children];
+
+  const trim = (index: number, side: 'start' | 'end'): void => {
+    const node = trimmed[index];
+    if (node.type !== 'text' && node.type !== 'html') return;
+    const value = side === 'start' ? node.value.trimStart() : node.value.trimEnd();
+    trimmed[index] = { ...node, value };
+  };
+
+  while (trimmed.length > 0) {
+    trim(0, 'start');
+    const first = trimmed[0];
+    if ((first.type !== 'text' && first.type !== 'html') || first.value.length > 0) break;
+    trimmed.shift();
+  }
+
+  while (trimmed.length > 0) {
+    trim(trimmed.length - 1, 'end');
+    const last = trimmed[trimmed.length - 1];
+    if ((last.type !== 'text' && last.type !== 'html') || last.value.length > 0) break;
+    trimmed.pop();
+  }
+
+  return trimmed;
+};
+
+/**
  * Table splitter
  */
 export class TableSplitter extends AbstractNodeSplitter<Table> {
@@ -46,6 +85,13 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
     if (table.children.length === 0) return;
 
     const headerRow = table.children[0];
+    /**
+     * Sub-tables after the first one repeat the header row, which is not at
+     * that place in the source. The first table chunk keeps the original
+     * header row, also when it is a mini-table of a row split into cells.
+     */
+    const repeatedHeaderRow: TableRow = { ...headerRow, data: { ...headerRow.data, synthetic: true } };
+    const header: HeaderState = { shown: false };
     let subTable: Table = { ...table, children: [headerRow] };
     let subTableSize = 0; // Ignore header row in size calculation
 
@@ -61,9 +107,10 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
         if (subTable.children.length > 1) {
           // More than just header
           yield subTable;
+          header.shown = true;
         }
 
-        subTable = { ...table, children: [headerRow] };
+        subTable = { ...table, children: [header.shown ? repeatedHeaderRow : headerRow] };
         subTableSize = 0;
       }
 
@@ -71,11 +118,11 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
        * If the current row is too large, split it by cells and yield mini-tables
        */
       if (rowSize > this.maxAllowedSize) {
-        for (const node of this.splitTableRow(table, headerRow, row)) {
+        for (const node of this.splitTableRow(table, headerRow, row, header)) {
           yield node;
         }
 
-        subTable = { ...table, children: [headerRow] };
+        subTable = { ...table, children: [header.shown ? repeatedHeaderRow : headerRow] };
         subTableSize = 0;
 
         continue;
@@ -97,7 +144,7 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
     }
   }
 
-  private *splitTableRow(table: Table, headerRow: TableRow, row: TableRow): Generator<Nodes> {
+  private *splitTableRow(table: Table, headerRow: TableRow, row: TableRow, header: HeaderState): Generator<Nodes> {
     /**
      * Create mini-tables for each cell, pairing it with its corresponding header cell
      */
@@ -115,6 +162,7 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
       const miniHeaderRow: TableRow = {
         type: 'tableRow',
         children: [headerCell],
+        data: { synthetic: header.shown },
       };
 
       const miniDataRow: TableRow = {
@@ -135,16 +183,17 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
        * split the cell content using the tree splitter
        */
       if (miniTableSize > this.maxAllowedSize) {
-        for (const node of this.splitTableCell(table, headerCell, cell)) {
+        for (const node of this.splitTableCell(table, headerCell, cell, header)) {
           yield node;
         }
       } else {
         yield miniTable;
+        header.shown = true;
       }
     }
   }
 
-  private *splitTableCell(table: Table, headerCell: TableCell, cell: TableCell): Generator<Nodes> {
+  private *splitTableCell(table: Table, headerCell: TableCell, cell: TableCell, header: HeaderState): Generator<Nodes> {
     /**
      * Convert the cell content to a tree structure
      */
@@ -163,18 +212,24 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
      * Create a mini-table for each chunk with the header cell
      */
     for (const chunk of cellChunks) {
-      if (!('children' in chunk) || chunk.children.length === 0) {
+      if (!('children' in chunk)) {
+        continue;
+      }
+
+      const children = trimCellContent(chunk.children as TableCell['children']);
+      if (children.length === 0) {
         continue;
       }
 
       const miniHeaderRow: TableRow = {
         type: 'tableRow',
         children: [headerCell],
+        data: { synthetic: header.shown },
       };
 
       const splitCell: TableCell = {
         ...cell,
-        children: chunk.children as TableCell['children'],
+        children,
       };
 
       const miniDataRow: TableRow = {
@@ -188,6 +243,7 @@ export class TableSplitter extends AbstractNodeSplitter<Table> {
       };
 
       yield miniTable;
+      header.shown = true;
     }
   }
 

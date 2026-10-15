@@ -19,6 +19,12 @@ declare module 'mdast' {
      * Breadcrumbs - ancestor headings for hierarchical context
      */
     breadcrumbs?: Heading[];
+    /**
+     * The node was inserted by a splitter and is not at this place in the
+     * source (for example the repeated header row of a split table), so it
+     * does not count for the source position of a chunk.
+     */
+    synthetic?: boolean;
   }
 }
 

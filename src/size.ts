@@ -1,6 +1,7 @@
 import type { Nodes } from 'mdast';
 import { isSection, type Section } from './ast';
 import { fromMarkdown, toMarkdown, toString } from './markdown';
+import { trimRange, WHITESPACE } from './utils/source-offsets';
 
 /**
  * Characters that can change line semantics, so the fast sizer must not be
@@ -131,7 +132,8 @@ const removeEmphasis = (text: string): string | undefined => {
     const previous = runStart === 0 ? undefined : text[runStart - 1];
     const next = runEnd >= text.length ? undefined : text[runEnd];
 
-    const previousIsBoundary = previous === undefined || previous === ' ' || previous === '\n' || PUNCTUATION.test(previous);
+    const previousIsBoundary =
+      previous === undefined || previous === ' ' || previous === '\n' || PUNCTUATION.test(previous);
     const nextIsBoundary = next === undefined || next === ' ' || next === '\n' || PUNCTUATION.test(next);
 
     if (openLength === 0) {
@@ -373,20 +375,22 @@ export const getSectionSize = (section: Section): number => {
  *
  * @param text - The text to split
  * @param maxRawSize - Maximum raw character length per chunk
- * @returns Generator yielding chunks with no chunk exceeding maxRawSize
+ * @returns Generator yielding the `[start, end)` offsets of each chunk in the text
  */
-export function* splitTextByMaxRawSize(text: string, maxRawSize: number): Generator<string> {
-  let remaining = text;
+export function* splitRangesByMaxRawSize(text: string, maxRawSize: number): Generator<[number, number]> {
+  // The remaining text is `[start, end)`
+  let start = 0;
+  let end = text.length;
 
   // Treat a limit below 1 as 1, so every pass advances at least one character and the loop ends
-  while (remaining.length > Math.max(1, maxRawSize)) {
+  while (end - start > Math.max(1, maxRawSize)) {
     let splitPos = Math.max(1, maxRawSize);
     let foundWhitespace = false;
 
     // Search backwards from maxRawSize for any whitespace
     // Only search in the last 20% to avoid creating very small chunks
     for (let i = maxRawSize - 1; i >= Math.floor(maxRawSize * 0.8); i--) {
-      if (/\s/.test(remaining[i])) {
+      if (WHITESPACE.test(text[start + i])) {
         splitPos = i;
         foundWhitespace = true;
         break;
@@ -394,20 +398,36 @@ export function* splitTextByMaxRawSize(text: string, maxRawSize: number): Genera
     }
 
     // Extract chunk - don't trim yet to preserve original position
-    const splitChunk = remaining.substring(0, splitPos);
+    const splitEnd = start + splitPos;
+
+    // Trim the chunk, it is yielded below if not empty
+    const [chunkStart, chunkEnd] = trimRange(text, start, splitEnd);
 
     // Move to remaining text, skipping whitespace if we split at whitespace
-    remaining = foundWhitespace ? remaining.substring(splitPos).trim() : remaining.substring(splitPos);
+    start = splitEnd;
+    if (foundWhitespace) [start, end] = trimRange(text, start, end);
 
-    // Trim and yield the chunk if not empty
-    const trimmedChunk = splitChunk.trim();
-    if (trimmedChunk.length > 0) {
-      yield trimmedChunk;
+    if (chunkEnd > chunkStart) {
+      yield [chunkStart, chunkEnd];
     }
   }
 
-  if (remaining.length > 0) {
-    yield remaining;
+  if (end > start) {
+    yield [start, end];
+  }
+}
+
+/**
+ * Split a single text by maxRawSize limit as a hard constraint on raw markdown length
+ * Splits text that exceeds the limit, preferring whitespace boundaries
+ *
+ * @param text - The text to split
+ * @param maxRawSize - Maximum raw character length per chunk
+ * @returns Generator yielding chunks with no chunk exceeding maxRawSize
+ */
+export function* splitTextByMaxRawSize(text: string, maxRawSize: number): Generator<string> {
+  for (const [start, end] of splitRangesByMaxRawSize(text, maxRawSize)) {
+    yield text.slice(start, end);
   }
 }
 
