@@ -52,7 +52,7 @@ exports[`cs100-r1.0 > spec-commonmark 1`] = `
 {
   "breadcrumbs": "b2bfbb3d43491fb7",
   "chunks": 2273,
-  "text": "69f604355132c01b",
+  "text": "8fcb5c35ff4b8042",
 }
 `;
 
@@ -60,7 +60,7 @@ exports[`cs100-r1.0 > spec-gfm 1`] = `
 {
   "breadcrumbs": "2827d932c0486136",
   "chunks": 2419,
-  "text": "f6b1bb0a389f468f",
+  "text": "27d594047325afed",
 }
 `;
 
@@ -148,7 +148,7 @@ exports[`cs100-r1.5 > spec-commonmark 1`] = `
 {
   "breadcrumbs": "5e94042b3e876e2b",
   "chunks": 1475,
-  "text": "63a447a2d79bff8b",
+  "text": "27e0e5287cbddb0d",
 }
 `;
 
@@ -156,7 +156,7 @@ exports[`cs100-r1.5 > spec-gfm 1`] = `
 {
   "breadcrumbs": "1207ad83f2ab01b1",
   "chunks": 1588,
-  "text": "b6b2c2e92d4013fe",
+  "text": "2ac0214b15473aad",
 }
 `;
 
@@ -244,7 +244,7 @@ exports[`cs250-r1.0 > spec-commonmark 1`] = `
 {
   "breadcrumbs": "bc1c1158faf8a894",
   "chunks": 863,
-  "text": "443e301dc9063460",
+  "text": "7bd4b20152bc6a34",
 }
 `;
 
@@ -252,7 +252,7 @@ exports[`cs250-r1.0 > spec-gfm 1`] = `
 {
   "breadcrumbs": "aeb944e01b214a2e",
   "chunks": 911,
-  "text": "c1b00eafd949c38c",
+  "text": "23908549a46eacb4",
 }
 `;
 

@@ -214,11 +214,10 @@ const { chunks } = splitter.split(text);
 The region covers the source nodes in the chunk. Nodes that chunkdown inserts do not count: a continuation chunk of a split table starts with the header row again, but its position starts at its first data row (the first chunk of a table includes the header row). When a text is cut inside a node (for example a long paragraph), each part gets the region of its own text. When a list item or a blockquote is cut, the region of its first part includes the marker (`-`, `1.`, `>`), and the regions of the later parts start at their text.
 
 > [!NOTE]
-> `source` is `undefined` when the region cannot be found exactly:
+> `source` is `undefined` only when the chunk has no text from the source:
 >
-> - a chunk that has no nodes from the source, for example from a transform that creates new nodes (a transform that keeps the `position` of the node it replaces keeps the region),
-> - a part of a text that cannot be mapped to the source (rare, for example a cut inside an indented code block),
-> - a part of a chunk cut by [`maxRawSize`](#maxrawsize-number-optional) when the chunk text is not the source region with only escapes changed (for example a list, where the list marker changes).
+> - a chunk of nodes that a transform creates (a transform that keeps the `position` of the node it replaces keeps the region),
+> - a part of a cut chunk that contains only text that chunkdown writes and that is not in the source, for example the repeated header row of a split table, a code fence that chunkdown adds, or the URL that chunkdown writes again when it writes a bare link as `[url](url)`.
 
 #### Links and Images
 
@@ -709,7 +708,7 @@ For example, OpenAI's latest embedding model [`text-embedding-3-large`](https://
 The `maxRawSize` option acts as a safety net that enforces a hard limit on the total number of characters allowed in each chunk.
 It is guaranteed that no chunk will exceed this limit, even if it means splitting semantic units that would otherwise be preserved.
 
-The parts are cut from the written-out chunk text, so a part only has a [`source`](#source-position) when the chunk text is the source region with at most escapes changed.
+Each part gets the [`source`](#source-position) region of its own text. A part that contains only text that chunkdown writes (for example the repeated header row of a split table) has no `source`.
 
 ## Visualization
 

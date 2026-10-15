@@ -3,13 +3,18 @@ import { fromMarkdown, toMarkdown } from '../markdown';
 import { getContentSize } from '../size';
 import {
   buildPositionMapping,
-  CHARACTER_REFERENCE,
-  findSegment,
   type PositionMapping,
-  type PositionSegment,
   plainToMarkdownPosition,
 } from '../utils/plaintext-markdown-mapping';
-import { alignWithSource, mapOffset, type OffsetEdits, trimRange, unmapOffset } from '../utils/source-offsets';
+import {
+  alignText,
+  alignWithSource,
+  mapOffset,
+  type OffsetEdits,
+  toSourceRange,
+  trimRange,
+  WHITESPACE,
+} from '../utils/source-offsets';
 import { AbstractNodeSplitter } from './base';
 
 /**
@@ -75,14 +80,44 @@ type Boundary = {
 };
 
 /**
- * A part of the split text: `[start, end)` in the serialization and
- * `[plainStart, plainEnd)` in its plain text.
+ * Move a cut in the serialization before an escape backslash, so that the
+ * backslash stays with the character it escapes. An escape backslash is not
+ * in the plain text, so the plain text has the same position before and
+ * after it. The backslashes before the cut are compared with those before
+ * the plain position: an escaped backslash (`\\`) is one backslash of the
+ * plain text, and a backslash in code is a backslash of the plain text too.
+ * Only a backslash more than that is an escape.
  */
+const beforeEscape = (mapping: PositionMapping, plainPosition: number, position: number): number => {
+  const count = (text: string, at: number): number => {
+    let backslashes = 0;
+    while (text.charCodeAt(at - 1 - backslashes) === 92 /* \ */) backslashes++;
+    return backslashes;
+  };
+  return count(mapping.markdown, position) > 2 * count(mapping.plain, plainPosition) ? position - 1 : position;
+};
+
+// A part of the split text: `[start, end)` in the serialization
 type TextPart = {
   start: number;
   end: number;
-  plainStart: number;
-  plainEnd: number;
+};
+
+/**
+ * Remove whitespace at the ends of a part. A part keeps the whitespace at its
+ * cuts and the final line ending of the serialization, which a container
+ * (a blockquote, a list item) would write out as an empty line or a space
+ * after its marker. A part of a code block keeps the indentation of its first
+ * line, which is content.
+ */
+const trimPart = (node: Nodes, markdown: string, { start, end }: TextPart): TextPart => {
+  if (node.type !== 'code') {
+    [start, end] = trimRange(markdown, start, end);
+    return { start, end };
+  }
+  while (start < end && (markdown[start] === '\n' || markdown[start] === '\r')) start++;
+  while (end > start && WHITESPACE.test(markdown[end - 1])) end--;
+  return { start, end };
 };
 
 /**
@@ -228,103 +263,6 @@ const mapOffsets = (node: Nodes, start: number, edits: OffsetEdits): Nodes | und
   return copy;
 };
 
-/**
- * Remove the gaps that are only the indentation of a line, for example the
- * indentation of a list item line that starts with inline code. They are line
- * prefixes, not content, and a serialization at the root has no indentation.
- */
-const withoutIndentGaps = (mapping: PositionMapping, markdown: string): PositionMapping => {
-  const isIndentGap = (segment: PositionSegment): boolean =>
-    segment.nodeStart === undefined &&
-    segment.charMap === undefined &&
-    /^[ \t]+$/.test(markdown.slice(segment.mdStart, segment.mdEnd)) &&
-    (markdown[segment.mdStart - 1] === '\n' || markdown[segment.mdStart - 1] === '\r');
-  if (!mapping.segments.some(isIndentGap)) return mapping;
-
-  const segments: Array<PositionSegment> = [];
-  const parts: Array<string> = [];
-  let plainOffset = 0;
-  for (const segment of mapping.segments) {
-    if (isIndentGap(segment)) continue;
-    const length = segment.plainEnd - segment.plainStart;
-    parts.push(mapping.plain.slice(segment.plainStart, segment.plainEnd));
-    segments.push({ ...segment, plainStart: plainOffset, plainEnd: plainOffset + length });
-    plainOffset += length;
-  }
-  return { plain: parts.join(''), markdown: mapping.markdown, segments };
-};
-
-/**
- * Characters of a line prefix in the source: indentation and blockquote
- * markers.
- */
-const LINE_PREFIX = /[ \t>]/;
-
-/**
- * The number of leading characters of a segment whose character map can be
- * trusted. The map is built by skipping markdown characters that do not
- * match, so it is only correct as long as every skipped run is explained: an
- * escape backslash, the rest of a character reference that the previous
- * character stands for, or a line prefix after a line ending. Everything
- * after the first unexplained run is not trusted.
- */
-const trustedLength = (segment: PositionSegment, mapping: PositionMapping): number => {
-  const { charMap } = segment;
-  if (charMap === undefined) return segment.plainEnd - segment.plainStart;
-
-  const { markdown, plain } = mapping;
-  let previousEnd = segment.mdStart;
-  for (let i = 0; i < charMap.length; i++) {
-    const mdIndex = segment.mdStart + charMap[i];
-    const skipped = markdown.slice(previousEnd, mdIndex);
-    const afterLineEnding = i > 0 && plain[segment.plainStart + i - 1] === '\n';
-    const isPrefix = afterLineEnding && [...skipped].every((char) => LINE_PREFIX.test(char));
-    if (skipped !== '' && skipped !== '\\' && !isPrefix) return i;
-
-    /**
-     * A character mapped to a reference covers the whole reference
-     */
-    const reference =
-      markdown[mdIndex] === '&' && plain[segment.plainStart + i] !== '&'
-        ? CHARACTER_REFERENCE.exec(markdown.slice(mdIndex, mdIndex + 40))
-        : null;
-    previousEnd = mdIndex + (reference ? reference[0].length : 1);
-  }
-  return charMap.length;
-};
-
-/**
- * Shrink `[start, end)` so that it neither starts nor ends with whitespace or
- * with a line prefix (a blockquote marker after a line ending).
- */
-const trimLinePrefixes = (text: string, start: number, end: number): [number, number] => {
-  const isLineEnding = (index: number): boolean => text[index] === '\n' || text[index] === '\r';
-
-  [start, end] = trimRange(text, start, end);
-  while (start < end && text[start] === '>') {
-    let before = start - 1;
-    while (before >= 0 && LINE_PREFIX.test(text[before])) before--;
-    if (before >= 0 && !isLineEnding(before)) break;
-    [start, end] = trimRange(text, start + 1, end);
-  }
-  while (end > start) {
-    let before = end - 1;
-    while (before >= start && LINE_PREFIX.test(text[before])) before--;
-    if (before < start || !isLineEnding(before) || before === end - 1) break;
-    [start, end] = trimRange(text, start, before);
-  }
-  return [start, end];
-};
-
-/**
- * Map from the plain text of a source node to the source document, with a
- * check whether a plain offset maps exactly.
- */
-type SourceMapping = {
-  mapping: PositionMapping;
-  isExact: (plainOffset: number) => boolean;
-};
-
 export class TextSplitter extends AbstractNodeSplitter {
   splitText(text: string): string[] {
     const ast = fromMarkdown(text);
@@ -349,9 +287,10 @@ export class TextSplitter extends AbstractNodeSplitter {
 
     const totalPlainLength = mapping.plain.length;
     const parts = Array.from(
-      this.splitRecursive(markdown, boundaries, 0, markdown.length, 0, totalPlainLength, totalPlainLength, Infinity),
+      this.splitRecursive(markdown, boundaries, 0, markdown.length, 0, totalPlainLength, Infinity),
+      (part) => trimPart(node, markdown, part),
     );
-    const positions = this.partPositions(node, markdown, mapping, parts);
+    const positions = this.partPositions(node, markdown, parts);
 
     const nodes: Array<Nodes> = [];
 
@@ -372,6 +311,7 @@ export class TextSplitter extends AbstractNodeSplitter {
       // ranges and boundaries are calculated to work with plain text offsets rather
       // than markdown text offsets.
       const html: Html = { type: 'html', value: markdown.substring(part.start, part.end) };
+      if (html.value.length === 0) continue;
 
       /**
        * Only offsets are set. Lines and columns are 0, because they are
@@ -396,102 +336,35 @@ export class TextSplitter extends AbstractNodeSplitter {
   }
 
   /**
-   * The source offsets of the parts, each undefined when it cannot be found
-   * exactly. Whitespace at the ends of a part is left out.
+   * The source offsets of the trimmed parts, each undefined when the part has
+   * no text from the source.
    *
-   * When the serialization is the source text of the node with at most
-   * escapes changed, the cut offsets of the serialization map back to the
-   * source exactly. Otherwise each cut is mapped through the plain text of
-   * the node (this covers line prefixes, such as blockquote markers and list
-   * indentation, which the serialization of the node does not have). Both
-   * mappings map a cut the same way the serialization was cut, so the source
-   * region of a part matches its text.
-   *
-   * If the regions are not in order, none of them is used.
+   * The serialization of a node differs from its source text only in syntax
+   * (escapes, list markers, code fences, the indentation and the blockquote
+   * markers of its lines), so the two texts are aligned, and each part maps
+   * through that alignment.
    */
-  protected partPositions(
-    node: Nodes,
-    markdown: string,
-    mapping: PositionMapping,
-    parts: Array<TextPart>,
-  ): Array<[number, number] | undefined> {
+  protected partPositions(node: Nodes, markdown: string, parts: Array<TextPart>): Array<[number, number] | undefined> {
     const { document } = this.options;
     const nodeStart = node.position?.start?.offset;
     const nodeEnd = node.position?.end?.offset;
     const none = parts.map(() => undefined);
     if (document === undefined || nodeStart === undefined || nodeEnd === undefined) return none;
+    if (parts.length === 1) return [trimRange(document, nodeStart, nodeEnd)];
 
-    let ranges: Array<[number, number] | undefined>;
+    // The source region of a node never ends with the final line ending of the serialization
+    const text = markdown.endsWith('\n') ? markdown.slice(0, -1) : markdown;
+    const alignment = alignText(document, nodeStart, nodeEnd, text);
+    if (alignment === undefined) return none;
 
-    const edits = parts.length > 1 ? alignWithSource(document, nodeStart, nodeEnd, markdown) : undefined;
-    if (parts.length === 1) {
-      ranges = [trimRange(document, nodeStart, nodeEnd)];
-    } else if (edits) {
-      const toSource = (offset: number): number => Math.min(nodeEnd, nodeStart + unmapOffset(offset, edits));
-      ranges = parts.map((part) => trimRange(document, toSource(part.start), toSource(part.end)));
-    } else {
-      const source = this.sourceMapping(node, mapping);
-      if (source === undefined) return none;
-
-      const toSource = (plainOffset: number): number | undefined =>
-        source.isExact(plainOffset) ? plainToMarkdownPosition(plainOffset, source.mapping) : undefined;
-      ranges = parts.map((part, i) => {
-        const start = i === 0 ? nodeStart : toSource(part.plainStart);
-        const end = i === parts.length - 1 ? nodeEnd : toSource(part.plainEnd);
-        if (start === undefined || end === undefined) return undefined;
-        return trimLinePrefixes(document, start, end);
-      });
-    }
-
-    let previousEnd = nodeStart;
-    for (let i = 0; i < ranges.length; i++) {
-      const range = ranges[i];
-      if (range === undefined) continue;
-      if (range[0] >= range[1]) {
-        ranges[i] = undefined;
-        continue;
-      }
-      if (range[0] < previousEnd || range[1] > nodeEnd) return none;
-      previousEnd = range[1];
-    }
-
-    return ranges;
-  }
-
-  /**
-   * Map the plain text of the source node to the source document. The
-   * mapping is only used when it has the same plain text in the same number
-   * of segments as the mapping of the serialization. A plain offset maps
-   * exactly when it is at a segment boundary, or inside a segment whose source
-   * text is the plain text, or inside the trusted part of a character map.
-   */
-  protected sourceMapping(node: Nodes, mapping: PositionMapping): SourceMapping | undefined {
-    const { document } = this.options;
-    const start = node.position?.start?.offset;
-    if (document === undefined || start === undefined) return undefined;
-
-    const sourceMapping = withoutIndentGaps(buildPositionMapping(node, document, start, true), document);
-    if (sourceMapping.plain !== mapping.plain) return undefined;
-    if (sourceMapping.segments.length !== mapping.segments.length) return undefined;
-
-    const isExact = (plainOffset: number): boolean => {
-      const segment = findSegment(sourceMapping, plainOffset);
-      if (segment === undefined || segment.plainStart === plainOffset) return true;
-
-      const index = plainOffset - segment.plainStart;
-      if (segment.charMap) return index < trustedLength(segment, sourceMapping);
-      const text = sourceMapping.plain.slice(segment.plainStart, segment.plainEnd);
-      return document.slice(segment.mdStart, segment.mdEnd) === text;
-    };
-
-    return { mapping: sourceMapping, isExact };
+    return parts.map((part) => toSourceRange(alignment, document, part.start, Math.min(part.end, text.length)));
   }
 
   /**
    * Parsing a block node's serialization gives back the node's own subtree
    * when the serialization differs from the node's slice of the source
-   * document only in ways that do not change the parse (see the alignment
-   * above), with offsets relative to the serialization. In that case the
+   * document only in ways that do not change the parse (escapes and `_`
+   * written as `*`), with offsets relative to the serialization. In that case the
    * subtree is reused with mapped offsets instead of being parsed again.
    * Reference nodes resolve against definitions elsewhere in the document, so
    * subtrees that contain them are parsed.
@@ -668,7 +541,7 @@ export class TextSplitter extends AbstractNodeSplitter {
         /**
          * Map the plain text position to markdown position
          */
-        const mdPosition = plainToMarkdownPosition(plainPosition, mapping);
+        const mdPosition = beforeEscape(mapping, plainPosition, plainToMarkdownPosition(plainPosition, mapping));
 
         /**
          * Score the boundary — protected ranges yield -Infinity score
@@ -726,7 +599,7 @@ export class TextSplitter extends AbstractNodeSplitter {
 
           const weight = isPunct ? SEMANTIC_WEIGHTS.WORD_PUNCT : SEMANTIC_WEIGHTS.CHARACTER;
           const plainPosition = wordStart + i;
-          const mdPosition = plainToMarkdownPosition(plainPosition, mapping);
+          const mdPosition = beforeEscape(mapping, plainPosition, plainToMarkdownPosition(plainPosition, mapping));
           const score = this.scoreBoundary(mdPosition, weight, ranges);
           if (!Number.isFinite(score)) continue;
 
@@ -754,8 +627,8 @@ export class TextSplitter extends AbstractNodeSplitter {
    * This avoids expensive markdown re-parsing for every candidate.
    *
    * Boundaries stay in whole-text coordinates throughout the recursion; each
-   * level works on a window `[mdStart, mdEnd)` with `[plainStart, plainEnd)`
-   * as its plain text range, and `maxWeight` caps the boundary strength to those at most
+   * level works on a window `[mdStart, mdEnd)` with `plainStart` as its plain
+   * text origin, and `maxWeight` caps the boundary strength to those at most
    * as strong as the ancestors' selections.
    */
   private *splitRecursive(
@@ -764,7 +637,6 @@ export class TextSplitter extends AbstractNodeSplitter {
     mdStart: number,
     mdEnd: number,
     plainStart: number,
-    plainEnd: number,
     totalPlainLength: number,
     maxWeight: number,
   ): Generator<TextPart> {
@@ -772,7 +644,7 @@ export class TextSplitter extends AbstractNodeSplitter {
      * Fast path: use pre-computed plain text length to skip parsing
      */
     if (totalPlainLength <= this.maxAllowedSize) {
-      yield { start: mdStart, end: mdEnd, plainStart, plainEnd };
+      yield { start: mdStart, end: mdEnd };
       return;
     }
 
@@ -802,7 +674,7 @@ export class TextSplitter extends AbstractNodeSplitter {
      * If no boundary is available, yield as single chunk (protected)
      */
     if (boundary === undefined) {
-      yield { start: mdStart, end: mdEnd, plainStart, plainEnd };
+      yield { start: mdStart, end: mdEnd };
       return;
     }
 
@@ -821,22 +693,13 @@ export class TextSplitter extends AbstractNodeSplitter {
      * ones deeper down
      */
     if (firstPartSize <= this.maxAllowedSize) {
-      yield { start: mdStart, end: position, plainStart, plainEnd: boundary.plainPosition };
+      yield { start: mdStart, end: position };
     } else {
-      yield* this.splitRecursive(
-        text,
-        boundaries,
-        mdStart,
-        position,
-        plainStart,
-        boundary.plainPosition,
-        firstPartSize,
-        boundary.weight,
-      );
+      yield* this.splitRecursive(text, boundaries, mdStart, position, plainStart, firstPartSize, boundary.weight);
     }
 
     if (secondPartSize <= this.maxAllowedSize) {
-      yield { start: position, end: mdEnd, plainStart: boundary.plainPosition, plainEnd };
+      yield { start: position, end: mdEnd };
     } else {
       yield* this.splitRecursive(
         text,
@@ -844,7 +707,6 @@ export class TextSplitter extends AbstractNodeSplitter {
         position,
         mdEnd,
         boundary.plainPosition,
-        plainEnd,
         secondPartSize,
         boundary.weight,
       );

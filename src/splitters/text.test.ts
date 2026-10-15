@@ -1252,4 +1252,39 @@ These functions take a standardized approach to setting up [prompts](./prompts) 
         `);
     });
   });
+
+  describe('Escapes', () => {
+    it('should not cut between a backslash and the character it escapes', () => {
+      // Arrange
+      const splitter = new TextSplitter({ chunkSize: 50 });
+      const text =
+        'A declaration consists of one or more uppercase ASCII letters,\n[whitespace], a string of characters.';
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks).toEqual([
+        'A declaration consists of one',
+        'or more uppercase ASCII letters,',
+        '\\[whitespace], a string of characters.',
+      ]);
+    });
+
+    it('should cut after a backslash in code, which escapes nothing', () => {
+      // Arrange
+      const splitter = new TextSplitter({
+        chunkSize: 12,
+        maxOverflowRatio: 1,
+        rules: { word: { split: 'allow-split' } },
+      });
+      const text = '```\nC:\\dir\\sub\\file\\name\\other\\more\n```';
+
+      // Act
+      const chunks = splitter.splitText(text);
+
+      // Assert
+      expect(chunks).toEqual(['```\nC:\\dir\\', 'sub\\file', '\\name\\ot', 'her\\more\n```']);
+    });
+  });
 });

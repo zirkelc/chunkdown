@@ -227,7 +227,7 @@ describe('chunk positions', () => {
     ]);
   });
 
-  it('should have no position for parts of a chunk cut by maxRawSize when the text is rewritten', () => {
+  it('should give the source region of the parts of a list cut by maxRawSize', () => {
     // Arrange
     const text = '- one two three four five six seven\n';
     const splitter = chunkdown({ chunkSize: 200, maxRawSize: 20 });
@@ -237,7 +237,209 @@ describe('chunk positions', () => {
 
     // Assert
     expect(chunks.map((chunk) => chunk.text)).toEqual(['* one two three four', ' five six seven']);
-    expect(chunks.map((chunk) => chunk.source)).toEqual([undefined, undefined]);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual(['- one two three four', 'five six seven']);
+  });
+
+  it('should give the source region of the parts of a long list cut by maxRawSize', () => {
+    // Arrange
+    const text = Array.from({ length: 1_100 }, (_, i) => `- item ${i}`).join('\n');
+    const splitter = chunkdown({ chunkSize: 100_000, maxRawSize: 500 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    const last = chunks[chunks.length - 1];
+    expect(chunks.filter((chunk) => chunk.source === undefined).length).toBe(0);
+    expect(last.text.endsWith('* item 1099')).toBe(true);
+    expect(sourceOf(text, last)?.endsWith('- item 1099')).toBe(true);
+  });
+
+  it('should give the source region of the parts of a list of equal items cut by maxRawSize', () => {
+    // Arrange
+    const text = Array(1_100).fill('- todo').join('\n');
+    const splitter = chunkdown({ chunkSize: 100_000, maxRawSize: 500 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.filter((chunk) => chunk.source === undefined).length).toBe(0);
+  });
+
+  it('should give the source region of the parts of a padded table cut by maxRawSize', () => {
+    // Arrange
+    const rows = Array.from(
+      { length: 400 },
+      (_, i) => `| row ${String(i).padEnd(6)} | value ${String(i).padEnd(6)} | x      |`,
+    );
+    const text = `| name       | value        | flag   |\n| ---------- | ------------ | ------ |\n${rows.join('\n')}\n`;
+    const splitter = chunkdown({ chunkSize: 100_000, maxRawSize: 1_000 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    const last = chunks[chunks.length - 1];
+    expect(chunks.filter((chunk) => chunk.source === undefined).length).toBe(0);
+    expect(last.text).toBe('row 399 | value 399 | x |');
+    expect(sourceOf(text, last)).toBe('row 399    | value 399    | x      |');
+  });
+
+  it('should keep the marker of a blockquote in the region of the first part cut by maxRawSize', () => {
+    // Arrange
+    const text = '> one two three four five six seven\n';
+    const splitter = chunkdown({ chunkSize: 200, maxRawSize: 20 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => chunk.text)).toEqual(['> one two three four', ' five six seven']);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual(['> one two three four', 'five six seven']);
+  });
+
+  it('should give the source region of the parts of a paragraph with many reference links', () => {
+    // Arrange
+    const links = Array.from({ length: 150 }, (_, i) => `[item ${i}][r${i}]`).join(' and ');
+    const definitions = Array.from({ length: 150 }, (_, i) => `[r${i}]: https://example.com/page/${i}`).join('\n');
+    const text = `See ${links}.\n\n${definitions}\n`;
+    const splitter = chunkdown({ chunkSize: 200 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.filter((chunk) => chunk.source === undefined).length).toBe(0);
+    expect(sourceOf(text, chunks[0])?.startsWith('See [item 0][r0]')).toBe(true);
+  });
+
+  it('should keep the blockquote markers that are content of a code block', () => {
+    // Arrange
+    const text = '```r\n> mean(x)\n> sd(x)\n>\n> median(x)\n```\n';
+    const splitter = chunkdown({ chunkSize: 15 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => chunk.text)).toEqual(['```r\n> mean(x)', '> sd(x)', '>\n> median(x)\n```']);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual(['```r\n> mean(x)', '> sd(x)', '>\n> median(x)\n```']);
+  });
+
+  it('should give the source region of the parts of a table cut by maxRawSize', () => {
+    // Arrange
+    const text = '| Name | Value |\n|------|-------|\n| alpha | one |\n| beta | two |\n';
+    const splitter = chunkdown({ chunkSize: 200, maxRawSize: 25 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => chunk.text)).toEqual([
+      '| Name | Value |\n| - | -',
+      '|\n| alpha | one |\n| beta',
+      '| two |',
+    ]);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual([
+      '| Name | Value |\n|------|-',
+      '|\n| alpha | one |\n| beta',
+      '| two |',
+    ]);
+  });
+
+  it('should give no source to the repeated table header in parts cut by maxRawSize', () => {
+    // Arrange
+    const text =
+      '| Climate data for the city | Value |\n|---|---|\n| January | 1 |\n| February | 2 |\n| March | 3 |\n| April | 4 |\n';
+    const splitter = chunkdown({ chunkSize: 20, maxRawSize: 30 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => chunk.text)).toEqual([
+      '| Climate data for the city |',
+      'Value |\n| - | - |\n| January |',
+      '1 |\n| February | 2 |',
+      '| Climate data for the city |',
+      'Value |\n| - | - |\n| March | 3',
+      '|\n| April | 4 |',
+    ]);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual([
+      '| Climate data for the city |',
+      'Value |\n|---|---|\n| January |',
+      '1 |\n| February | 2 |',
+      undefined,
+      '| March | 3',
+      '|\n| April | 4 |',
+    ]);
+  });
+
+  it('should give the source region of the parts of a code block in a list', () => {
+    // Arrange
+    const text = '- Example:\n\n  ```js\n  const alpha = 1;\n  const beta = 2;\n  const gamma = 3;\n  ```\n';
+    const splitter = chunkdown({ chunkSize: 20 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => chunk.text)).toEqual([
+      '* Example:',
+      '```js\nconst alpha = 1;',
+      'const beta = 2;',
+      'const gamma = 3;\n```',
+    ]);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual([
+      '- Example:',
+      '```js\n  const alpha = 1;',
+      'const beta = 2;',
+      'const gamma = 3;\n  ```',
+    ]);
+  });
+
+  it('should give the source region of the parts of an indented code block', () => {
+    // Arrange
+    const text = 'Run this:\n\n    python test/spec_tests.py --spec spec.txt --program PROGRAM\n';
+    const splitter = chunkdown({ chunkSize: 20 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => chunk.text)).toEqual([
+      'Run this:',
+      '```\npython',
+      'test/spec_tests.py',
+      '--spec spec.txt',
+      '--program PROGRAM\n```',
+    ]);
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual([
+      'Run this:',
+      'python',
+      'test/spec_tests.py',
+      '--spec spec.txt',
+      '--program PROGRAM',
+    ]);
+  });
+
+  it('should give the source region of the parts of a paragraph with trailing spaces on a line', () => {
+    // Arrange
+    const text = 'The title, the link text and even \nthe destination may be omitted:\n';
+    const splitter = chunkdown({ chunkSize: 20 });
+
+    // Act
+    const { chunks } = splitter.split(text);
+
+    // Assert
+    expect(chunks.map((chunk) => sourceOf(text, chunk))).toEqual([
+      'The title,',
+      'the link',
+      'text and even',
+      'the destination',
+      'may be omitted:',
+    ]);
   });
 
   it('should give the source region of a reference link that is rewritten as an inline link', () => {
@@ -439,6 +641,7 @@ describe('chunk positions', () => {
       { chunkSize: 100 },
       { chunkSize: 500, maxOverflowRatio: 1.5 },
       { chunkSize: 200, maxRawSize: 300 },
+      { chunkSize: 5_000, maxRawSize: 1_000 },
     ];
 
     /**
@@ -461,10 +664,13 @@ describe('chunk positions', () => {
           const lines = linesOf(fixture.text);
           const violations: Array<string> = [];
           let previousEnd = 0;
-          let positioned = 0;
           for (const chunk of chunks) {
-            if (!chunk.source) continue;
-            positioned++;
+            // Table chunks repeat the header row, which is not in the region
+            const isTable = chunk.text.startsWith('|');
+            if (!chunk.source) {
+              violations.push(`${JSON.stringify(chunk.text.slice(0, 40))}: no source`);
+              continue;
+            }
             const { start, end } = chunk.source.position;
             const label = `${JSON.stringify(chunk.text.slice(0, 40))} at ${start.offset}`;
 
@@ -474,14 +680,9 @@ describe('chunk positions', () => {
             if (start.line !== lines[start.offset]) violations.push(`${label}: wrong start line`);
             if (end.line !== lines[end.offset]) violations.push(`${label}: wrong end line`);
 
-            /**
-             * The region covers the chunk: it has the first and the last word
-             * of the chunk. Table chunks repeat the header row, which is not
-             * in the region.
-             */
+            // The region covers the chunk: it has the first and the last word of the chunk
             const words = wordsOf(chunk.text);
             const regionWords = new Set(wordsOf(fixture.text.slice(start.offset, end.offset)));
-            const isTable = chunk.text.startsWith('|');
             if (words.length > 0 && !isTable) {
               if (!regionWords.has(words[0])) violations.push(`${label}: region misses "${words[0]}"`);
               if (!regionWords.has(words[words.length - 1])) {
@@ -492,7 +693,6 @@ describe('chunk positions', () => {
           }
 
           expect(violations).toEqual([]);
-          expect(positioned).not.toBe(0);
         });
       }
     }

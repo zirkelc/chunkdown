@@ -377,11 +377,10 @@ export interface Chunk {
   /**
    * Where the chunk came from in the text passed to `split()`.
    *
-   * Undefined when the region cannot be found exactly: a chunk without nodes
-   * from the source (for example from a transform that creates new nodes), a
-   * part of a text that cannot be mapped to the source, or a part of a chunk
-   * cut by `maxRawSize` whose text is not the source region with only
-   * escapes changed.
+   * Undefined when the chunk has no text from the source: a chunk of nodes
+   * that a transform creates, or a part of a cut chunk that contains only
+   * text that chunkdown writes (for example the repeated header row of a
+   * split table, or a code fence that chunkdown adds).
    */
   source?: ChunkSource;
 }
