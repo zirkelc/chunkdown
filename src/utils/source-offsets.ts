@@ -325,7 +325,10 @@ const alignTokens = (
   const sourceStarts = tokenize(source, sourceFrom, sourceTo);
   const textStarts = tokenize(text, textFrom, textTo, mask?.breaks);
 
-  // Equal tokens get equal ids, and a synthetic token gets an id of its own
+  /**
+   * Equal tokens get equal ids, and a synthetic token gets an id of its own.
+   * A `_` gets the id of `*`, because the serializer writes emphasis with `*`.
+   */
   const ids = new Map<string, number>();
   const isWord: Array<boolean> = [];
   const toIds = (value: string, starts: Array<number>, synthetic?: Uint8Array): Int32Array => {
@@ -335,7 +338,8 @@ const alignTokens = (
         tokens[i] = -1 - i;
         continue;
       }
-      const token = value.slice(starts[i], starts[i + 1]);
+      const slice = value.slice(starts[i], starts[i + 1]);
+      const token = slice === '_' ? '*' : slice;
       let id = ids.get(token);
       if (id === undefined) {
         id = ids.size;

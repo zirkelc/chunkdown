@@ -43,6 +43,30 @@ describe('alignText', () => {
     expect(regions).toEqual(['See', '[note]', 'here.']);
   });
 
+  it('should map an emphasis marker written as `*` to the `_` in the source', () => {
+    // Arrange
+    const source = 'Some _very_ long text.';
+    const text = 'Some *very* long text.';
+
+    // Act
+    const regions = [regionOf(source, text, 5, 11), regionOf(source, text, 12, 22)];
+
+    // Assert
+    expect(regions).toEqual(['_very_', 'long text.']);
+  });
+
+  it('should map an emphasis marker written as `*` to the `_` in the source when other syntax changes too', () => {
+    // Arrange
+    const source = '- Some _very_ long text.';
+    const text = '* Some *very* long text.';
+
+    // Act
+    const regions = [regionOf(source, text, 0, 6), regionOf(source, text, 7, 13)];
+
+    // Assert
+    expect(regions).toEqual(['- Some', '_very_']);
+  });
+
   it('should map a part after a removed escape backslash to its own text', () => {
     // Arrange
     const source = 'Version 1\\.5 here.';
