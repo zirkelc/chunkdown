@@ -1,12 +1,12 @@
 import type { Heading, Nodes, Root } from 'mdast';
 import { fromMarkdown, preprocessMarkdown, toMarkdown, toString } from './markdown';
-import { chunkRange, lineStarts, recordSourceNodes, toPoint } from './position';
+import { chunkRange, lineStarts, recordSourceNodes, syntheticRanges, toPoint } from './position';
 import { splitRangesByMaxRawSize } from './size';
 import type { SharedSplitterOptions } from './splitters/base';
 import type { NodeSplitter } from './splitters/interface';
 import { TreeSplitter } from './splitters/tree';
 import type { Breadcrumb, Chunk, ChunkPosition, NodeRules, SplitterOptions, SplitterResult } from './types';
-import { alignWithSource, unmapOffset } from './utils/source-offsets';
+import { alignText, toSourceRange, trimRange } from './utils/source-offsets';
 
 /**
  * Default node rules:
@@ -119,18 +119,16 @@ class Chunkdown implements NodeSplitter<Root> {
 
       if (this.options.maxRawSize !== undefined && markdown.length > this.options.maxRawSize) {
         /**
-         * The parts are cut from the written-out text. Their source offsets
-         * are only known when that text is the source region with at most
-         * escapes changed.
+         * The parts are cut from the written-out text, which differs from the
+         * source region only in syntax and in synthetic rows. The two texts
+         * are aligned, and each cut maps through that alignment.
          */
-        const edits = range ? alignWithSource(document, range[0], range[1], `${markdown}\n`) : undefined;
+        const synthetic = range ? syntheticRanges(node, markdown) : undefined;
+        const alignment = range && synthetic ? alignText(document, range[0], range[1], markdown, synthetic) : undefined;
         for (const [start, end] of splitRangesByMaxRawSize(markdown, this.options.maxRawSize)) {
           const chunk: Chunk = { text: markdown.slice(start, end), breadcrumbs };
-          if (range && edits) {
-            chunk.source = {
-              position: toPosition(range[0] + unmapOffset(start, edits), range[0] + unmapOffset(end, edits)),
-            };
-          }
+          const region = alignment && toSourceRange(alignment, document, ...trimRange(markdown, start, end));
+          if (region) chunk.source = { position: toPosition(region[0], region[1]) };
           chunks.push(chunk);
         }
       } else {

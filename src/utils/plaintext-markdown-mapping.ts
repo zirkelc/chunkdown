@@ -34,12 +34,6 @@ export type PositionSegment = {
 };
 
 /**
- * A character reference at the start of a text: named, decimal or
- * hexadecimal, as CommonMark defines them.
- */
-export const CHARACTER_REFERENCE = /^&(?:#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[A-Za-z][A-Za-z0-9]{1,31});/;
-
-/**
  * Mapping between plain text and markdown with position segments
  */
 export type PositionMapping = {
@@ -59,20 +53,12 @@ export type PositionMapping = {
  * - `text` nodes: direct value mapping
  * - `inlineCode` nodes: value without backticks
  * - `image` nodes: alt text
- *
- * `start` is the markdown offset where the AST begins. Whitespace before it is
- * not part of the AST, so it is not added as a gap.
- *
- * With `references`, a character reference (`&nbsp;`, `&#46;`) in a text node
- * is mapped to the one plain text character it stands for. A reference that
- * stands for more than one character makes the next characters mismatch, as
- * without this option.
  */
-export function buildPositionMapping(ast: Nodes, markdown: string, start = 0, references = false): PositionMapping {
+export function buildPositionMapping(ast: Nodes, markdown: string): PositionMapping {
   const segments: Array<PositionSegment> = [];
   const plainTextParts: Array<string> = [];
   let plainOffset = 0;
-  let lastMdEnd = start;
+  let lastMdEnd = 0;
 
   /**
    * Node types that wrap content with syntax markers and need nodeEnd tracking.
@@ -170,13 +156,6 @@ export function buildPositionMapping(ast: Nodes, markdown: string, start = 0, re
             } else if (mdSlice[mdOffset] === text[plainIdx]) {
               charMap.push(mdOffset);
               mdOffset += 1;
-              plainIdx += 1;
-            } else if (references && mdSlice[mdOffset] === `&` && CHARACTER_REFERENCE.test(mdSlice.slice(mdOffset))) {
-              /**
-               * Map the character to the whole reference
-               */
-              charMap.push(mdOffset);
-              mdOffset += mdSlice.indexOf(`;`, mdOffset) + 1 - mdOffset;
               plainIdx += 1;
             } else {
               /**
@@ -475,22 +454,4 @@ export function plainToMarkdownPosition(plainPos: number, mapping: PositionMappi
     return prevSegment.nodeEnd;
   }
   return prevSegment.mdEnd;
-}
-
-/**
- * Find the segment that holds the plain text character at `plainIndex`, or
- * undefined when no segment holds it.
- */
-export function findSegment(mapping: PositionMapping, plainIndex: number): PositionSegment | undefined {
-  const { segments } = mapping;
-  let low = 0;
-  let high = segments.length - 1;
-  while (low <= high) {
-    const mid = (low + high) >>> 1;
-    const segment = segments[mid];
-    if (plainIndex < segment.plainStart) high = mid - 1;
-    else if (plainIndex >= segment.plainEnd) low = mid + 1;
-    else return segment;
-  }
-  return undefined;
 }

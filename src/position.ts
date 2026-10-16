@@ -1,4 +1,5 @@
-import type { Nodes, Parent, Root } from 'mdast';
+import type { Nodes, Parent, Root, Table } from 'mdast';
+import { fromMarkdown } from './markdown';
 import type { ChunkPoint } from './types';
 import { trimRange } from './utils/source-offsets';
 
@@ -107,6 +108,48 @@ export const chunkRange = (node: Nodes, sourceNodes: SourceNodes, text: string):
 
   const [start, end] = trimRange(text, range[0], range[1]);
   return start < end ? [start, end] : undefined;
+};
+
+const collectTables = (node: Nodes, tables: Array<Table> = []): Array<Table> => {
+  if (node.type === 'table') tables.push(node);
+  else if ('children' in node) for (const child of node.children) collectTables(child, tables);
+  return tables;
+};
+
+/**
+ * The ranges of the written-out text of a chunk that come from synthetic
+ * table rows. The text is parsed again, and its tables are paired in order
+ * with the tables of the chunk. A synthetic header row covers its line and
+ * the delimiter line after it. Undefined when the tables cannot be paired.
+ */
+export const syntheticRanges = (node: Nodes, markdown: string): Array<[number, number]> | undefined => {
+  const tables = collectTables(node);
+  if (!tables.some((table) => table.children.some((row) => row.data?.synthetic))) return [];
+
+  const parsed = collectTables(fromMarkdown(markdown));
+  if (parsed.length !== tables.length) return undefined;
+
+  const ranges: Array<[number, number]> = [];
+  for (let t = 0; t < tables.length; t++) {
+    const rows = tables[t].children;
+    const parsedRows = parsed[t].children;
+    if (parsedRows.length !== rows.length) return undefined;
+
+    for (let i = 0; i < rows.length; i++) {
+      if (!rows[i].data?.synthetic) continue;
+      const start = parsedRows[i].position?.start.offset;
+      // A header row ends where the next row starts, so the delimiter line is included
+      const end =
+        i > 0
+          ? parsedRows[i].position?.end.offset
+          : parsedRows[1]
+            ? parsedRows[1].position?.start.offset
+            : parsed[t].position?.end.offset;
+      if (start === undefined || end === undefined) return undefined;
+      ranges.push([start, end]);
+    }
+  }
+  return ranges;
 };
 
 /**

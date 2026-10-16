@@ -109,4 +109,30 @@ describe('BlockquoteSplitter', () => {
       );
     });
   });
+
+  describe('Parts of a cut paragraph', () => {
+    it('should not keep whitespace or empty lines at the ends of the parts', () => {
+      // Arrange
+      const splitter = new BlockquoteSplitter({ chunkSize: 20 });
+      const quote = `> Markdown is intended to be as easy-to-read and easy-to-write as is feasible.
+>
+> Readability, however, is emphasized above all else.`;
+
+      // Act
+      const chunks = splitter.splitText(quote);
+
+      // Assert
+      expect(chunks).toEqual([
+        '> Markdown is intended',
+        '> to be as',
+        '> easy-to-read',
+        '> and easy-to-write',
+        '> as is feasible.',
+        '> Readability,',
+        '> however,',
+        '> is emphasized',
+        '> above all else.',
+      ]);
+    });
+  });
 });
