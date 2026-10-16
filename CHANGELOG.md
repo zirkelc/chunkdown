@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.1](https://github.com/zirkelc/chunkdown/compare/v3.6.0...v3.6.1) (2026-10-16)
+
+
+### Bug Fixes
+
+* give a source position to chunks whose syntax changes ([#35](https://github.com/zirkelc/chunkdown/issues/35)) ([667f69f](https://github.com/zirkelc/chunkdown/commit/667f69f452f97436833a141f0f5004d17d2e1d9f))
+
 ## [3.6.0](https://github.com/zirkelc/chunkdown/compare/v3.5.2...v3.6.0) (2026-10-15)
 
 
