@@ -206,10 +206,12 @@ const PATTERNS: Array<Pattern> = [
    */
   { regex: /\s[–—-]\s/g, type: `dashes`, weight: SEMANTIC_WEIGHTS.DASH },
   /**
-   * ANY period as fallback (catches edge cases, but may split abbreviations)
-   * Example: "etc." or "End" → splits at period (use with caution)
+   * Period at the end of a word as fallback (catches edge cases, but may split abbreviations)
+   * Example: "etc. end" → splits after "etc."
+   * A period inside a word (decimals, versions, file names) is not a boundary here.
+   * The `word` rule controls splits inside words.
    */
-  { regex: /\./g, type: `period_fallback`, weight: SEMANTIC_WEIGHTS.FALLBACK },
+  { regex: /\.(?=\s|$)/g, type: `period_fallback`, weight: SEMANTIC_WEIGHTS.FALLBACK },
   /**
    * One or more whitespace characters (lowest priority word separator)
    * Example: "hello   world" → splits between words at spaces
