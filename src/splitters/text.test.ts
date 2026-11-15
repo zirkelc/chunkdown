@@ -801,6 +801,66 @@ describe('TextSplitter', () => {
           expect(chunks[0]).toBe(longWord);
         });
 
+        it('should keep dotted words whole by default', () => {
+          // Arrange
+          const splitter = new TextSplitter({
+            chunkSize: 10,
+            maxOverflowRatio: 1.0,
+          });
+
+          // Act
+          const chunks = splitter.splitText(`config.production.json`);
+
+          // Assert
+          expect(chunks).toEqual([`config.production.json`]);
+        });
+
+        it('should not split decimals and abbreviations at the period by default', () => {
+          // Arrange
+          const splitter = new TextSplitter({
+            chunkSize: 10,
+            maxOverflowRatio: 1.0,
+          });
+
+          // Act
+          const chunks = splitter.splitText(`Version 2.5 is out, see e.g. the docs.`);
+
+          // Assert
+          expect(chunks).toEqual([`Version`, `2.5`, `is out,`, `see e.g.`, `the docs.`]);
+        });
+
+        it('should keep words with a leading period whole by default', () => {
+          // Arrange
+          const splitter = new TextSplitter({
+            chunkSize: 10,
+            maxOverflowRatio: 1.0,
+          });
+
+          // Act
+          const chunks = splitter.splitText(`It costs .5 dollars, see .env file.`);
+
+          // Assert
+          expect(chunks).toEqual([`It costs`, `.5`, `dollars,`, `see`, `.env file.`]);
+        });
+
+        it('should split at whitespace instead of a decimal point by default', () => {
+          // Arrange
+          const splitter = new TextSplitter({
+            chunkSize: 100,
+            maxOverflowRatio: 1.0,
+          });
+          const text = `Our team migrated the entire production database cluster from PostgreSQL 14.9 to PostgreSQL 16.4 without any downtime during peak traffic hours yesterday.`;
+
+          // Act
+          const chunks = splitter.splitText(text);
+
+          // Assert
+          expect(chunks).toEqual([
+            `Our team migrated the entire production database cluster from PostgreSQL 14.9`,
+            `to PostgreSQL 16.4 without any downtime during peak traffic hours yesterday.`,
+          ]);
+        });
+
         it('should split long words when rule is allow-split', () => {
           // Arrange
           const splitter = new TextSplitter({
