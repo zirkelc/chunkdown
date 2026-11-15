@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.2](https://github.com/zirkelc/chunkdown/compare/v3.6.1...v3.6.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* keep periods inside words under the never-split word rule ([#38](https://github.com/zirkelc/chunkdown/issues/38)) ([013ff5a](https://github.com/zirkelc/chunkdown/commit/013ff5afc1116dbb8f2f88799abd274df43c2d2a))
+
 ## [3.6.1](https://github.com/zirkelc/chunkdown/compare/v3.6.0...v3.6.1) (2026-10-16)
 
 
