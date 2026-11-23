@@ -91,6 +91,8 @@ jobs:
           merge-multiple: true
           path: results
       - name: Summarize
+        # An explicit bash shell sets pipefail, so an error before `tee` fails the step.
+        shell: bash
         env:
           VARIANTS: ${{ inputs.variants }}
         run: |
