@@ -20,7 +20,7 @@ jobs:
       # http://github.com/actions/checkout
       - uses: actions/checkout@v5
       # https://github.com/pnpm/action-setup
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       # https://github.com/actions/setup-node
       - uses: actions/setup-node@v6
         with:

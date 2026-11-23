@@ -183,27 +183,11 @@ const buildVariant = ({ variant, dir, work }: { variant: Variant; dir: string; w
   const { dependencies } = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
   const fileOverrides = Object.fromEntries(Object.entries(overrides).map(([name, path]) => [name, `file:${path}`]));
   cpSync(join(repoRoot, 'src'), join(dir, 'src'), { recursive: true });
-  /**
-   * The settings are written for every pnpm major: pnpm 10 reads overrides from
-   * `package.json` and the import method from `.npmrc`, newer versions read both
-   * from `pnpm-workspace.yaml`. The own workspace file also makes the copy its
-   * own pnpm root, outside of any parent workspace.
-   */
   writeFileSync(
     join(dir, 'package.json'),
-    JSON.stringify(
-      {
-        name: 'chunkdown-bench-variant',
-        private: true,
-        type: 'module',
-        dependencies,
-        pnpm: { overrides: fileOverrides },
-      },
-      null,
-      2,
-    ),
+    JSON.stringify({ name: 'chunkdown-bench-variant', private: true, type: 'module', dependencies }, null, 2),
   );
-  writeFileSync(join(dir, '.npmrc'), 'package-import-method=copy\n');
+  // An own workspace file makes the copy its own pnpm root, outside of any parent workspace.
   const workspace = {
     packages: ['.'],
     packageImportMethod: 'copy',
