@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.3](https://github.com/zirkelc/chunkdown/compare/v3.6.2...v3.6.3) (2026-11-23)
+
+
+### Bug Fixes
+
+* install dependency benchmark variants with pnpm 10 ([525ee5c](https://github.com/zirkelc/chunkdown/commit/525ee5cb9add7e8ffef6c8e3e0180db5c1fa4de3))
+
 ## [3.6.2](https://github.com/zirkelc/chunkdown/compare/v3.6.1...v3.6.2) (2026-11-15)
 
 
