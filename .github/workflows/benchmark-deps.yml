@@ -1,0 +1,105 @@
+name: Benchmark dependencies
+
+# Measures chunkdown against builds of its dependencies from git refs, for
+# example a dependency's pull requests against its main branch. See the
+# "Dependency builds" section in benchmarks/README.md for the variant syntax.
+on:
+  workflow_dispatch:
+    inputs:
+      variants:
+        description: 'Variants, separated by ";". The first one is the reference. Example: base = micromark/micromark#main; prs = micromark/micromark#main+pull/1/head'
+        required: true
+        type: string
+      machines:
+        description: 'Number of parallel jobs. Each job runs on its own runner.'
+        required: false
+        default: '6'
+        type: string
+      runs:
+        description: 'Timed iterations per process (two processes per job, one per load order)'
+        required: false
+        default: '15'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      machines: ${{ steps.matrix.outputs.machines }}
+    steps:
+      - id: matrix
+        env:
+          MACHINES: ${{ inputs.machines }}
+        run: |
+          if ! [[ "$MACHINES" =~ ^[0-9]+$ ]] || [ "$MACHINES" -lt 1 ] || [ "$MACHINES" -gt 20 ]; then
+            echo "machines must be a number from 1 to 20" >&2
+            exit 1
+          fi
+          echo "machines=$(jq -nc --argjson n "$MACHINES" '[range(1; $n + 1)]')" >> "$GITHUB_OUTPUT"
+
+  bench:
+    name: Machine ${{ matrix.machine }}
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        machine: ${{ fromJSON(needs.setup.outputs.machines) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
+      - name: Build variants and measure
+        # Inputs go through the environment, because they are free text.
+        env:
+          VARIANTS: ${{ inputs.variants }}
+          RUNS: ${{ inputs.runs }}
+        run: pnpm bench:deps run --variants "$VARIANTS" --runs "$RUNS" --out "result-${{ matrix.machine }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ matrix.machine }}
+          path: result-${{ matrix.machine }}.json
+
+  summary:
+    name: Summary
+    needs: bench
+    # A failed machine leaves fewer samples, but the others still count.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: result-*
+          merge-multiple: true
+          path: results
+      - name: Summarize
+        env:
+          VARIANTS: ${{ inputs.variants }}
+        run: |
+          {
+            echo '## Dependency benchmark'
+            echo
+            echo '```'
+            echo "$VARIANTS" | tr ';' '\n' | sed 's/^ *//'
+            echo '```'
+            echo
+            pnpm --silent bench:deps summary results/*.json
+          } | tee "$GITHUB_STEP_SUMMARY"

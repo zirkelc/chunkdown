@@ -37,6 +37,7 @@
     "bench": "vitest bench --run",
     "bench:report": "tsx benchmarks/report.ts",
     "bench:ab": "tsx benchmarks/ab.ts",
+    "bench:deps": "tsx benchmarks/deps.ts",
     "build": "tsdown",
     "lint": "oxlint --fix",
     "lint:ci": "oxlint",

@@ -1,11 +1,12 @@
 # Benchmarks
 
-| command                                                | purpose                                             |
-| ------------------------------------------------------ | --------------------------------------------------- |
-| `pnpm bench`                                           | vitest benchmark suite                              |
-| `pnpm bench:report [--save <file>] [--compare <file>]` | absolute timings, fastest of 9 runs                 |
-| `pnpm bench:ab <revA> [revB]`                          | interleaved A/B between two git revisions of `src/` |
-| `pnpm vitest run benchmarks/output.test.ts`            | output-stability snapshots                          |
+| command                                                | purpose                                                |
+| ------------------------------------------------------ | ------------------------------------------------------ |
+| `pnpm bench`                                           | vitest benchmark suite                                 |
+| `pnpm bench:report [--save <file>] [--compare <file>]` | absolute timings, fastest of 9 runs                    |
+| `pnpm bench:ab <revA> [revB]`                          | interleaved A/B between two git revisions of `src/`    |
+| `pnpm bench:deps run --variants "<spec>"`              | chunkdown against builds of dependencies from git refs |
+| `pnpm vitest run benchmarks/output.test.ts`            | output-stability snapshots                             |
 
 Every fixture runs under 8 presets: `chunkSize` 100 / 250 / 500 / 1000 crossed with
 `maxOverflowRatio` 1.0 / 1.5.
@@ -22,6 +23,26 @@ about -0.3%; treat anything under ~0.5% as noise.
 `benchmarks/output.test.ts` reduces every fixture/preset combination to a chunk
 count plus a digest of the chunk texts and breadcrumbs. A performance change must
 leave all 96 snapshots untouched — if they move, it changed behaviour.
+
+## Dependency builds
+
+`bench:deps` measures how changes in a dependency, for example open pull requests in micromark, change the speed of chunkdown. A variant is a label and a list of git sources. A source is `<owner>/<repo>#<ref>[+<ref>...]`: the first ref is checked out, and the other refs are merged into it. Variants are separated by `;`, and the first variant is the reference:
+
+```sh
+pnpm bench:deps run --variants "base = micromark/micromark#main; prs = micromark/micromark#main+pull/1/head+pull/2/head"
+```
+
+Every package of a source (each workspace of a monorepo, or the repository root) is built with `npm run build` and installed into a private copy of chunkdown through pnpm overrides. A variant without sources gets the latest registry versions inside the ranges of `package.json`. The harness also adds a copy of the reference as an A/A control. Its delta shows the noise of the run.
+
+Each run measures in two processes, one with the reference loaded first and one with it loaded last, because the load order of module copies alone moves timings by a few percent. Inside a process, all variants alternate for every fixture/preset cell. The delta of a variant is the median over iterations of its total time divided by the reference total of the same iteration, and the geometric mean over the two load orders. The output also counts the cells whose chunks differ from the reference.
+
+One machine is not enough for changes of a few percent: on a laptop the A/A control can read ±3%. The **Benchmark dependencies** workflow (`.github/workflows/benchmark-deps.yml`, started by hand) runs the same command on several runners in parallel and reports the median and the range over the machines in the job summary:
+
+```sh
+gh workflow run benchmark-deps.yml -f variants="base = micromark/micromark#main; prs = micromark/micromark#main+pull/1/head" -f machines=6
+```
+
+To combine result files of local runs, use `pnpm bench:deps summary <file.json>...`.
 
 ## Dataset
 
